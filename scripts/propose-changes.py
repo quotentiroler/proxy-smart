@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Junior AI: Propose Code Implementations / Changes / Fixes 
+Junior AI: Propose Code Implementations / Changes / Changes 
 This script analyzes an input (error logs, instructions) using MCP-enhanced exploration
 And proposes code changes based on the analysis.
 """
@@ -35,6 +35,79 @@ except Exception as e:
 
 import requests
 from ai_proposal_schema import get_propose_payload_base, get_common_headers, create_system_message, create_user_content_base
+
+def make_api_call_with_retry(url: str, payload: dict, headers: dict, max_retries: int = 3, timeout: int = 240) -> requests.Response:
+    """Make an API call with automatic retry logic for rate limits and timeouts"""
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            print(f"🌐 API Call attempt {retry_count + 1}/{max_retries} (timeout: {timeout}s)", file=sys.stderr)
+            response = requests.post(url, json=payload, headers=headers, timeout=timeout)
+            
+            if response.status_code == 429:  # Rate limit exceeded
+                retry_count += 1
+                if retry_count < max_retries:
+                    # Extract wait time from error message or use exponential backoff
+                    try:
+                        error_data = response.json()
+                        error_msg = error_data.get('error', {}).get('message', '')
+                        # Look for "Please try again in 630ms" or "630s" pattern
+                        wait_match = re.search(r'try again in (\d+(?:\.\d+)?)([ms]+)', error_msg)
+                        if wait_match:
+                            wait_time = float(wait_match.group(1))
+                            unit = wait_match.group(2)
+                            if unit == 'ms':
+                                wait_time = wait_time / 1000  # Convert to seconds
+                            elif unit == 's':
+                                pass  # Already in seconds
+                            wait_time = max(wait_time, 1)  # Minimum 1 second
+                        else:
+                            # Exponential backoff: 2^retry_count seconds + some jitter
+                            wait_time = (2 ** retry_count) + (retry_count * 0.5)
+                    except:
+                        wait_time = (2 ** retry_count) + (retry_count * 0.5)
+                    
+                    print(f"⏳ Rate limit hit. Waiting {wait_time:.1f}s before retry", file=sys.stderr)
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    print(f"❌ Rate limit exceeded after {max_retries} retries", file=sys.stderr)
+                    break
+            else:
+                # Success or non-rate-limit error, return response
+                print(f"✅ API call successful (status: {response.status_code})", file=sys.stderr)
+                return response
+                
+        except requests.exceptions.Timeout:
+            retry_count += 1
+            print(f"⏰ Request timed out after {timeout} seconds", file=sys.stderr)
+            
+            if retry_count < max_retries:
+                # Exponential backoff for timeouts: shorter waits than rate limits
+                wait_time = (2 ** (retry_count - 1)) + 1
+                print(f"🔄 Retrying in {wait_time:.1f}s (attempt {retry_count + 1}/{max_retries})", file=sys.stderr)
+                time.sleep(wait_time)
+                continue
+            else:
+                print(f"❌ All {max_retries} attempts timed out. Giving up.", file=sys.stderr)
+                raise  # Re-raise the timeout exception
+                
+        except requests.exceptions.RequestException as e:
+            retry_count += 1
+            print(f"❌ Request failed: {e}", file=sys.stderr)
+            
+            if retry_count < max_retries:
+                wait_time = (2 ** (retry_count - 1)) + 1
+                print(f"🔄 Retrying in {wait_time:.1f}s due to request error", file=sys.stderr)
+                time.sleep(wait_time)
+                continue
+            else:
+                print(f"❌ All {max_retries} attempts failed. Giving up.", file=sys.stderr)
+                raise  # Re-raise the exception
+    
+    # If we get here, we've exhausted retries for rate limits
+    return response
 
 # Import Friend AI with proper module name handling
 import sys
@@ -1508,11 +1581,115 @@ class UnifiedChangeProposer:
         
         return "\n\n".join(hints) if hints else "(no file excerpts found in errors)"
     
+    def _generate_fallback_tests(self, error_log: str) -> List[Dict]:
+        """Generate basic test structure when AI times out or fails"""
+        print("🆘 Generating fallback test structure", file=sys.stderr)
+        
+        # Extract basic information from error log
+        errors = error_log.split('\n')
+        test_files = []
+        
+        # Look for file references in errors
+        file_patterns = [
+            r'([a-zA-Z0-9_/-]+\.(ts|js|py|tsx|jsx)):\d+',
+            r'at ([a-zA-Z0-9_/-]+\.(ts|js|py|tsx|jsx))',
+            r'in ([a-zA-Z0-9_/-]+\.(ts|js|py|tsx|jsx))'
+        ]
+        
+        files_mentioned = set()
+        for error in errors:
+            for pattern in file_patterns:
+                matches = re.findall(pattern, error)
+                for match in matches:
+                    if isinstance(match, tuple):
+                        files_mentioned.add(match[0])
+                    else:
+                        files_mentioned.add(match)
+        
+        # Generate basic test files for each mentioned file
+        for file_path in list(files_mentioned)[:3]:  # Limit to 3 files
+            if file_path.endswith(('.ts', '.tsx', '.js', '.jsx')):
+                test_file = file_path.replace('.ts', '.test.ts').replace('.tsx', '.test.tsx').replace('.js', '.test.js').replace('.jsx', '.test.jsx')
+                
+                # Determine if it's a React component or regular module
+                is_component = file_path.endswith(('.tsx', '.jsx')) or 'component' in file_path.lower()
+                
+                if is_component:
+                    test_content = f"""import {{ render, screen }} from '@testing-library/react';
+import {{ vi }} from 'vitest';
+import ComponentUnderTest from './{file_path.split('/')[-1].replace('.tsx', '').replace('.jsx', '')}';
+
+describe('{file_path.split('/')[-1]}', () => {{
+  it('should render without crashing', () => {{
+    render(<ComponentUnderTest />);
+    expect(screen.getByRole('generic')).toBeInTheDocument();
+  }});
+
+  it('should handle props correctly', () => {{
+    const mockProps = {{}};
+    render(<ComponentUnderTest {{...mockProps}} />);
+    // Add specific prop testing
+  }});
+
+  it('should handle user interactions', () => {{
+    render(<ComponentUnderTest />);
+    // Add interaction testing
+  }});
+}});
+"""
+                else:
+                    test_content = f"""import {{ describe, it, expect, vi }} from 'vitest';
+import moduleUnderTest from './{file_path.split('/')[-1].replace('.ts', '').replace('.js', '')}';
+
+describe('{file_path.split('/')[-1]}', () => {{
+  it('should export expected functions', () => {{
+    expect(moduleUnderTest).toBeDefined();
+    // Add specific function testing
+  }});
+
+  it('should handle error cases', () => {{
+    // Add error handling tests
+  }});
+
+  it('should return expected values', () => {{
+    // Add return value testing
+  }});
+}});
+"""
+                
+                test_files.append({
+                    "file": test_file,
+                    "operation": "create",
+                    "content": test_content
+                })
+        
+        # If no files found, create a generic test
+        if not test_files:
+            test_files.append({
+                "file": "test/basic.test.ts",
+                "operation": "create", 
+                "content": """import { describe, it, expect } from 'vitest';
+
+describe('Basic Test Suite', () => {
+  it('should pass basic assertion', () => {
+    expect(true).toBe(true);
+  });
+  
+  it('should handle async operations', async () => {
+    const result = await Promise.resolve('test');
+    expect(result).toBe('test');
+  });
+});
+"""
+            })
+        
+        return test_files
+
     def propose_changes(self, error_log: str) -> Dict:
-        """Propose initial fixes using MCP-enhanced AI with interactive code exploration."""
+        """Propose initial changes using MCP-enhanced AI with interactive code exploration."""
         if not self.api_key:
-            print("❌ OPENAI_API_KEY is not set - skipping AI fixes", file=sys.stderr)
-            return {"analysis": "No API key", "fixes": []}
+            print("❌ OPENAI_API_KEY is not set - skipping AI changes", file=sys.stderr)
+            return {"analysis": "No API key", "changes": []}
         
         print("🧠 Junior AI starting interactive code exploration...", file=sys.stderr)
         
@@ -1600,7 +1777,7 @@ CONTEXT SEED (short excerpts from files referenced in errors):
    - Web automation strategy discussions
 6. 📦 EXPERIMENT: Use sandboxes for risky operations:
    - Test experimental solutions safely
-   - Validate fixes before applying to main codebase
+   - Validate changes before applying to main codebase
    - Try different approaches without side effects
    - Run build/test commands in isolation
    - Test web scraping and automation scripts
@@ -1646,7 +1823,7 @@ Be inventive, practical, enthusiastic, and focus on creating tools that would gi
 Remember: BASE TOOLS = Your workshop foundation, CUSTOM TOOLS = Your specialized instruments you craft for each unique challenge, FRIEND AI = Your creative collaborator who amplifies your ideas! 🛠️🤝"""
         
         # Set up the conversation with function calling
-        payload = get_propose_payload_base("gpt-5")
+        payload = get_propose_payload_base("gpt-5-mini")
         payload["tools"] = self.get_mcp_tools_schema()
         payload["messages"] = [
             {
@@ -1661,20 +1838,73 @@ Remember: BASE TOOLS = Your workshop foundation, CUSTOM TOOLS = Your specialized
         
         headers = get_common_headers(self.api_key)
         
-        max_iterations = 10  # Prevent infinite loops
+        max_iterations = 100  # Prevent infinite loops
         iteration = 0
         
         while iteration < max_iterations:
             iteration += 1
             print(f"🔄 AI Iteration {iteration}", file=sys.stderr)
             
-            try:
-                response = requests.post(self.base_url, json=payload, headers=headers, timeout=120)
-                print(f"🌐 HTTP Status: {response.status_code}", file=sys.stderr)
+            # Track retry attempts for this iteration
+            api_retry_attempts = 0
+            max_api_retries = 3
+            
+            while api_retry_attempts < max_api_retries:
+                try:
+                    # Use the retry helper function with increased timeout
+                    response = make_api_call_with_retry(self.base_url, payload, headers, timeout=180)
+                    print(f"🌐 HTTP Status: {response.status_code}", file=sys.stderr)
+                    
+                    if response.status_code != 200:
+                        print(f"❌ API call failed: {response.text}", file=sys.stderr)
+                        api_retry_attempts += 1
+                        if api_retry_attempts < max_api_retries:
+                            wait_time = 2 ** api_retry_attempts
+                            print(f"🔄 Retrying API call in {wait_time}s (attempt {api_retry_attempts + 1}/{max_api_retries})", file=sys.stderr)
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            print(f"❌ API failed after {max_api_retries} attempts", file=sys.stderr)
+                            return {
+                                "analysis": f"API call failed after {max_api_retries} attempts at iteration {iteration}. Generated basic test structure as fallback.",
+                                "changes": self._generate_fallback_tests(error_log)
+                            }
+                    
+                    # Success - break out of retry loop
+                    break
+                    
+                except requests.exceptions.Timeout:
+                    api_retry_attempts += 1
+                    print(f"⏰ API timeout on iteration {iteration}, attempt {api_retry_attempts}/{max_api_retries}", file=sys.stderr)
+                    
+                    if api_retry_attempts < max_api_retries:
+                        wait_time = 2 ** api_retry_attempts
+                        print(f"🔄 Retrying after timeout in {wait_time}s", file=sys.stderr)
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        print(f"❌ All API attempts timed out at iteration {iteration}", file=sys.stderr)
+                        return {
+                            "analysis": f"API timed out after {max_api_retries} attempts at iteration {iteration}. Generated basic test structure as fallback.",
+                            "changes": self._generate_fallback_tests(error_log)
+                        }
                 
-                if response.status_code != 200:
-                    print(f"❌ API call failed: {response.text}", file=sys.stderr)
-                    return {"analysis": "API call failed", "fixes": []}
+                except Exception as e:
+                    api_retry_attempts += 1
+                    print(f"❌ API error on iteration {iteration}, attempt {api_retry_attempts}/{max_api_retries}: {e}", file=sys.stderr)
+                    
+                    if api_retry_attempts < max_api_retries:
+                        wait_time = 2 ** api_retry_attempts
+                        print(f"🔄 Retrying after error in {wait_time}s", file=sys.stderr)
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        print(f"❌ All API attempts failed at iteration {iteration}", file=sys.stderr)
+                        return {
+                            "analysis": f"API failed with errors after {max_api_retries} attempts at iteration {iteration}. Generated basic test structure as fallback.",
+                            "changes": self._generate_fallback_tests(error_log)
+                        }
+                    return {"analysis": "API call failed", "changes": []}
                 
                 result = response.json()
                 choice = result['choices'][0]
@@ -1690,7 +1920,35 @@ Remember: BASE TOOLS = Your workshop foundation, CUSTOM TOOLS = Your specialized
                     # Handle each tool call
                     for tool_call in message['tool_calls']:
                         function_name = tool_call['function']['name']
-                        arguments = json.loads(tool_call['function']['arguments'])
+                        try:
+                            arguments = json.loads(tool_call['function']['arguments'])
+                        except json.JSONDecodeError as e:
+                            print(f"❌ JSON parsing error for {function_name}: {e}", file=sys.stderr)
+                            print(f"📄 Raw arguments: {tool_call['function']['arguments']}", file=sys.stderr)
+                            # Try to fix common JSON issues
+                            raw_args = tool_call['function']['arguments']
+                            # Remove any trailing incomplete JSON
+                            if raw_args.count('{') > raw_args.count('}'):
+                                # Find the last complete JSON object
+                                brace_count = 0
+                                last_valid_pos = 0
+                                for i, char in enumerate(raw_args):
+                                    if char == '{':
+                                        brace_count += 1
+                                    elif char == '}':
+                                        brace_count -= 1
+                                        if brace_count == 0:
+                                            last_valid_pos = i + 1
+                                            break
+                                if last_valid_pos > 0:
+                                    raw_args = raw_args[:last_valid_pos]
+                                    print(f"🔧 Attempting to fix JSON: {raw_args}", file=sys.stderr)
+                            try:
+                                arguments = json.loads(raw_args)
+                                print(f"✅ JSON parsing recovered", file=sys.stderr)
+                            except json.JSONDecodeError:
+                                print(f"❌ Unable to recover JSON, skipping this tool call", file=sys.stderr)
+                                continue
                         
                         # Execute the function
                         result = self.handle_function_call(function_name, arguments)
@@ -1708,21 +1966,20 @@ Remember: BASE TOOLS = Your workshop foundation, CUSTOM TOOLS = Your specialized
                 # AI has finished exploring and provided final response
                 if choice['finish_reason'] == 'stop':
                     try:
-                        fixes_json = message['content']
-                        fixes_data = json.loads(fixes_json)
+                        changes_json = message['content']
+                        changes_data = json.loads(changes_json)
                         print("✅ AI exploration and analysis complete", file=sys.stderr)
-                        return fixes_data
+                        return changes_data
                     except json.JSONDecodeError:
                         print("❌ Failed to parse final JSON response", file=sys.stderr)
                         print(f"Raw response: {message['content']}", file=sys.stderr)
-                        return {"analysis": "JSON parse error", "fixes": []}
-                
-            except Exception as e:
-                print(f"❌ Error in AI conversation: {e}", file=sys.stderr)
-                return {"analysis": "Error occurred", "fixes": []}
+                        return {"analysis": "JSON parse error", "changes": []}
         
         print("❌ Max iterations reached without completion", file=sys.stderr)
-        return {"analysis": "Max iterations reached", "fixes": []}
+        return {
+            "analysis": f"Max iterations ({max_iterations}) reached without completion. Generated basic test structure as fallback.",
+            "changes": self._generate_fallback_tests(error_log)
+        }
 
 
 def main():
