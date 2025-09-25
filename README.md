@@ -1,8 +1,9 @@
+
 # Proxy Smart
 
 **Secure any FHIR server in minutes!** A comprehensive healthcare platform that transforms unsecured FHIR servers into SMART-compliant, OAuth 2.0 protected endpoints with enterprise-grade security, user management, and AI-powered administration.
 
-[![Version](https://img.shields.io/badge/v0.0.1-beta-blue.svg)](https://github.com/quotentiroler/proxy-smart)
+[![Version](https://img.shields.io/badge/v0.0.1-alpha-blue.svg)](https://github.com/quotentiroler/proxy-smart)
 [![SMART App Launch](https://img.shields.io/badge/SMART%20App%20Launch-2.2.0-green.svg)](http://hl7.org/fhir/smart-app-launch/)
 [![FHIR](https://img.shields.io/badge/FHIR-R4%2FR4B-orange.svg)](https://hl7.org/fhir/R4/)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
@@ -15,6 +16,7 @@ Proxy Smart is an Open Source **stateless proxy solution** that makes it **incre
 ### 🚀 **Secure Any FHIR Server in Minutes**
 
 **All you need is:**
+
 - ✅ **Any FHIR server** (HAPI FHIR, Microsoft FHIR, AWS HealthLake, etc.)
 - ✅ **A running Keycloak instance** (included in our Docker setup)
 - ✅ **Proxy Smart** (this application)
@@ -168,17 +170,20 @@ graph TB
 ## ✨ Why Stateless Proxy?
 
 ### 🔒 Enhanced Security
+
 - **No Data Exposure**: Clinical data never resides in the proxy, reducing attack surface
 - **Compliance Simplified**: Easier HIPAA, GDPR compliance with no clinical data storage
 - **Zero Data Breach Risk**: No clinical data to compromise in the proxy layer
 - **Audit Trail**: Optional logging of access patterns and OAuth flows for compliance monitoring
 
 ### ⚡ Performance Benefits
+
 - **Real-time Data**: Always current data from source FHIR servers
 - **Scalable**: Stateless design enables horizontal scaling without data synchronization
 - **Low Latency**: Direct routing without database lookups for FHIR requests
 
 ### 🛠️ Operational Advantages
+
 - **Simple Backup**: Only configuration, user data, and optional audit logs - not terabytes of clinical data
 - **Easy Migration**: Proxy can be moved/replicated without clinical data concerns
 - **Minimal Storage**: Dramatically reduced infrastructure requirements
@@ -359,6 +364,7 @@ bun run docker:logs             # View default container logs
 ### Docker Deployment Modes
 
 #### 1. Development Mode (`docker:dev`)
+
 - **File**: `docker-compose.development.yml`
 - **Architecture**: Monolithic container (UI + Backend in one)
 - **Use Case**: Local development and testing
@@ -372,6 +378,7 @@ bun run docker:logs             # View default container logs
   - Keycloak: http://localhost:8080
 
 #### 2. Production Mode (`docker:prod`)
+
 - **File**: `docker-compose.prod.yml`
 - **Architecture**: Microservices (separate containers)
 - **Use Case**: Production deployment and staging
@@ -386,6 +393,7 @@ bun run docker:logs             # View default container logs
   - Keycloak: http://localhost:8080
 
 #### 3. Default Mode (`docker:up`)
+
 - **File**: `docker-compose.yml`
 - **Architecture**: Basic development setup
 - **Use Case**: Simple local testing
@@ -473,7 +481,6 @@ Each branch automatically triggers appropriate CI/CD workflows with version mana
 - Scope verification and enforcement
 - Backend services authentication
 - Agent-based authorization patterns
-
 
 ## 📈 Monitoring & Analytics
 
