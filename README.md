@@ -3,7 +3,7 @@
 
 **Secure any FHIR server in minutes!** A comprehensive healthcare platform that transforms unsecured FHIR servers into SMART-compliant, OAuth 2.0 protected endpoints with enterprise-grade security, user management, and AI-powered administration.
 
-[![Version](https://img.shields.io/badge/v0.0.1-alpha-blue.svg)](https://github.com/quotentiroler/proxy-smart)
+[![Version](https://img.shields.io/badge/v0.0.1-beta-blue.svg)](https://github.com/quotentiroler/proxy-smart)
 [![SMART App Launch](https://img.shields.io/badge/SMART%20App%20Launch-2.2.0-green.svg)](http://hl7.org/fhir/smart-app-launch/)
 [![FHIR](https://img.shields.io/badge/FHIR-R4%2FR4B-orange.svg)](https://hl7.org/fhir/R4/)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
@@ -11,7 +11,7 @@
 
 ## 🏥 Overview
 
-Proxy Smart is an Open Source **stateless proxy solution** that makes it **incredibly easy to secure any FHIR server** with enterprise-grade OAuth 2.0 authentication and SMART App Launch compliance.
+Proxy Smart is an Open Source **stateless proxy solution** that makes it **incredibly easy to secure any FHIR server** with enterprise-grade OAuth 2.0 authentication and SMART App Launch compliance. 
 
 ### 🚀 **Secure Any FHIR Server in Minutes**
 
@@ -86,7 +86,7 @@ graph TB
     end
   
     subgraph "AI & Intelligence"
-        N["AI Assistant<br/>OpenAI GPT-4o-mini"]
+        N["AI Assistant<br/>OpenAI gpt-5-mini"]
         O["Real-time Analytics<br/>OAuth Monitoring"]
         P["RAG System<br/>Documentation Knowledge"]
         Q["Predictive Insights<br/>Usage Patterns"]
@@ -160,7 +160,7 @@ graph TB
 - **Proxy Layer**: Node.js, TypeScript, Elysia, Bun (stateless request processing)
 - **Frontend**: React, Vite, TypeScript, Tailwind CSS
 - **Identity**: Keycloak with PostgreSQL (user management only, no clinical data)
-- **AI**: OpenAI GPT-4o-mini with RAG
+- **AI**: OpenAI gpt-5-mini with RAG
 - **Monitoring**: WebSocket, Real-time dashboards
 - **Testing**: Jest, Playwright, Comprehensive test suites
 - **Deployment**: Docker, GitHub Actions CI/CD
