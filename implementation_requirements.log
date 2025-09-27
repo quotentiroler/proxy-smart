@@ -4,28 +4,28 @@
 --- BACKEND PHASE ---
 Description: Backend API endpoints, authentication, and core business logic
 
-IMPLEMENT: `revocation_endpoint` - Not yet implemented
-  File: backend/CHECKLIST.md:31
+IMPLEMENT: **Key Management** (Planned)
+  File: backend/CHECKLIST.md:141
   Priority: high
   Status: Pending
 
-IMPLEMENT: `management_endpoint` - Planned for future releases
-  File: backend/CHECKLIST.md:32
+IMPLEMENT: **Advanced Security Features** (Planned)
+  File: backend/CHECKLIST.md:253
   Priority: high
   Status: Pending
 
-IMPLEMENT: JWKS endpoint support for client public keys
-  File: backend/CHECKLIST.md:142
+IMPLEMENT: **Scope Processing** (Planned)
+  File: backend/CHECKLIST.md:299
   Priority: high
   Status: Pending
 
-IMPLEMENT: Algorithm validation (RS256, ES256)
-  File: backend/CHECKLIST.md:144
+IMPLEMENT: **End-to-End Flows** (Planned)
+  File: backend/CHECKLIST.md:305
   Priority: high
   Status: Pending
 
-IMPLEMENT: Launch token validation against FHIR server
-  File: backend/CHECKLIST.md:207
+IMPLEMENT: **SMART-Specific Security** (Planned)
+  File: backend/CHECKLIST.md:318
   Priority: high
   Status: Pending
 
@@ -33,47 +33,23 @@ IMPLEMENT: Launch token validation against FHIR server
 --- FRONTEND PHASE ---
 Description: UI components, forms, and user interfaces
 
-IMPLEMENT: **Detailed Context Information** (Planned)
-  File: backend/CHECKLIST.md:219
+IMPLEMENT: **Launch Context UI** (Planned)
+  File: ui/CHECKLIST.md:39
   Priority: high
   Status: Pending
 
-IMPLEMENT: **OAuth Flow Components** (Planned)
-  File: backend/CHECKLIST.md:293
+IMPLEMENT: **Security Monitoring UI** (Planned)
+  File: ui/CHECKLIST.md:173
   Priority: high
   Status: Pending
 
-IMPLEMENT: SMART launch simulation interface
-  File: ui/CHECKLIST.md:79
+IMPLEMENT: Patient selection UI
+  File: ui/CHECKLIST.md:205
   Priority: high
   Status: Pending
 
-IMPLEMENT: Permission matrix interface
-  File: ui/CHECKLIST.md:107
-  Priority: high
-  Status: Pending
-
-IMPLEMENT: FHIR metadata validation UI
-  File: ui/CHECKLIST.md:154
-  Priority: high
-  Status: Pending
-
-
---- TESTING PHASE ---
-Description: Unit tests, integration tests, and test infrastructure
-
-IMPLEMENT: Authorization endpoint testing
-  File: backend/CHECKLIST.md:294
-  Priority: high
-  Status: Pending
-
-IMPLEMENT: Token endpoint testing
-  File: backend/CHECKLIST.md:295
-  Priority: high
-  Status: Pending
-
-IMPLEMENT: Introspection endpoint testing
-  File: backend/CHECKLIST.md:296
+IMPLEMENT: Clinical decision support UI
+  File: ui/CHECKLIST.md:369
   Priority: high
   Status: Pending
 

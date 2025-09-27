@@ -1,41 +1,41 @@
 {
-  "total_targets": 53,
+  "total_targets": 33,
   "implementation_phases": [
     {
       "phase": "backend",
       "targets": [
         {
           "file": "backend/CHECKLIST.md",
-          "line": 31,
-          "text": "`revocation_endpoint` - Not yet implemented",
+          "line": 141,
+          "text": "**Key Management** (Planned)",
           "complete": false,
           "priority": "high"
         },
         {
           "file": "backend/CHECKLIST.md",
-          "line": 32,
-          "text": "`management_endpoint` - Planned for future releases",
+          "line": 253,
+          "text": "**Advanced Security Features** (Planned)",
           "complete": false,
           "priority": "high"
         },
         {
           "file": "backend/CHECKLIST.md",
-          "line": 142,
-          "text": "JWKS endpoint support for client public keys",
+          "line": 299,
+          "text": "**Scope Processing** (Planned)",
           "complete": false,
           "priority": "high"
         },
         {
           "file": "backend/CHECKLIST.md",
-          "line": 144,
-          "text": "Algorithm validation (RS256, ES256)",
+          "line": 305,
+          "text": "**End-to-End Flows** (Planned)",
           "complete": false,
           "priority": "high"
         },
         {
           "file": "backend/CHECKLIST.md",
-          "line": 207,
-          "text": "Launch token validation against FHIR server",
+          "line": 318,
+          "text": "**SMART-Specific Security** (Planned)",
           "complete": false,
           "priority": "high"
         }
@@ -46,37 +46,30 @@
       "phase": "frontend",
       "targets": [
         {
-          "file": "backend/CHECKLIST.md",
-          "line": 219,
-          "text": "**Detailed Context Information** (Planned)",
-          "complete": false,
-          "priority": "high"
-        },
-        {
-          "file": "backend/CHECKLIST.md",
-          "line": 293,
-          "text": "**OAuth Flow Components** (Planned)",
+          "file": "ui/CHECKLIST.md",
+          "line": 39,
+          "text": "**Launch Context UI** (Planned)",
           "complete": false,
           "priority": "high"
         },
         {
           "file": "ui/CHECKLIST.md",
-          "line": 79,
-          "text": "SMART launch simulation interface",
+          "line": 173,
+          "text": "**Security Monitoring UI** (Planned)",
           "complete": false,
           "priority": "high"
         },
         {
           "file": "ui/CHECKLIST.md",
-          "line": 107,
-          "text": "Permission matrix interface",
+          "line": 205,
+          "text": "Patient selection UI",
           "complete": false,
           "priority": "high"
         },
         {
           "file": "ui/CHECKLIST.md",
-          "line": 154,
-          "text": "FHIR metadata validation UI",
+          "line": 369,
+          "text": "Clinical decision support UI",
           "complete": false,
           "priority": "high"
         }
@@ -85,34 +78,12 @@
     },
     {
       "phase": "testing",
-      "targets": [
-        {
-          "file": "backend/CHECKLIST.md",
-          "line": 294,
-          "text": "Authorization endpoint testing",
-          "complete": false,
-          "priority": "high"
-        },
-        {
-          "file": "backend/CHECKLIST.md",
-          "line": 295,
-          "text": "Token endpoint testing",
-          "complete": false,
-          "priority": "high"
-        },
-        {
-          "file": "backend/CHECKLIST.md",
-          "line": 296,
-          "text": "Introspection endpoint testing",
-          "complete": false,
-          "priority": "high"
-        }
-      ],
+      "targets": [],
       "description": "Unit tests, integration tests, and test infrastructure"
     }
   ],
   "estimated_complexity": "high",
-  "branch": "ai/checklist/new-stuff",
+  "branch": "ai/checklist/new",
   "project_context": {
     "name": "SMART App Launch 2.2.0 Implementation",
     "backend_stack": "Elysia.js + TypeScript + Bun",

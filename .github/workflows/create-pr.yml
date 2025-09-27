@@ -414,10 +414,22 @@ jobs:
       - name: Create target branch if it doesn't exist
         if: steps.check-branch.outputs.needs_branch_creation == 'true' && steps.check-pr.outputs.pr_exists == '0'
         run: |
-          # Create target ai/test branch from current ai/dev branch
-          git checkout -b ${{ steps.extract-branch.outputs.target_branch }}
+          # Create target ai/test/* branch from develop (preferred) or main to ensure a non-empty diff
+          # Creating from the source ai/dev/* branch results in zero changes and prevents PR creation
+          if git ls-remote --heads origin develop | grep -q "refs/heads/develop"; then
+            git fetch origin develop:develop
+            git checkout -b ${{ steps.extract-branch.outputs.target_branch }} develop
+            echo "Created ${{ steps.extract-branch.outputs.target_branch }} from develop"
+          elif git ls-remote --heads origin main | grep -q "refs/heads/main"; then
+            git fetch origin main:main
+            git checkout -b ${{ steps.extract-branch.outputs.target_branch }} main
+            echo "Created ${{ steps.extract-branch.outputs.target_branch }} from main"
+          else
+            # Fallback: create from current branch if neither develop nor main exists
+            git checkout -b ${{ steps.extract-branch.outputs.target_branch }}
+            echo "Created ${{ steps.extract-branch.outputs.target_branch }} from current branch (fallback)"
+          fi
           git push origin ${{ steps.extract-branch.outputs.target_branch }}
-          echo "Created ${{ steps.extract-branch.outputs.target_branch }} branch from current ai/dev branch"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -638,10 +650,22 @@ jobs:
       - name: Create target branch if it doesn't exist
         if: steps.check-branch.outputs.needs_branch_creation == 'true' && steps.check-pr.outputs.pr_exists == '0'
         run: |
-          # Create target ai/dev branch from current ai/checklist branch
-          git checkout -b ${{ steps.extract-branch.outputs.target_branch }}
+          # Create target ai/dev/* branch from develop (preferred) or main to ensure a non-empty diff
+          # This avoids creating the target from the source branch which results in zero changes and prevents PR creation
+          if git ls-remote --heads origin develop | grep -q "refs/heads/develop"; then
+            git fetch origin develop:develop
+            git checkout -b ${{ steps.extract-branch.outputs.target_branch }} develop
+            echo "Created ${{ steps.extract-branch.outputs.target_branch }} from develop"
+          elif git ls-remote --heads origin main | grep -q "refs/heads/main"; then
+            git fetch origin main:main
+            git checkout -b ${{ steps.extract-branch.outputs.target_branch }} main
+            echo "Created ${{ steps.extract-branch.outputs.target_branch }} from main"
+          else
+            # Fallback: create from current branch if neither develop nor main exists
+            git checkout -b ${{ steps.extract-branch.outputs.target_branch }}
+            echo "Created ${{ steps.extract-branch.outputs.target_branch }} from current branch (fallback)"
+          fi
           git push origin ${{ steps.extract-branch.outputs.target_branch }}
-          echo "Created ${{ steps.extract-branch.outputs.target_branch }} branch from ${{ github.ref_name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

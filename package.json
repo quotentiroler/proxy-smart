@@ -101,6 +101,6 @@
   ],
   "dependencies": {
     "@octokit/rest": "^22.0.0",
-    "openai": "^5.12.2"
+    "openai": "^5.23.1"
   }
 }
