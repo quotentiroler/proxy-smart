@@ -1,7 +1,7 @@
 === FRONTEND TEST COVERAGE ENHANCEMENT ===
 Component: Frontend (React/TypeScript)
 Task: Generate missing tests to improve code coverage
-Current coverage: %
+Current coverage: 1.35%
 Target coverage: 80%
 Framework: Vitest + Testing Library + Jest DOM
 
@@ -14,11 +14,55 @@ COVERAGE GAPS TO ADDRESS:
 UNCOVERED/LOW COVERAGE FILES:
 
 EXISTING TEST PATTERNS (for reference):
-Example test file: ../ui/test/hooks/useTheme.inside-provider.test.tsx
+Example test file: ../ui/test/components/input.extra.test.tsx
 import React from 'react'
 import { describe, it, expect } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { Input } from '@/components/ui/input'
+
+describe('Input (extra)', () => {
+  it('updates value on typing', async () => {
+    const user = userEvent.setup()
+    render(<Input placeholder="Type here" />)
+
+    const input = screen.getByPlaceholderText(/type here/i) as HTMLInputElement
+    expect(input.value).toBe('')
+
+    await user.type(input, 'Hello')
+    expect(input).toHaveValue('Hello')
+  })
+
+  it('does not accept input when disabled', async () => {
+    const user = userEvent.setup()
+---
+Example test file: ../ui/test/components/theme-provider.system-preference.test.tsx
+import React from 'react'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { ThemeProvider } from '@/components/theme-provider'
+import { useTheme } from '@/hooks/useTheme'
+
+// Helper to mock matchMedia with change listeners
+function mockMatchMedia(initialDark: boolean) {
+  const listeners: Array<(e: MediaQueryListEvent) => void> = []
+  const mql: MediaQueryList & { dispatch: (matches: boolean) => void } = {
+    matches: initialDark,
+    media: '(prefers-color-scheme: dark)',
+    onchange: null,
+    addEventListener: (_: 'change', cb: (e: MediaQueryListEvent) => void) => {
+      listeners.push(cb)
+    },
+    removeEventListener: (_: 'change', cb: (e: MediaQueryListEvent) => void) => {
+      const idx = listeners.indexOf(cb)
+      if (idx >= 0) listeners.splice(idx, 1)
+---
+Example test file: ../ui/test/components/theme-provider.extra.test.tsx
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import React from 'react'
 import { ThemeProvider } from '@/components/theme-provider'
 import { useTheme } from '@/hooks/useTheme'
 
@@ -34,45 +78,5 @@ function ThemeConsumer() {
   )
 }
 
-describe('useTheme (inside ThemeProvider)', () => {
----
-Example test file: ../ui/test/hooks/useTheme.outside-provider.test.tsx
-import React from 'react'
-import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
-import { useTheme } from '@/hooks/useTheme'
-
-function ConsumerWithoutProvider() {
-  // This usage should throw because no ThemeProvider wraps the component
-  const { theme } = useTheme()
-  return <div>{theme}</div>
-}
-
-describe('useTheme', () => {
-  it('throws when used outside of ThemeProvider', () => {
-    expect(() => render(<ConsumerWithoutProvider />)).toThrow()
-  })
-})
----
-Example test file: ../ui/test/hooks/useTheme.integration.test.tsx
-import React from 'react'
-import { describe, it, expect } from 'vitest'
-import { render } from '@testing-library/react'
-import { ThemeProvider } from '@/components/theme-provider'
-import { useTheme } from '@/hooks/useTheme'
-
-function ConsumerWithoutProvider() {
-  // This usage should throw if hook requires ThemeProvider
-  const { theme } = useTheme()
-  return <div>{theme}</div>
-}
-
-describe('useTheme integration', () => {
-  it('throws when used outside of ThemeProvider', () => {
-    expect(() => render(<ConsumerWithoutProvider />)).toThrow()
-  })
-
-  it('works inside ThemeProvider and exposes API', () => {
-    function Consumer() {
-      const { theme, setTheme } = useTheme()
+// helper to mock prefers-color-scheme
 ---

@@ -1,7 +1,7 @@
 === BACKEND TEST COVERAGE ENHANCEMENT ===
 Component: Backend (Node.js/TypeScript)
 Task: Generate missing tests to improve code coverage
-Current coverage: 23.86%
+Current coverage: 32.76%
 Target coverage: 80%
 Framework: Bun Test + Elysia + Eden Treaty
 
@@ -15,28 +15,6 @@ COVERAGE GAPS TO ADDRESS:
 UNCOVERED/LOW COVERAGE FILES:
 
 EXISTING TEST PATTERNS (for reference):
-Example test file: ../backend/test/status.test.ts
-import { describe, expect, it } from 'bun:test'
-import { Elysia } from 'elysia'
-
-// Create a simple test version of status routes without external dependencies
-const createTestStatusApp = () => {
-  return new Elysia()
-    .get('/health', () => ({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime()
-    }))
-    .get('/status', () => ({
-      status: 'healthy',
-      version: '0.0.1-test',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      services: {
-        keycloak: 'unknown',
-        fhir: 'unknown'
-      }
----
 Example test file: ../backend/test/auth.test.ts
 import { describe, it, expect } from 'bun:test'
 import { authRoutes } from '../src/routes/auth'
@@ -59,12 +37,34 @@ describe('Auth Routes', () => {
   })
 
 ---
-Example test file: ../backend/test/index.test.ts
-import { describe, expect, it } from 'bun:test'
+Example test file: ../backend/test/integration.test.ts
+import { describe, expect, it, beforeAll } from 'bun:test'
 import { Elysia } from 'elysia'
 import { treaty } from '@elysiajs/eden'
 
-// Create a minimal test app similar to the main app
+// Mock app that simulates the main application structure
+const createMockApp = () => {
+  return new Elysia()
+    .get('/', () => 'Proxy Smart Backend')
+    .get('/health', () => ({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    }))
+    .get('/status', () => ({
+      status: 'healthy',
+      version: '0.0.1-test',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      services: {
+        keycloak: 'unknown',
+---
+Example test file: ../backend/test/app.integration.test.ts
+import { describe, it, expect } from 'bun:test'
+import { Elysia } from 'elysia'
+import { treaty } from '@elysiajs/eden'
+
+// Minimal app mirroring expected routes for integration-like tests
 const createTestApp = () => {
   return new Elysia()
     .get('/', () => 'Proxy Smart Backend API')
@@ -77,7 +77,7 @@ const createTestApp = () => {
     .post('/echo', ({ body }) => body)
 }
 
-describe('Elysia Basic Tests', () => {
+describe('Basic app integration tests', () => {
   const app = createTestApp()
-
+  const client = treaty(app)
 ---
