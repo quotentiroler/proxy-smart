@@ -71,6 +71,24 @@ export const config = {
     capabilities: process.env.SMART_CAPABILITIES?.split(',').map(s => s.trim()),
   },
 
+  ai: {
+    get baseUrl() {
+      return process.env.MCP_SERVER_URL || 'http://localhost:8081';
+    },
+    get chatEndpoint() {
+      return `${this.baseUrl.replace(/\/$/, '')}/ai/chat`;
+    },
+    get healthEndpoint() {
+      return `${this.baseUrl.replace(/\/$/, '')}/health`;
+    },
+    get timeoutMs() {
+      return Number.parseInt(process.env.MCP_SERVER_TIMEOUT_MS || '30000', 10); // 30 seconds for reasoning models
+    },
+    get enabled() {
+      return !!this.baseUrl;
+    }
+  },
+
   cors: {
     // Support multiple origins - can be a single URL or comma-separated list
     // Defaults to common development origins

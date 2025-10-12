@@ -246,3 +246,34 @@ export const FhirServerInfoResponse = t.Object({
     metadata: t.String({ description: 'FHIR metadata endpoint URL' })
   })
 }, { title: 'FhirServerInfo' })
+
+// AI Assistant schemas
+export const ChatRequestSchema = t.Object({
+  message: t.String({
+    description: 'User question or prompt for the AI assistant',
+    minLength: 1
+  }),
+  conversationId: t.Optional(t.String({
+    description: 'Optional conversation identifier to maintain context between turns'
+  }))
+})
+
+export const DocumentChunkSchema = t.Object({
+  id: t.String({ description: 'Unique chunk identifier' }),
+  content: t.String({ description: 'Content for this knowledge base chunk' }),
+  source: t.String({ description: 'Source file or document reference' }),
+  title: t.String({ description: 'Document title' }),
+  category: t.String({ description: 'Document category such as admin-ui or smart-on-fhir' }),
+  relevance_score: t.Optional(t.Number({ description: 'Optional relevance score when semantic search is used' }))
+})
+
+export const ChatResponseSchema = t.Object({
+  answer: t.String({ description: 'AI generated answer' }),
+  sources: t.Array(DocumentChunkSchema, { description: 'Knowledge base documents referenced in the response' }),
+  confidence: t.Number({ description: 'Confidence score from 0-1' }),
+  mode: t.Union([
+    t.Literal('openai', { description: 'Response generated using OpenAI completion API' }),
+    t.Literal('rule-based', { description: 'Response generated using local rule-based fallback' })
+  ]),
+  timestamp: t.String({ description: 'Timestamp (ISO 8601) when the response was generated' })
+})

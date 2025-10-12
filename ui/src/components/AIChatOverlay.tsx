@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { aiAssistant, type ChatMessage, type RAGResponse } from '../lib/ai-assistant';
+import { aiAssistant, type ChatMessage, type DocumentChunk } from '../lib/ai-assistant';
+import { useAIChatStore } from '../stores/aiChatStore';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -15,7 +16,8 @@ import {
     MicOff,
     Brain,
     Sparkles,
-    FileText
+    FileText,
+    RotateCcw
 } from 'lucide-react';
 
 interface AIChatOverlayProps {
@@ -26,24 +28,69 @@ interface AIChatOverlayProps {
 export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose }: AIChatOverlayProps = {}) {
     const { t } = useTranslation();
     
-    // Internal state for managing open/close when no external control is provided
-    const [internalIsOpen, setInternalIsOpen] = useState(false);
-    const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
-    const onClose = externalOnClose || (() => setInternalIsOpen(false));
+    // Use the persistent store for chat state
+    const {
+        messages: chatMessages,
+        isMinimized,
+        isOpen: storedIsOpen,
+        conversationId,
+        addMessage,
+        updateMessage,
+        setIsMinimized,
+        setIsOpen: setStoredIsOpen,
+        setConversationId,
+        resetChat,
+    } = useAIChatStore();
     
-    // Chat state
-    const [isMinimized, setIsMinimized] = useState(false);
+    // Handle external vs internal open state
+    const isOpen = externalIsOpen !== undefined ? externalIsOpen : storedIsOpen;
+    const handleSetOpen = (open: boolean) => {
+        if (externalIsOpen === undefined) {
+            setStoredIsOpen(open);
+        }
+        if (externalOnClose && !open) {
+            externalOnClose();
+        }
+    };
+    const onClose = externalOnClose || (() => handleSetOpen(false));
+    
+    // Non-persistent UI state
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-        {
-            id: '1',
-            type: 'agent',
-            content: t('Hello! I\'m your smart assistant. I can help you manage applications, users, servers, and configurations. What would you like to do today?'),
-            timestamp: new Date()
-        }
-    ]);
+    const [isOpenAIReady, setIsOpenAIReady] = useState(false);
     const [currentMessage, setCurrentMessage] = useState('');
+
+    useEffect(() => {
+        let isMounted = true;
+
+        (async () => {
+            try {
+                const available = await aiAssistant.isOpenAIAvailable();
+                if (isMounted) {
+                    setIsOpenAIReady(available);
+                }
+            } catch (error) {
+                console.warn('Failed to determine OpenAI availability:', error);
+                if (isMounted) {
+                    setIsOpenAIReady(false);
+                }
+            }
+        })();
+
+        // Initialize conversation ID if not set
+        if (!conversationId) {
+            setConversationId(crypto.randomUUID());
+        }
+
+        return () => {
+            isMounted = false;
+        };
+    }, [conversationId, setConversationId]);
+
+    const handleClearChat = () => {
+        resetChat();
+        setConversationId(crypto.randomUUID());
+    };
 
     const handleMicToggle = () => {
         setIsListening(!isListening);
@@ -69,41 +116,95 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
             timestamp: new Date()
         };
 
-        setChatMessages(prev => [...prev, userMessage]);
+        addMessage(userMessage);
         setCurrentMessage('');
         setIsProcessing(true);
 
+        // Create placeholder message for streaming
+        const agentMessageId = (Date.now() + 1).toString();
+        const agentMessage: ChatMessage = {
+            id: agentMessageId,
+            type: 'agent',
+            content: '',
+            timestamp: new Date(),
+            sources: [],
+            streaming: true
+        };
+
+        addMessage(agentMessage);
+
         try {
-            // Use AI assistant to generate response
-            const ragResponse: RAGResponse = await aiAssistant.generateResponse(currentMessage);
+            // Use streaming API
+            let fullContent = '';
+            let sources: DocumentChunk[] = [];
+            let streamingFailed = false;
+
+            for await (const chunk of aiAssistant.generateResponseStream(userMessage.content, conversationId || undefined)) {
+                if (chunk.type === 'sources' && chunk.sources) {
+                    sources = chunk.sources;
+                } else if (chunk.type === 'content' && chunk.content) {
+                    fullContent += chunk.content;
+                    
+                    // Update the message with accumulated content
+                    updateMessage(agentMessageId, { content: fullContent, sources });
+                } else if (chunk.type === 'done') {
+                    // Mark streaming as complete
+                    updateMessage(agentMessageId, { streaming: false, sources });
+                } else if (chunk.type === 'error') {
+                    console.error('Streaming error:', chunk.error);
+                    
+                    // Check if we should fall back to non-streaming
+                    if (chunk.error?.includes('temporarily unavailable') || chunk.error?.includes('not supported')) {
+                        console.log('Streaming not available, falling back to non-streaming...');
+                        streamingFailed = true;
+                        break;
+                    }
+                    
+                    // Show user-friendly error message
+                    const errorMessage = chunk.error || 'I encountered an issue processing your request. Please try again.';
+                    
+                    updateMessage(agentMessageId, {
+                        content: `⚠️ ${errorMessage}`,
+                        streaming: false
+                    });
+                    break; // Stop processing stream
+                }
+            }
             
-            const agentResponse: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                type: 'agent',
-                content: ragResponse.answer,
-                timestamp: new Date(),
-                sources: ragResponse.sources
-            };
-            
-            setChatMessages(prev => [...prev, agentResponse]);
+            // Fallback to non-streaming if streaming failed
+            if (streamingFailed) {
+                const ragResponse = await aiAssistant.generateResponse(userMessage.content, conversationId || undefined);
+                
+                updateMessage(agentMessageId, {
+                    content: ragResponse.answer,
+                    sources: ragResponse.sources,
+                    streaming: false
+                });
+            }
         } catch (error) {
             console.error('Error getting AI response:', error);
             
-            // Fallback to simple response
-            const fallbackResponse: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                type: 'agent',
-                content: t('I\'m sorry, I\'m having trouble processing your request right now. Please try asking about specific topics like user management, SMART apps, or FHIR servers.'),
-                timestamp: new Date()
-            };
+            // Determine user-friendly error message
+            let errorMessage = t('I\'m sorry, I\'m having trouble processing your request right now. Please try again.');
             
-            setChatMessages(prev => [...prev, fallbackResponse]);
+            if (error instanceof Error) {
+                const errorStr = error.message.toLowerCase();
+                if (errorStr.includes('timeout') || errorStr.includes('timed out')) {
+                    errorMessage = t('The request took too long to complete. Please try again with a shorter question.');
+                } else if (errorStr.includes('network') || errorStr.includes('fetch')) {
+                    errorMessage = t('Unable to connect to the AI service. Please check your connection and try again.');
+                }
+            }
+            
+            // Update the placeholder with user-friendly error message
+            updateMessage(agentMessageId, {
+                content: `⚠️ ${errorMessage}`,
+                streaming: false
+            });
         } finally {
             setIsProcessing(false);
         }
     };
-
-    if (!isOpen) return null;
 
     return (
         <>
@@ -111,11 +212,11 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
             {externalIsOpen === undefined && !isOpen && (
                 <div className="fixed bottom-4 right-4 z-[50]">
                     <Button
-                        onClick={() => setInternalIsOpen(true)}
+                        onClick={() => handleSetOpen(true)}
                         className="w-14 h-14 rounded-full bg-primary hover:bg-primary/90 shadow-2xl border border-primary/20 transition-all duration-300 hover:scale-105"
                         title={t('Open AI Assistant')}
                     >
-                        {aiAssistant.isOpenAIAvailable() ? (
+                        {isOpenAIReady ? (
                             <Brain className="w-6 h-6 text-primary-foreground" />
                         ) : (
                             <Bot className="w-6 h-6 text-primary-foreground" />
@@ -132,7 +233,7 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-sm">
-                                {aiAssistant.isOpenAIAvailable() ? (
+                                {isOpenAIReady ? (
                                     <Brain className="w-4 h-4 text-primary-foreground" />
                                 ) : (
                                     <Bot className="w-4 h-4 text-primary-foreground" />
@@ -143,12 +244,12 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                                     <CardTitle className="text-sm font-semibold text-foreground">
                                         {t('SMART Assistant')}
                                     </CardTitle>
-                                    {aiAssistant.isOpenAIAvailable() && (
+                                    {isOpenAIReady && (
                                         <Sparkles className="w-3 h-3 text-primary animate-pulse" />
                                     )}
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                    {aiAssistant.isOpenAIAvailable() 
+                                    {isOpenAIReady 
                                         ? t('AI-powered with RAG knowledge base')
                                         : t('Semantic search with knowledge base')
                                     }
@@ -156,6 +257,15 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                             </div>
                         </div>
                         <div className="flex items-center space-x-1">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleClearChat}
+                                className="h-6 w-6 p-0 hover:bg-muted rounded-md"
+                                title={t('Clear chat history')}
+                            >
+                                <RotateCcw className="w-3 h-3 text-muted-foreground" />
+                            </Button>
                             <Button
                                 variant="ghost"
                                 size="sm"

@@ -32,9 +32,10 @@
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"bun run dev:backend\" \"bun run dev:ui\"",
+    "dev": "concurrently \"bun run dev:backend\" \"bun run dev:ui\" \"bun run dev:mcp\"",
     "dev:backend": "cd backend && bun run dev",
     "dev:ui": "cd ui && bun run dev",
+    "dev:mcp": "cd mcp-server && uv run python run.py",
     "dev:mono": "bun run build:ui:mono && bun run copy:ui-to-backend && cd backend && bun run dev",
     "copy:ui-to-backend": "node scripts/copy-ui-dist.js",
     "build": "bun run build:backend && bun run build:ui",

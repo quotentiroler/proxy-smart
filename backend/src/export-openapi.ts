@@ -10,6 +10,7 @@ import { oauthMonitoringRoutes } from './routes/oauth-monitoring'
 import { oauthWebSocket } from './routes/oauth-websocket'
 import { adminRoutes } from './routes/admin'
 import { authRoutes } from './routes/auth'
+import { aiRoutes } from './routes/admin/ai'
 import { writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 
@@ -76,6 +77,7 @@ const app = new Elysia({
         { name: 'smart-apps', description: 'SMART on FHIR configuration endpoints' },
         { name: 'oauth-ws-monitoring', description: 'OAuth monitoring via WebSocket' },
         { name: 'oauth-sse-monitoring', description: 'OAuth monitoring via Server-Sent Events' },
+        { name: 'ai', description: 'AI assistant endpoints proxied to MCP server' },
       ],
       components: {
         securitySchemes: {
@@ -107,6 +109,7 @@ const app = new Elysia({
   .use(adminRoutes)
   .use(oauthMonitoringRoutes)
   .use(oauthWebSocket)
+  .use(aiRoutes)
   .use(fhirRoutes)
 
 // Use a simple approach: start a temporary server and fetch the spec

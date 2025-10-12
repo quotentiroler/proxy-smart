@@ -154,8 +154,8 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
     // Fetch dashboard data
     useEffect(() => {
         const fetchDashboardData = async () => {
-            // Set initial AI Agent status
-            const isOpenAIConnected = aiAssistant.isOpenAIAvailable();
+            // Set initial AI Agent status - check backend availability
+            const isOpenAIConnected = await aiAssistant.isOpenAIAvailable();
             const aiAgentStatus = isOpenAIConnected ? 'connected' : 'fallback';
             const aiAgentSearchType = isOpenAIConnected ? 'openai_powered' : 'semantic_search';
             
@@ -225,7 +225,7 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                     const uptimeFormatted = uptimeHours > 0 ? `${uptimeHours}h` : `${Math.floor(uptimeSeconds / 60)}m`;
 
                     // Check AI Agent status
-                    const isOpenAIConnected = aiAssistant.isOpenAIAvailable();
+                    const isOpenAIConnected = aiAssistant.isOpenAIAvailableSync();
                     const aiAgentStatus = isOpenAIConnected ? 'connected' : 'fallback';
                     const aiAgentSearchType = isOpenAIConnected ? 'openai_powered' : 'semantic_search';
 
@@ -271,7 +271,7 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                     }));
                 } else {
                     // Check AI Agent status even when system status fails
-                    const isOpenAIConnected = aiAssistant.isOpenAIAvailable();
+                    const isOpenAIConnected = aiAssistant.isOpenAIAvailableSync();
                     const aiAgentStatus = isOpenAIConnected ? 'connected' : 'fallback';
                     const aiAgentSearchType = isOpenAIConnected ? 'openai_powered' : 'semantic_search';
 
@@ -567,9 +567,9 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                                                 : 'text-red-600 dark:text-red-400'
                                 }`}>
                                     {systemHealth.aiAgentStatus === 'connected' 
-                                        ? t('AI Assistant: OpenAI Connected') 
+                                        ? t('AI Assistant: Backend Connected') 
                                         : systemHealth.aiAgentStatus === 'fallback'
-                                            ? t('AI Assistant: API Key invalid')
+                                            ? t('AI Assistant: Backend Unavailable')
                                             : systemHealth.aiAgentStatus === 'checking'
                                                 ? t('AI Assistant: Checking...')
                                                 : t('AI Assistant: Disconnected')
@@ -577,7 +577,7 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                                 </span>
                                 <div className="text-xs text-muted-foreground">
                                     {systemHealth.aiAgentSearchType === 'openai_powered' 
-                                        ? t('Using OpenAI GPT for smart assistance') 
+                                        ? t('Using backend AI with OpenAI GPT') 
                                         : systemHealth.aiAgentSearchType === 'semantic_search'
                                             ? t('Using semantic search as fallback')
                                             : systemHealth.aiAgentSearchType === 'checking'

@@ -14,6 +14,7 @@ import { logger } from './lib/logger'
 import { initializeServer, displayServerEndpoints } from './init'
 import { oauthMetricsLogger } from './lib/oauth-metrics-logger'
 import staticPlugin from '@elysiajs/static'
+import { aiRoutes } from './routes/admin/ai'
 
 // Debug CORS configuration
 console.log('[DEBUG] NODE_ENV:', process.env.NODE_ENV)
@@ -53,6 +54,7 @@ const app = new Elysia({
         { name: 'smart-apps', description: 'SMART on FHIR configuration endpoints' },
         { name: 'oauth-ws-monitoring', description: 'OAuth monitoring via WebSocket' },
         { name: 'oauth-sse-monitoring', description: 'OAuth monitoring via Server-Sent Events' },
+        { name: 'ai', description: 'AI assistant endpoints proxied to MCP server' },
       ],
       components: {
         securitySchemes: {
@@ -85,6 +87,7 @@ const app = new Elysia({
   .use(adminRoutes) //admin keycloak endpoints
   .use(oauthMonitoringRoutes) // OAuth monitoring and analytics endpoints
   .use(oauthWebSocket) // OAuth WebSocket for real-time monitoring
+  .use(aiRoutes) // AI assistant proxy endpoints
   .use(fhirRoutes) // the actual FHIR proxy endpoints
 
 // Initialize and start server

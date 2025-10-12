@@ -83,10 +83,8 @@ export function FhirServersManager() {
 
           clearTimeout(timeoutId);
           if (response.type === 'opaque') {
-            console.log(`Marking ${server.serverName || server.name} as INSECURE`);
             setSecurityChecks(prevChecks => ({ ...prevChecks, [server.id]: 'insecure' }));
           } else {
-            console.log(`Marking ${server.serverName || server.name} as SECURE`);
             setSecurityChecks(prevChecks => ({ ...prevChecks, [server.id]: 'secure' }));
           }
         } catch (error) {
