@@ -31,6 +31,12 @@ export interface PostAiChatRequest {
      * @memberof PostAiChatRequest
      */
     conversationId?: string;
+    /**
+     * Optional page context with visible content, forms, buttons, and current section from the user's current page
+     * @type {string}
+     * @memberof PostAiChatRequest
+     */
+    pageContext?: string;
 }
 
 /**
@@ -53,6 +59,7 @@ export function PostAiChatRequestFromJSONTyped(json: any, ignoreDiscriminator: b
         
         'message': json['message'],
         'conversationId': json['conversationId'] == null ? undefined : json['conversationId'],
+        'pageContext': json['pageContext'] == null ? undefined : json['pageContext'],
     };
 }
 
@@ -69,6 +76,7 @@ export function PostAiChatRequestToJSONTyped(value?: PostAiChatRequest | null, i
         
         'message': value['message'],
         'conversationId': value['conversationId'],
+        'pageContext': value['pageContext'],
     };
 }
 

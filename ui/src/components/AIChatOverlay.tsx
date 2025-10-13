@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -34,31 +34,54 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
         isMinimized,
         isOpen: storedIsOpen,
         conversationId,
+        scrollPosition,
         addMessage,
         updateMessage,
         setIsMinimized,
         setIsOpen: setStoredIsOpen,
         setConversationId,
+        setScrollPosition,
         resetChat,
     } = useAIChatStore();
     
-    // Handle external vs internal open state
-    const isOpen = externalIsOpen !== undefined ? externalIsOpen : storedIsOpen;
+    // Always use persisted state, but allow external control to override
+    const isOpen = externalIsOpen ?? storedIsOpen;
     const handleSetOpen = (open: boolean) => {
-        if (externalIsOpen === undefined) {
-            setStoredIsOpen(open);
-        }
+        // Always persist to store
+        setStoredIsOpen(open);
+        // Also call external handler if provided
         if (externalOnClose && !open) {
             externalOnClose();
         }
     };
     const onClose = externalOnClose || (() => handleSetOpen(false));
     
+    // Refs for messages container to enable smart auto-scroll
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
+    const prevMessageCountRef = useRef(chatMessages.length);
+    const shouldScrollRef = useRef(false);
+    
     // Non-persistent UI state
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isOpenAIReady, setIsOpenAIReady] = useState(false);
     const [currentMessage, setCurrentMessage] = useState('');
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [isFullWidth, setIsFullWidth] = useState(false);
+
+    // Simple scroll: only when user sends a message (shouldScrollRef is set to true)
+    useEffect(() => {
+        // Only scroll if explicitly requested (when user sends message)
+        if (shouldScrollRef.current) {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            shouldScrollRef.current = false; // Reset the flag
+        }
+        
+        // Update previous message count
+        prevMessageCountRef.current = chatMessages.length;
+        prevMessageCountRef.current = chatMessages.length;
+    }, [chatMessages]);
 
     useEffect(() => {
         let isMounted = true;
@@ -86,6 +109,41 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
             isMounted = false;
         };
     }, [conversationId, setConversationId]);
+
+    // Restore scroll position on mount/open
+    useEffect(() => {
+        const container = messagesContainerRef.current;
+        if (!container || !isOpen || isMinimized) return;
+
+        // Restore saved scroll position after a short delay to ensure DOM is ready
+        const restoreTimer = setTimeout(() => {
+            if (container && scrollPosition > 0) {
+                container.scrollTop = scrollPosition;
+            }
+        }, 100);
+
+        return () => {
+            clearTimeout(restoreTimer);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, isMinimized]); // Only run when open/minimized state changes, not on every scroll
+
+    // Set up scroll listener to save position
+    useEffect(() => {
+        const container = messagesContainerRef.current;
+        if (!container || !isOpen || isMinimized) return;
+
+        // Save scroll position when user scrolls
+        const handleScroll = () => {
+            setScrollPosition(container.scrollTop);
+        };
+
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        
+        return () => {
+            container.removeEventListener('scroll', handleScroll);
+        };
+    }, [isOpen, isMinimized, setScrollPosition]); // Don't include scrollPosition here!
 
     const handleClearChat = () => {
         resetChat();
@@ -119,6 +177,9 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
         addMessage(userMessage);
         setCurrentMessage('');
         setIsProcessing(true);
+        
+        // Trigger scroll to show user's message
+        shouldScrollRef.current = true;
 
         // Create placeholder message for streaming
         const agentMessageId = (Date.now() + 1).toString();
@@ -208,8 +269,8 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
 
     return (
         <>
-            {/* Floating Chat Button - only show when using internal state and chat is closed */}
-            {externalIsOpen === undefined && !isOpen && (
+            {/* Floating Chat Button - only show when chat is closed */}
+            {!isOpen && (
                 <div className="fixed bottom-4 right-4 z-[50]">
                     <Button
                         onClick={() => handleSetOpen(true)}
@@ -227,8 +288,92 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
 
             {/* Chat Overlay */}
             {isOpen && (
-                <div className="fixed bottom-4 right-4 z-[60] w-96 max-w-[calc(100vw-2rem)]">
-                    <Card className="bg-card/95 backdrop-blur-xl border border-border/60 shadow-2xl rounded-2xl overflow-hidden">
+                <div className={`fixed z-[60] transition-all duration-300 ${
+                    isExpanded ? 'top-4 bottom-4' : 'bottom-4 h-auto'
+                } ${
+                    isFullWidth ? 'left-4 right-4' : 'right-4 w-96 max-w-[calc(100vw-2rem)]'
+                }`}>
+                    <Card className="bg-card/95 backdrop-blur-xl border border-border/60 shadow-2xl rounded-2xl overflow-hidden relative" style={isExpanded ? { height: '100%' } : {}}>
+                        {/* Vertical Expand Handle - Invisible until hover */}
+                        {!isExpanded && (
+                            <div 
+                                onClick={() => setIsExpanded(true)}
+                                className="absolute top-0 left-0 right-0 h-3 cursor-ns-resize group z-10"
+                                title={t('Expand to full height')}
+                            >
+                                <div className="absolute inset-x-0 top-0 h-0.5 bg-primary/0 group-hover:bg-primary/60 transition-all duration-200" />
+                                <div className="absolute inset-x-0 top-1 h-px bg-primary/0 group-hover:bg-primary/40 transition-all duration-200" />
+                            </div>
+                        )}
+                        
+                        {/* Corner Expand Handle - Top-left corner for full expansion */}
+                        {!isExpanded && !isFullWidth && (
+                            <div 
+                                onClick={() => {
+                                    setIsExpanded(true);
+                                    setIsFullWidth(true);
+                                }}
+                                className="absolute top-0 left-0 w-8 h-8 cursor-nwse-resize group z-20"
+                                title={t('Expand to full screen')}
+                            >
+                                <div className="absolute top-0 left-0 w-6 h-0.5 bg-primary/0 group-hover:bg-primary/70 transition-all duration-200" />
+                                <div className="absolute top-0 left-0 w-0.5 h-6 bg-primary/0 group-hover:bg-primary/70 transition-all duration-200" />
+                                <div className="absolute top-1 left-1 w-4 h-0.5 bg-primary/0 group-hover:bg-primary/50 transition-all duration-200" />
+                                <div className="absolute top-1 left-1 w-0.5 h-4 bg-primary/0 group-hover:bg-primary/50 transition-all duration-200" />
+                            </div>
+                        )}
+                        
+                        {/* Vertical Collapse Handle - Shows when expanded */}
+                        {isExpanded && !isFullWidth && (
+                            <div 
+                                onClick={() => setIsExpanded(false)}
+                                className="absolute top-0 left-0 right-0 h-3 cursor-ns-resize group z-10"
+                                title={t('Collapse to normal size')}
+                            >
+                                <div className="absolute inset-x-0 top-0 h-0.5 bg-primary/40 group-hover:bg-primary/60 transition-all duration-200" />
+                                <div className="absolute inset-x-0 top-1 h-px bg-primary/20 group-hover:bg-primary/40 transition-all duration-200" />
+                            </div>
+                        )}
+                        
+                        {/* Horizontal Expand Handle - Only shows when vertically expanded */}
+                        {isExpanded && !isFullWidth && (
+                            <div 
+                                onClick={() => setIsFullWidth(true)}
+                                className="absolute top-0 bottom-0 left-0 w-3 cursor-ew-resize group z-10"
+                                title={t('Expand to full width')}
+                            >
+                                <div className="absolute inset-y-0 left-0 w-0.5 bg-primary/0 group-hover:bg-primary/60 transition-all duration-200" />
+                                <div className="absolute inset-y-0 left-1 w-px bg-primary/0 group-hover:bg-primary/40 transition-all duration-200" />
+                            </div>
+                        )}
+                        
+                        {/* Full Width Collapse Handle - Shows when full width */}
+                        {isFullWidth && (
+                            <div 
+                                onClick={() => setIsFullWidth(false)}
+                                className="absolute top-0 bottom-0 left-0 w-3 cursor-ew-resize group z-10"
+                                title={t('Collapse width')}
+                            >
+                                <div className="absolute inset-y-0 left-0 w-0.5 bg-primary/40 group-hover:bg-primary/60 transition-all duration-200" />
+                                <div className="absolute inset-y-0 left-1 w-px bg-primary/20 group-hover:bg-primary/40 transition-all duration-200" />
+                            </div>
+                        )}
+                        
+                        {/* Collapse All Handle - Shows when full width */}
+                        {isFullWidth && (
+                            <div 
+                                onClick={() => {
+                                    setIsFullWidth(false);
+                                    setIsExpanded(false);
+                                }}
+                                className="absolute top-0 left-0 right-0 h-3 cursor-ns-resize group z-10"
+                                title={t('Collapse to normal size')}
+                            >
+                                <div className="absolute inset-x-0 top-0 h-0.5 bg-primary/40 group-hover:bg-primary/60 transition-all duration-200" />
+                                <div className="absolute inset-x-0 top-1 h-px bg-primary/20 group-hover:bg-primary/40 transition-all duration-200" />
+                            </div>
+                        )}
+                        
                 <CardHeader className="bg-muted/50 p-4 border-b border-border/50">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
@@ -289,9 +434,9 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                 </CardHeader>
 
                 {!isMinimized && (
-                    <CardContent className="p-0">
+                    <CardContent className="p-0" style={isExpanded ? { display: 'flex', flexDirection: 'column', height: 'calc(100% - 76px)' } : {}}>
                         {/* Chat Messages */}
-                        <div className="h-64 overflow-y-auto p-4 space-y-3">
+                        <div ref={messagesContainerRef} className="overflow-y-auto p-4 space-y-3" style={isExpanded ? { flex: 1 } : { height: '256px' }}>
                             {chatMessages.map((message) => (
                                 <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[80%] p-3 rounded-lg text-sm ${message.type === 'user'
@@ -351,6 +496,9 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                                     </div>
                                 </div>
                             )}
+                            
+                            {/* Invisible div at the end for auto-scroll */}
+                            <div ref={messagesEndRef} />
                         </div>
 
                         {/* Chat Input */}

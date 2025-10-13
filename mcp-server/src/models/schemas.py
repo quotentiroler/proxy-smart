@@ -24,6 +24,9 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str] = Field(
         None, description="Optional conversation ID for context"
     )
+    page_context: Optional[str] = Field(
+        None, description="Optional page context (visible content, forms, buttons)"
+    )
 
 
 class ChatResponse(BaseModel):

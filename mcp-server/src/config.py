@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # RAG Configuration
     max_search_results: int = 5
     relevance_threshold: float = 0.3
+    
+    # Backend API Configuration
+    backend_api_url: str = "http://localhost:3001"
+    backend_api_token: str = ""  # Optional JWT token for authenticated API calls
 
     def get_cors_origins_list(self) -> List[str]:
         """Get CORS origins as a list."""

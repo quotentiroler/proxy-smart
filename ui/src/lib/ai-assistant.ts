@@ -1,5 +1,6 @@
 import { AiApi, Configuration } from './api-client';
 import type { PostAiChatRequest, PostAiChat200Response } from './api-client';
+import { extractPageContext, summarizePageContext } from './page-context-extractor';
 
 // Types for the AI assistant
 export interface DocumentChunk {
@@ -74,10 +75,11 @@ class SmartOnFHIRAIAssistant {
   /**
    * Call backend AI API using generated client
    */
-  private async callBackendAI(message: string, conversationId?: string): Promise<PostAiChat200Response> {
+  private async callBackendAI(message: string, conversationId?: string, pageContext?: string): Promise<PostAiChat200Response> {
     const request: PostAiChatRequest = {
       message,
-      conversationId
+      conversationId,
+      pageContext
     };
 
     try {
@@ -155,16 +157,31 @@ class SmartOnFHIRAIAssistant {
     }
 
     try {
+      // Extract current page context
+      const pageContext = extractPageContext();
+      const contextSummary = summarizePageContext(pageContext);
+      
+      // Log what we're sending
+      const requestBody = {
+        message: userMessage,
+        conversationId,
+        pageContext: contextSummary
+      };
+      
+      console.log('[AI Assistant] Sending request with page context:', {
+        messageLength: userMessage.length,
+        contextLength: contextSummary.length,
+        contextPreview: contextSummary.slice(0, 200),
+        requestBody: requestBody
+      });
+      
       const response = await fetch('/ai/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'text/event-stream'
         },
-        body: JSON.stringify({
-          message: userMessage,
-          conversationId
-        }),
+        body: JSON.stringify(requestBody),
         signal: AbortSignal.timeout(60000) // 60s timeout for streaming
       });
 

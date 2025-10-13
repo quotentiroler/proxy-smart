@@ -32,6 +32,10 @@ export interface PostAiChatOperationRequest {
     postAiChatRequest: PostAiChatRequest;
 }
 
+export interface PostAiChatStreamRequest {
+    postAiChatRequest: PostAiChatRequest;
+}
+
 /**
  * 
  */
@@ -106,6 +110,46 @@ export class AiApi extends runtime.BaseAPI {
     async postAiChat(requestParameters: PostAiChatOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PostAiChat200Response> {
         const response = await this.postAiChatRaw(requestParameters, initOverrides);
         return await response.value();
+    }
+
+    /**
+     * Forwards chat prompts to the MCP AI assistant server and streams the response using Server-Sent Events (SSE).
+     * Proxy AI assistant streaming chat request
+     */
+    async postAiChatStreamRaw(requestParameters: PostAiChatStreamRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
+        if (requestParameters['postAiChatRequest'] == null) {
+            throw new runtime.RequiredError(
+                'postAiChatRequest',
+                'Required parameter "postAiChatRequest" was null or undefined when calling postAiChatStream().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/ai/chat/stream`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: PostAiChatRequestToJSON(requestParameters['postAiChatRequest']),
+        }, initOverrides);
+
+        return new runtime.VoidApiResponse(response);
+    }
+
+    /**
+     * Forwards chat prompts to the MCP AI assistant server and streams the response using Server-Sent Events (SSE).
+     * Proxy AI assistant streaming chat request
+     */
+    async postAiChatStream(requestParameters: PostAiChatStreamRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
+        await this.postAiChatStreamRaw(requestParameters, initOverrides);
     }
 
 }

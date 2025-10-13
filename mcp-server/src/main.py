@@ -5,7 +5,7 @@ import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -102,7 +102,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
 
 @app.post("/ai/chat/stream")
-async def chat_stream(request: ChatRequest) -> StreamingResponse:
+async def chat_stream(request: Request) -> StreamingResponse:
     """
     Generate AI response with streaming (Server-Sent Events).
 
@@ -116,12 +116,31 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
         HTTPException: If there's an error generating the response
     """
     try:
-        logger.info(f"Received streaming chat request: {request.message[:100]}... (conversation_id: {request.conversation_id})")
+        # Parse raw body first to debug
+        raw_body = await request.body()
+        logger.info(f"Raw request body: {raw_body.decode('utf-8')[:500]}")
+        
+        # Parse into Pydantic model
+        import json
+        body_dict = json.loads(raw_body)
+        chat_request = ChatRequest(**body_dict)
+        
+        logger.info(f"Received streaming chat request: {chat_request.message[:100]}... (conversation_id: {chat_request.conversation_id})")
+        
+        # Debug: Log the entire request object
+        logger.info(f"Request fields - message: {bool(chat_request.message)}, conversation_id: {chat_request.conversation_id}, page_context: {bool(chat_request.page_context)}")
+        
+        # Log page context if provided
+        if chat_request.page_context:
+            logger.info(f"Page context received: {chat_request.page_context[:200]}...")
+        else:
+            logger.warning(f"No page context provided in request. Parsed dict keys: {body_dict.keys()}, page_context value: {body_dict.get('page_context')}")
         
         return StreamingResponse(
             ai_assistant.generate_response_stream(
-                request.message,
-                request.conversation_id
+                chat_request.message,
+                chat_request.conversation_id,
+                chat_request.page_context
             ),
             media_type="text/event-stream",
             headers={

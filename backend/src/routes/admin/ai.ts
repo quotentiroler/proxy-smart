@@ -6,11 +6,13 @@ import { ErrorResponse, ChatRequestSchema, ChatResponseSchema } from '../../sche
 type ChatRequestPayload = {
   message: string
   conversationId?: string
+  pageContext?: string
 }
 
 type McpChatRequest = {
   message: string
   conversation_id?: string
+  page_context?: string
 }
 
 type McpDocumentChunk = {
@@ -33,7 +35,8 @@ type McpChatResponse = {
 async function callMcpChatApi(payload: ChatRequestPayload): Promise<McpChatResponse> {
   const mcpRequest: McpChatRequest = {
     message: payload.message,
-    conversation_id: payload.conversationId
+    conversation_id: payload.conversationId,
+    page_context: payload.pageContext
   }
 
   const response = await fetch(config.ai.chatEndpoint, {
@@ -142,7 +145,8 @@ export const aiRoutes = new Elysia({ prefix: '/ai', tags: ['ai'] })
     try {
       const mcpRequest: McpChatRequest = {
         message: body.message,
-        conversation_id: body.conversationId
+        conversation_id: body.conversationId,
+        page_context: body.pageContext
       }
 
       const streamEndpoint = `${config.ai.baseUrl}/ai/chat/stream`

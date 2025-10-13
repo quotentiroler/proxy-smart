@@ -255,6 +255,9 @@ export const ChatRequestSchema = t.Object({
   }),
   conversationId: t.Optional(t.String({
     description: 'Optional conversation identifier to maintain context between turns'
+  })),
+  pageContext: t.Optional(t.String({
+    description: 'Optional page context with visible content, forms, buttons, and current section from the user\'s current page'
   }))
 })
 

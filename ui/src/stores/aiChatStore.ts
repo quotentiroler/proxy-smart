@@ -8,6 +8,7 @@ interface AIChatState {
   conversationId: string | null;
   isMinimized: boolean;
   isOpen: boolean;
+  scrollPosition: number;
   
   // Actions
   addMessage: (message: ChatMessage) => void;
@@ -16,6 +17,7 @@ interface AIChatState {
   setConversationId: (id: string | null) => void;
   setIsMinimized: (minimized: boolean) => void;
   setIsOpen: (open: boolean) => void;
+  setScrollPosition: (position: number) => void;
   resetChat: () => void;
 }
 
@@ -46,6 +48,7 @@ export const useAIChatStore = create<AIChatState>()(
       conversationId: null,
       isMinimized: false,
       isOpen: false,
+      scrollPosition: 0,
 
       // Actions
       addMessage: (message) => {
@@ -78,11 +81,16 @@ export const useAIChatStore = create<AIChatState>()(
         set({ isOpen: open });
       },
 
+      setScrollPosition: (position) => {
+        set({ scrollPosition: position });
+      },
+
       resetChat: () => {
         set({
           messages: [getInitialMessage()],
           conversationId: null,
           isMinimized: false,
+          scrollPosition: 0,
         });
       },
     }),
@@ -98,6 +106,7 @@ export const useAIChatStore = create<AIChatState>()(
         conversationId: state.conversationId,
         isMinimized: state.isMinimized,
         isOpen: state.isOpen,
+        scrollPosition: state.scrollPosition,
       }),
       // Deserialize dates back to Date objects
       onRehydrateStorage: () => (state) => {
