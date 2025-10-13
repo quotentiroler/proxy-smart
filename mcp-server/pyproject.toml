@@ -10,7 +10,7 @@ license = {text = "AGPL-3.0-or-later"}
 readme = "README.md"
 
 dependencies = [
-    "fastapi>=0.115.6",
+    "fastapi>=0.119.0",
     "uvicorn[standard]>=0.34.0",
     "pydantic>=2.10.3",
     "pydantic-settings>=2.6.1",
@@ -23,6 +23,7 @@ dependencies = [
     "python-dateutil>=2.8.2",
     "urllib3>=2.1.0,<3.0.0",
     "typing-extensions>=4.7.1",
+    "mcp[cli]>=1.17.0",
 ]
 
 [project.optional-dependencies]

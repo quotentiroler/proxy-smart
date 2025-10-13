@@ -3,7 +3,7 @@
 import json
 import logging
 import time
-from typing import AsyncGenerator, Literal, Optional
+from typing import Any, AsyncGenerator, Dict, Literal, Optional
 
 from openai import AsyncOpenAI, OpenAIError
 
@@ -11,9 +11,57 @@ from config import settings
 from models.schemas import ChatResponse, DocumentChunk
 from services.knowledge_base import KnowledgeBase
 from services.conversation_store import conversation_store
-from services.backend_tools import BackendAPITools
+from services.backend_mcp_client import get_backend_client, BackendMCPClient
 
 logger = logging.getLogger(__name__)
+
+
+def add_additional_properties(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively add 'additionalProperties': false to all object schemas
+    and ensure 'required' includes all properties for OpenAI strict mode.
+    
+    OpenAI's structured outputs require:
+    1. 'additionalProperties': false at every object level
+    2. 'required' array must include ALL properties (no optional fields in strict mode)
+    """
+    if not isinstance(schema, dict):
+        return schema
+    
+    # Create a copy to avoid modifying the original
+    result = schema.copy()
+    
+    # If this is an object type, add additionalProperties: false
+    if result.get("type") == "object":
+        result["additionalProperties"] = False
+        
+        # Ensure 'required' includes all properties for strict mode
+        if "properties" in result:
+            all_property_keys = list(result["properties"].keys())
+            
+            # If required array exists but is incomplete, add all properties
+            if "required" in result:
+                result["required"] = all_property_keys
+            # If no required array, create one with all properties
+            elif all_property_keys:
+                result["required"] = all_property_keys
+            
+            # Recursively process properties
+            result["properties"] = {
+                key: add_additional_properties(value)
+                for key, value in result["properties"].items()
+            }
+    
+    # Recursively process array items
+    if "items" in result:
+        result["items"] = add_additional_properties(result["items"])
+    
+    # Recursively process anyOf, oneOf, allOf
+    for key in ["anyOf", "oneOf", "allOf"]:
+        if key in result:
+            result[key] = [add_additional_properties(item) for item in result[key]]
+    
+    return result
 
 
 class AIAssistant:
@@ -24,18 +72,14 @@ class AIAssistant:
         self.knowledge_base = KnowledgeBase()
         self.conversation_store = conversation_store
         self.openai_client: Optional[AsyncOpenAI] = None
-        self.backend_tools: Optional[BackendAPITools] = None
+        self.backend_mcp_client: Optional[BackendMCPClient] = None
 
         if settings.is_openai_configured():
             self.openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
             logger.info("OpenAI client initialized successfully")
             
-            # Initialize backend API tools for function calling
-            self.backend_tools = BackendAPITools(
-                backend_url=settings.backend_api_url,
-                access_token=settings.backend_api_token if settings.backend_api_token else None
-            )
-            logger.info(f"Backend API tools initialized with URL: {settings.backend_api_url}")
+            # Backend MCP client will be initialized on first use
+            logger.info(f"Backend MCP client will connect to: {settings.backend_api_url}")
         else:
             logger.warning(
                 "OpenAI API key not configured, using rule-based fallback only"
@@ -169,8 +213,25 @@ class AIAssistant:
             f"Semantic search completed in {search_time:.2f}s - found {len(relevant_docs)} documents"
         )
 
-        # Send sources as first event
-        yield f"data: {json.dumps({'type': 'sources', 'sources': [doc.model_dump() for doc in relevant_docs]})}\n\n"
+        # Check if backend MCP tools are available
+        has_backend_tools = False
+        try:
+            if self.backend_mcp_client is None:
+                self.backend_mcp_client = await get_backend_client()
+            
+            mcp_tools = await self.backend_mcp_client.list_tools()
+            has_backend_tools = len(mcp_tools) > 0
+            
+            if has_backend_tools:
+                logger.info(f"Backend MCP tools available ({len(mcp_tools)} tools), skipping sources in response")
+        except Exception as e:
+            logger.debug(f"Backend MCP tools not available: {e}")
+        
+        # Send sources only if NOT using function calls
+        # When function calls are available, they provide the data directly,
+        # so documentation sources are not relevant
+        if not has_backend_tools:
+            yield f"data: {json.dumps({'type': 'sources', 'sources': [doc.model_dump() for doc in relevant_docs]})}\n\n"
 
         # If no relevant documents found, send general help message
         if not relevant_docs:
@@ -278,12 +339,33 @@ class AIAssistant:
         context = self._build_rag_context(relevant_docs, conversation_id)
         instructions = self._build_system_prompt(context)
 
-        # Get tools if available
+        # Get backend MCP client and list available tools
         tools = []
-        if self.backend_tools:
-            tools = self.backend_tools.get_function_definitions()
+        try:
+            if self.backend_mcp_client is None:
+                self.backend_mcp_client = await get_backend_client()
+            
+            # Get tools from MCP server
+            mcp_tools = await self.backend_mcp_client.list_tools()
+            
+            # Convert MCP tool format to OpenAI function format
+            for tool in mcp_tools:
+                # Add additionalProperties: false to schema for OpenAI strict mode
+                parameters = add_additional_properties(tool["inputSchema"])
+                
+                tools.append({
+                    "type": "function",
+                    "name": tool["name"],
+                    "description": tool["description"],
+                    "parameters": parameters,
+                    "strict": True,
+                })
+            
             if tools:
-                logger.info(f"Added {len(tools)} backend API tools to request")
+                logger.info(f"Added {len(tools)} backend MCP tools to request")
+        except Exception as e:
+            logger.warning(f"Could not load backend MCP tools: {e}")
+            # Continue without tools if MCP connection fails
 
         # Build input list for first API call
         input_list = [{"role": "user", "content": message}]
@@ -342,7 +424,8 @@ class AIAssistant:
                     elif event_type == "response.output_item.done":
                         if hasattr(event, "item"):
                             item = event.item
-                            item_dict = item.model_dump()
+                            # Use exclude_none to avoid passing fields like status
+                            item_dict = item.model_dump(exclude_none=True, exclude_unset=True)
                             all_output_items.append(item_dict)
                             
                             # Store complete function call items
@@ -399,11 +482,11 @@ class AIAssistant:
                     # Parse arguments
                     args = json.loads(args_str) if args_str else {}
                     
-                    # Execute function
-                    if self.backend_tools:
-                        result = await self.backend_tools.execute_function(func_name, args)
-                    else:
-                        raise Exception("Backend tools not available")
+                    # Execute function via MCP client
+                    if self.backend_mcp_client is None:
+                        self.backend_mcp_client = await get_backend_client()
+                    
+                    result = await self.backend_mcp_client.call_tool(func_name, args)
                     
                     logger.info(f"Function {func_name} returned: {result}")
                     
@@ -430,17 +513,20 @@ class AIAssistant:
                     })
 
             # Build input for second API call
-            # Must include ALL output items from first turn (reasoning + function calls)
+            # For reasoning models (GPT-5), ALL output items from first turn must be included
+            # This includes reasoning items that function calls depend on
             second_input = input_list.copy()
             
-            # Add ALL output items from first turn (this includes reasoning items that function calls depend on)
+            # Add ALL output items exactly as received (required for reasoning models)
+            # Per OpenAI docs: "any reasoning items returned in model responses with tool calls 
+            # must also be passed back with tool call outputs"
             second_input.extend(all_output_items)
             
             # Add function outputs
             second_input.extend(function_outputs)
 
             logger.info(f"[TURN 2] Making second API call with {len(function_outputs)} function result(s)")
-            logger.debug(f"[TURN 2] Second input has {len(second_input)} items (including {len(all_output_items)} output items)")
+            logger.debug(f"[TURN 2] Second input has {len(second_input)} items: {len(input_list)} user + {len(all_output_items)} output + {len(function_outputs)} results")
 
             # Second API call parameters
             second_params = {
@@ -510,10 +596,30 @@ class AIAssistant:
             "max_output_tokens": settings.openai_max_tokens,
         }
         
-        # Add function calling tools if backend tools are available
-        if self.backend_tools:
-            api_params["tools"] = self.backend_tools.get_function_definitions()
-            logger.info(f"Added {len(api_params['tools'])} backend API tools to OpenAI request")
+        # Add function calling tools if backend MCP client is available
+        try:
+            if self.backend_mcp_client is None:
+                self.backend_mcp_client = await get_backend_client()
+            
+            mcp_tools = await self.backend_mcp_client.list_tools()
+            if mcp_tools:
+                # Convert MCP tool format to OpenAI function format
+                tools = []
+                for tool in mcp_tools:
+                    # Add additionalProperties: false to schema for OpenAI strict mode
+                    parameters = add_additional_properties(tool["inputSchema"])
+                    
+                    tools.append({
+                        "type": "function",
+                        "name": tool["name"],
+                        "description": tool["description"],
+                        "parameters": parameters,
+                        "strict": True,
+                    })
+                api_params["tools"] = tools
+                logger.info(f"Added {len(tools)} backend MCP tools to OpenAI request")
+        except Exception as e:
+            logger.warning(f"Could not load backend MCP tools: {e}")
 
         # Only include temperature if it's not the default
         if settings.openai_temperature != 1.0:

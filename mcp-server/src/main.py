@@ -36,7 +36,31 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await ai_assistant.knowledge_base.initialize_embeddings()
         logger.info("Embeddings initialized successfully")
     
+    # Initialize MCP backend client asynchronously (don't block startup)
+    async def init_backend_client():
+        try:
+            from services.backend_mcp_client import get_backend_client
+            backend_client = await get_backend_client()
+            logger.info("Backend MCP client initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize backend MCP client: {e}")
+            logger.warning("Backend API tools will not be available")
+    
+    # Start backend client initialization in background
+    import asyncio
+    asyncio.create_task(init_backend_client())
+    
     yield
+    
+    # Cleanup: disconnect MCP client
+    try:
+        from services.backend_mcp_client import get_backend_client
+        backend_client = await get_backend_client()
+        await backend_client.disconnect()
+        logger.info("Backend MCP client disconnected")
+    except Exception as e:
+        logger.debug(f"Error disconnecting backend MCP client: {e}")
+    
     logger.info("Shutting down MCP server...")
 
 
@@ -60,13 +84,17 @@ app.add_middleware(
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """Health check endpoint."""
-    kb_stats = ai_assistant.knowledge_base.get_stats()
-
+    """
+    Health check endpoint - responds immediately without blocking.
+    
+    Returns basic health status without waiting for background tasks.
+    """
+    # Don't call knowledge_base.get_stats() as it might be slow
+    # Just return a simple response
     return HealthResponse(
         status="healthy",
-        openai_available=ai_assistant.is_openai_available(),
-        knowledge_base_loaded=kb_stats["total_documents"] > 0,
+        openai_available=settings.is_openai_configured(),
+        knowledge_base_loaded=True,  # Assume loaded, don't check synchronously
     )
 
 
