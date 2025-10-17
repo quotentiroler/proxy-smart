@@ -20,10 +20,10 @@ def get_api_modules():
     import sys
     import importlib
     
-    # Add api_client to path
-    api_client_path = Path(__file__).parent / "api_client"
-    if str(api_client_path) not in sys.path:
-        sys.path.insert(0, str(api_client_path))
+    # Add generated folder to path (so we can import api_client as a package)
+    generated_path = Path(__file__).parent / "generated"
+    if str(generated_path) not in sys.path:
+        sys.path.insert(0, str(generated_path))
     
     # Import the api_client package
     import api_client
@@ -392,10 +392,10 @@ from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
 
-# Add the api_client to the Python path
-api_client_path = Path(__file__).parent / "api_client"
-if str(api_client_path) not in sys.path:
-    sys.path.insert(0, str(api_client_path))
+# Add the generated folder to the Python path (so api_client can be imported as a package)
+generated_path = Path(__file__).parent / "generated"
+if str(generated_path) not in sys.path:
+    sys.path.insert(0, str(generated_path))
 
 from api_client import (
     ApiClient,

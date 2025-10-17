@@ -14,10 +14,10 @@ from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
 
-# Add the api_client to the Python path
-api_client_path = Path(__file__).parent / "api_client"
-if str(api_client_path) not in sys.path:
-    sys.path.insert(0, str(api_client_path))
+# Add the generated folder to the Python path (so api_client can be imported as a package)
+generated_path = Path(__file__).parent / "generated"
+if str(generated_path) not in sys.path:
+    sys.path.insert(0, str(generated_path))
 
 from api_client import (
     ApiClient,
@@ -198,6 +198,7 @@ async def create_admin_keycloak_config_configure(ctx: Context, save_keycloak_con
   - realm (REQUIRED): Keycloak realm name
   - adminClientId (optional): Admin client ID for API access
   - adminClientSecret (optional): Admin client secret for API access
+  - additional_properties (optional)
     
     Example JSON for parameters:
       save_keycloak_config_request:
@@ -247,6 +248,7 @@ async def create_admin_keycloak_config_test(ctx: Context, test_keycloak_connecti
         test_keycloak_connection_request: JSON object with the following fields:
   - baseUrl (REQUIRED): Keycloak base URL
   - realm (REQUIRED): Keycloak realm name
+  - additional_properties (optional)
     
     Example JSON for parameters:
       test_keycloak_connection_request:
@@ -401,6 +403,7 @@ async def update_admin_client_registration_settings(ctx: Context, client_registr
   - maxRedirectUris (REQUIRED): Maximum number of redirect URIs allowed per client
   - allowedRedirectUriPatterns (REQUIRED)
   - notificationEmail (optional): Email to notify of new registrations
+  - additional_properties (optional)
     
     Example JSON for parameters:
       client_registration_settings:
@@ -528,6 +531,7 @@ async def create_ai_chat(ctx: Context, chat_request: str) -> dict[str, Any]:
   - message (REQUIRED): User message/question
   - conversationId (optional): Conversation ID for context
   - pageContext (optional): Current page context
+  - additional_properties (optional)
     
     Example JSON for parameters:
       chat_request:
@@ -577,6 +581,7 @@ async def create_ai_chat_stream(ctx: Context, chat_request: str) -> dict[str, An
   - message (REQUIRED): User message/question
   - conversationId (optional): Conversation ID for context
   - pageContext (optional): Current page context
+  - additional_properties (optional)
     
     Example JSON for parameters:
       chat_request:
@@ -845,6 +850,7 @@ async def create_auth_introspect(ctx: Context, introspect_request: str) -> dict[
   - token_type_hint (optional): Hint about token type (access_token, refresh_token)
   - client_id (optional): OAuth2 client ID
   - client_secret (optional): OAuth2 client secret
+  - additional_properties (optional)
     
     Example JSON for parameters:
       introspect_request:
@@ -905,6 +911,7 @@ async def create_auth_register(ctx: Context, client_registration_request: str) -
   - software_version (optional): Software version
   - fhir_versions (optional): Supported FHIR versions
   - launch_uris (optional): EHR launch URLs
+  - additional_properties (optional)
     
     Example JSON for parameters:
       client_registration_request:
@@ -964,6 +971,7 @@ async def create_auth_token(ctx: Context, token_request: str) -> dict[str, Any]:
   - password (optional): Password (for password grant)
   - client_assertion_type (optional): Client assertion type for JWT authentication
   - client_assertion (optional): Client assertion JWT for authentication
+  - additional_properties (optional)
     
     Example JSON for parameters:
       token_request:
@@ -1376,6 +1384,7 @@ async def create_admin_healthcare_users(ctx: Context, create_healthcare_user_req
   - temporaryPassword (optional): Whether password is temporary and must be changed
   - realmRoles (optional): Realm-level roles to assign
   - clientRoles (optional)
+  - additional_properties (optional)
     
     Example JSON for parameters:
       create_healthcare_user_request:
@@ -1434,6 +1443,7 @@ async def update_admin_healthcare_users_by_user_id(ctx: Context, user_id: str, u
   - fhirUser (optional): FHIR user reference
   - realmRoles (optional): Realm-level roles
   - clientRoles (optional)
+  - additional_properties (optional)
     
     Example JSON for parameters:
       update_healthcare_user_request:
@@ -1614,9 +1624,10 @@ async def create_admin_idps(ctx: Context, create_identity_provider_request: str)
         create_identity_provider_request: JSON object with the following fields:
   - alias (REQUIRED): Provider alias (unique identifier)
   - providerId (REQUIRED): Provider type (oidc, saml, etc.)
+  - config (REQUIRED)
   - displayName (optional): Display name for UI
   - enabled (optional): Whether to enable the provider
-  - config (REQUIRED)
+  - additional_properties (optional)
     
     Example JSON for parameters:
       create_identity_provider_request:
@@ -1668,6 +1679,7 @@ async def update_admin_idps_by_alias(ctx: Context, alias: str, update_identity_p
   - displayName (optional): Display name
   - enabled (optional): Enable or disable the provider
   - config (optional)
+  - additional_properties (optional)
     
     Example JSON for parameters:
       update_identity_provider_request:
@@ -2056,6 +2068,7 @@ async def create_admin_launch_contexts_by_user_id_fhir_context(ctx: Context, use
         user_id: Parameter: user_id
         set_fhir_context_request: JSON object with the following fields:
   - fhirContext (REQUIRED): Additional FHIR resources in context (JSON array of objects)
+  - additional_properties (optional)
     
     Example JSON for parameters:
       set_fhir_context_request:
@@ -2174,6 +2187,7 @@ async def update_admin_launch_contexts_by_user_id_intent(ctx: Context, user_id: 
         user_id: Parameter: user_id
         set_intent_request: JSON object with the following fields:
   - intent (REQUIRED): Intent string (e.g., reconcile-medications)
+  - additional_properties (optional)
     
     Example JSON for parameters:
       set_intent_request:
@@ -2222,6 +2236,7 @@ async def update_admin_launch_contexts_by_user_id_need_patient_banner(ctx: Conte
         user_id: Parameter: user_id
         set_need_patient_banner_request: JSON object with the following fields:
   - needPatientBanner (REQUIRED): Whether patient banner is required
+  - additional_properties (optional)
     
     Example JSON for parameters:
       set_need_patient_banner_request:
@@ -2270,6 +2285,7 @@ async def update_admin_launch_contexts_by_user_id_smart_style_url(ctx: Context, 
         user_id: Parameter: user_id
         set_smart_style_url_request: JSON object with the following fields:
   - styleUrl (REQUIRED): URL to CSS stylesheet for styling
+  - additional_properties (optional)
     
     Example JSON for parameters:
       set_smart_style_url_request:
@@ -2318,6 +2334,7 @@ async def update_admin_launch_contexts_by_user_id_tenant(ctx: Context, user_id: 
         user_id: Parameter: user_id
         set_tenant_request: JSON object with the following fields:
   - tenant (REQUIRED): Tenant identifier
+  - additional_properties (optional)
     
     Example JSON for parameters:
       set_tenant_request:
@@ -2750,6 +2767,7 @@ async def create_admin_roles(ctx: Context, create_role_request: str) -> dict[str
   - name (REQUIRED): Role name (must be unique)
   - description (optional): Role description
   - fhirScopes (optional): FHIR scopes associated with this role
+  - additional_properties (optional)
     
     Example JSON for parameters:
       create_role_request:
@@ -2799,6 +2817,7 @@ async def update_admin_roles_by_role_name(ctx: Context, role_name: str, update_r
         update_role_request: JSON object with the following fields:
   - description (optional): Role description
   - fhirScopes (optional): FHIR scopes associated with this role
+  - additional_properties (optional)
     
     Example JSON for parameters:
       update_role_request:
@@ -3017,6 +3036,7 @@ async def create_fhir_servers(ctx: Context, add_fhir_server_request: str) -> dic
         add_fhir_server_request: JSON object with the following fields:
   - url (REQUIRED): Base URL of the FHIR server to add
   - name (optional): Optional custom name for the server
+  - additional_properties (optional)
     
     Example JSON for parameters:
       add_fhir_server_request:
@@ -3067,6 +3087,7 @@ async def create_fhir_servers_by_server_id_mtls_certificates(ctx: Context, serve
   - type (REQUIRED)
   - content (REQUIRED): Base64-encoded certificate or key content
   - filename (optional): Original filename (for reference)
+  - additional_properties (optional)
     
     Example JSON for parameters:
       upload_certificate_request:
@@ -3117,6 +3138,7 @@ async def update_fhir_servers_by_server_id(ctx: Context, server_id: str, update_
         update_fhir_server_request: JSON object with the following fields:
   - url (REQUIRED): New base URL for the FHIR server
   - name (optional): New name for the server
+  - additional_properties (optional)
     
     Example JSON for parameters:
       update_fhir_server_request:
@@ -3165,6 +3187,7 @@ async def update_fhir_servers_by_server_id_mtls(ctx: Context, server_id: str, up
         server_id: Parameter: server_id
         update_mtls_config_request: JSON object with the following fields:
   - enabled (REQUIRED): Enable or disable mTLS for this server
+  - additional_properties (optional)
     
     Example JSON for parameters:
       update_mtls_config_request:
@@ -3329,6 +3352,7 @@ async def create_admin_smart_apps(ctx: Context, create_smart_app_request: str) -
   - publicKey (optional): Public key for JWT authentication (PEM format)
   - jwksUri (optional): JWKS URI for JWT authentication
   - systemScopes (optional): System-level scopes for backend services
+  - additional_properties (optional)
     
     Example JSON for parameters:
       create_smart_app_request:
@@ -3370,37 +3394,6 @@ async def create_admin_smart_apps(ctx: Context, create_smart_app_request: str) -
         return {"error": str(e)}
 
 @mcp.tool()
-async def create_admin_smart_config_refresh(ctx: Context) -> dict[str, Any]:
-    """
-    Refresh SMART Configuration Cache
-    
-    Auto-generated from: smart_apps_api.post_admin_smart_config_refresh()
-    """
-    try:
-        await ctx.info(f"Calling create_admin_smart_config_refresh...")
-        
-        response = smart_apps_api.post_admin_smart_config_refresh()
-        
-        # Convert response to dict if it has to_dict method
-        if hasattr(response, 'to_dict'):
-            result = response.to_dict()
-        elif isinstance(response, list) and response and hasattr(response[0], 'to_dict'):
-            result = [item.to_dict() for item in response]
-        else:
-            result = response
-        
-        await ctx.info(f"create_admin_smart_config_refresh completed successfully")
-        return {"result": result}
-        
-    except ApiException as e:
-        error_msg = _format_api_error(e)
-        await ctx.error(f"Failed to execute create_admin_smart_config_refresh: {error_msg}")
-        return {"error": error_msg, "status": e.status}
-    except Exception as e:
-        await ctx.error(f"Unexpected error in create_admin_smart_config_refresh: {str(e)}")
-        return {"error": str(e)}
-
-@mcp.tool()
 async def update_admin_smart_apps_by_client_id(ctx: Context, client_id: str, update_smart_app_request: str) -> dict[str, Any]:
     """
     Update SMART on FHIR Application
@@ -3417,6 +3410,7 @@ async def update_admin_smart_apps_by_client_id(ctx: Context, client_id: str, upd
   - optionalScopes (optional): Optional SMART scopes
   - smartVersion (optional): SMART App Launch version
   - fhirVersion (optional): FHIR version
+  - additional_properties (optional)
     
     Example JSON for parameters:
       update_smart_app_request:
@@ -3455,7 +3449,7 @@ async def update_admin_smart_apps_by_client_id(ctx: Context, client_id: str, upd
         return {"error": str(e)}
 
 
-# Generated 85 tools from 12 API classes
+# Generated 84 tools from 12 API classes
 
 def main():
     """Run the FastMCP backend tools server."""

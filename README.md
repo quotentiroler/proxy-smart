@@ -263,25 +263,78 @@ graph TB
 
 ## 🤖 AI Assistant
 
-The platform includes an intelligent AI assistant powered by RAG (Retrieval Augmented Generation) technology:
+The platform includes an intelligent AI assistant powered by RAG (Retrieval Augmented Generation) technology through a dedicated **Model Context Protocol (MCP)** server.
 
-### Capabilities
+### Architecture
+
+```
+UI (React) → Backend (Elysia/Node.js) → MCP Server (Python/FastAPI) → OpenAI GPT-4
+                                              ↓
+                                    RAG Knowledge Base
+                                    (Platform Documentation)
+```
+
+The AI assistant is built on a **three-tier architecture**:
+
+1. **Frontend Layer** (`ui/src/components/AIChatOverlay.tsx`): Streaming chat interface with SSE
+2. **Proxy Layer** (`backend/src/routes/ai.ts`): Authentication & request forwarding
+3. **MCP Server** (`mcp-server/`): Python-based FastAPI server with RAG capabilities
+
+### 🔌 MCP (Model Context Protocol) Server
+
+The **MCP server** is a standalone Python service that handles AI interactions:
+
+- **RAG Implementation**: Vector-based semantic search over platform documentation
+- **OpenAI Integration**: Uses GPT-4 with function calling for intelligent responses
+- **Knowledge Base**: Pre-loaded chunks of SMART on FHIR platform documentation
+- **Streaming Support**: Server-Sent Events (SSE) for real-time response streaming
+- **Keycloak Authentication**: Uses SMART Backend Services (JWT) to call backend APIs
+
+**Why MCP?** Separating the AI logic into a dedicated Python server enables:
+- Better AI/ML library ecosystem (OpenAI, LangChain, vector databases)
+- Independent scaling and deployment
+- Easier integration with Claude Desktop and other MCP clients
+- Clear separation between Node.js business logic and Python AI capabilities
+
+### 🧠 Capabilities
 
 - **Navigation Guidance**: Help finding the right administrative sections
-- **Configuration Assistance**: Step-by-step setup guidance
+- **Configuration Assistance**: Step-by-step setup guidance with function calling
 - **SMART on FHIR Expertise**: Deep knowledge of specifications and best practices
-- **Troubleshooting Support**: Common issues and solutions
-- **Real-time Documentation**: Always up-to-date with platform changes
+- **Troubleshooting Support**: Context-aware solutions with source citations
+- **Real-time Documentation**: RAG ensures responses reflect current platform state
+- **Function Execution**: Can call backend APIs to fetch live data (users, apps, servers)
+- **Streaming Responses**: Real-time generation with reasoning transparency
 
-### Example Queries
+### 💬 Example Queries
 
 ```
 "How do I register a new SMART app?"
 "What scopes do I need for patient data access?"
 "Show me the OAuth monitoring dashboard"
+"List all healthcare users in the system"  (calls backend API)
 "How do I configure launch contexts for my app?"
 "What are the security best practices?"
+"Explain the OAuth flow for EHR launch"
 ```
+
+### 🔧 MCP Server Setup
+
+See [`mcp-server/README.md`](mcp-server/README.md) for detailed setup instructions.
+
+**Quick Start:**
+```bash
+cd mcp-server
+uv venv && uv sync
+uv run python src/main.py
+```
+
+**Requirements:**
+- Python 3.11+
+- OpenAI API key
+- Keycloak credentials (for backend API access)
+
+The MCP server runs on `localhost:8081` and is proxied by the backend at `/api/ai/*` endpoints.
 
 ## 🛠️ Development
 
