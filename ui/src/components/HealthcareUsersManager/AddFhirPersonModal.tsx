@@ -68,6 +68,15 @@ export function AddFhirPersonModal({
     !user.fhirPersons.some(person => person.serverName === server.name)
   );
 
+  // Debug logging
+  console.debug('📋 AddFhirPersonModal - Data Check:', {
+    totalServersProvided: availableServers.length,
+    availableServersProvided: availableServers.map(s => ({ name: s.name, status: s.status })),
+    userFhirPersons: user.fhirPersons,
+    availableServersAfterFilter: availableServersForUser.length,
+    filteredServers: availableServersForUser.map(s => ({ name: s.name, status: s.status }))
+  });
+
   const handleSearch = async () => {
     if (!selectedServer || !personId) {
       setError('Please select a server and enter a Person ID');

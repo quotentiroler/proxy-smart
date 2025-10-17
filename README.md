@@ -268,7 +268,7 @@ The platform includes an intelligent AI assistant powered by RAG (Retrieval Augm
 ### Architecture
 
 ```
-UI (React) → Backend (Elysia/Node.js) → MCP Server (Python/FastAPI) → OpenAI GPT-4
+UI (React) → Backend (Elysia/Node.js) → MCP Server (Python/FastAPI) → OpenAI GPT-5
                                               ↓
                                     RAG Knowledge Base
                                     (Platform Documentation)
@@ -285,7 +285,7 @@ The AI assistant is built on a **three-tier architecture**:
 The **MCP server** is a standalone Python service that handles AI interactions:
 
 - **RAG Implementation**: Vector-based semantic search over platform documentation
-- **OpenAI Integration**: Uses GPT-4 with function calling for intelligent responses
+- **OpenAI Integration**: Uses GPT-5 with function calling for intelligent responses
 - **Knowledge Base**: Pre-loaded chunks of SMART on FHIR platform documentation
 - **Streaming Support**: Server-Sent Events (SSE) for real-time response streaming
 - **Keycloak Authentication**: Uses SMART Backend Services (JWT) to call backend APIs

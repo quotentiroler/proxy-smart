@@ -427,22 +427,27 @@ export function HealthcareUsersManager() {
       )}
 
       {/* Add FHIR Person Modal */}
-      {selectedUserForPerson && (
-        <AddFhirPersonModal
-          isOpen={showAddPersonModal}
-          onClose={() => {
-            setShowAddPersonModal(false);
-            setSelectedUserForPerson(null);
-          }}
-          user={selectedUserForPerson}
-          onPersonAdded={handlePersonAdded}
-          availableServers={fhirServers.map(server => ({
-            name: server.name,
-            baseUrl: server.url,
-            status: server.supported ? 'active' : 'inactive'
-          }))}
-        />
-      )}
+      {selectedUserForPerson && (() => {
+        const mappedServers = fhirServers.map(server => ({
+          name: server.name,
+          baseUrl: server.url,
+          status: server.supported ? 'active' : 'inactive'
+        }));
+      
+        
+        return (
+          <AddFhirPersonModal
+            isOpen={showAddPersonModal}
+            onClose={() => {
+              setShowAddPersonModal(false);
+              setSelectedUserForPerson(null);
+            }}
+            user={selectedUserForPerson}
+            onPersonAdded={handlePersonAdded}
+            availableServers={mappedServers}
+          />
+        );
+      })()}
     </div>
   );
 }
