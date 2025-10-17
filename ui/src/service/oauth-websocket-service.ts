@@ -1,5 +1,5 @@
 // OAuth WebSocket Service - Simplified version for real-time monitoring with SSE fallback
-import type { OAuthEvent } from '@/lib/types/api';
+import type { OAuthEvent, OAuthAnalyticsResponse } from '@/lib/types/api';
 import { useAuthStore } from '../stores/authStore';
 import { oauthMonitoringService } from './oauth-monitoring-service';
 import { config } from '@/config';
@@ -18,26 +18,8 @@ export interface OAuthEventSimple {
   errorMessage?: string;
 }
 
-export interface OAuthAnalytics {
-  totalFlows: number;
-  successRate: number;
-  averageResponseTime: number;
-  activeTokens: number;
-  topClients: Array<{
-    clientId: string;
-    clientName: string;
-    count: number;
-    successRate: number;
-  }>;
-  flowsByType: Record<string, number>;
-  errorsByType: Record<string, number>;
-  hourlyStats: Array<{
-    hour: string;
-    success: number;
-    error: number;
-    total: number;
-  }>;
-}
+// Use the generated API client type for analytics
+export type OAuthAnalytics = OAuthAnalyticsResponse;
 
 export class OAuthWebSocketService {
   private ws: WebSocket | null = null;
@@ -156,14 +138,17 @@ export class OAuthWebSocketService {
     this.sseAnalyticsUnsub = oauthMonitoringService.subscribeToAnalytics((analytics) => {
       // Forward analytics through our interface  
       const convertedAnalytics: OAuthAnalytics = {
-        totalFlows: analytics.totalFlows || 0,
+        totalRequests: analytics.totalRequests || 0,
+        successfulRequests: analytics.successfulRequests || 0,
+        failedRequests: analytics.failedRequests || 0,
         successRate: analytics.successRate || 0,
         averageResponseTime: analytics.averageResponseTime || 0,
         activeTokens: analytics.activeTokens || 0,
         topClients: analytics.topClients || [],
         flowsByType: (analytics.flowsByType as Record<string, number>) || {},
         errorsByType: (analytics.errorsByType as Record<string, number>) || {},
-        hourlyStats: analytics.hourlyStats || []
+        hourlyStats: analytics.hourlyStats || [],
+        timestamp: analytics.timestamp || new Date().toISOString()
       };
       
       this.analyticsUpdateHandlers.forEach(handler => handler(convertedAnalytics));

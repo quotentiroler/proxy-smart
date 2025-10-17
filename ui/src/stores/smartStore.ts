@@ -3,20 +3,20 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { createAuthenticatedClientApis } from '@/lib/apiClient';
 import type { 
-  GetFhirServers200Response, 
-  GetFhirServers200ResponseServersInner,
-  GetAdminHealthcareUsers200ResponseInner 
+  FhirServerList,
+  FhirServerListServersInner,
+  HealthcareUser 
 } from '@/lib/api-client';
 
 interface SmartState {
   // FHIR Servers
-  servers: GetFhirServers200ResponseServersInner[];
+  servers: FhirServerListServersInner[];
   serversLoading: boolean;
   serversError: string | null;
   serversLastFetched: number | null;
   
   // Healthcare Users
-  healthcareUsers: GetAdminHealthcareUsers200ResponseInner[];
+  healthcareUsers: HealthcareUser[];
   healthcareUsersLoading: boolean;
   healthcareUsersError: string | null;
   healthcareUsersLastFetched: number | null;
@@ -31,7 +31,7 @@ interface SmartState {
   clearServersError: () => void;
   clearHealthcareUsersError: () => void;
   refreshAll: () => Promise<void>;
-  updateHealthcareUser: (userId: string, updatedUser: GetAdminHealthcareUsers200ResponseInner) => void;
+  updateHealthcareUser: (userId: string, updatedUser: HealthcareUser) => void;
   
   // Launch Context Actions
   addLaunchContextSet: (contextSet: ContextSet) => void;
@@ -91,7 +91,7 @@ export const useSmartStore = create<SmartState>()(
         try {
           console.debug('🔄 Fetching FHIR servers from API...');
           const { servers } = await createAuthenticatedClientApis();
-          const response: GetFhirServers200Response = await servers.getFhirServers();
+          const response: FhirServerList = await servers.getFhirServers();
           
           console.debug('✅ FHIR servers fetched successfully:', {
             totalServers: response.totalServers,
@@ -131,7 +131,7 @@ export const useSmartStore = create<SmartState>()(
           
           console.debug('✅ Healthcare users fetched successfully:', {
             totalUsers: users.length,
-            usernames: users.map((u: GetAdminHealthcareUsers200ResponseInner) => u.username)
+            usernames: users.map((u: HealthcareUser) => u.username)
           });
           
           set({ 
@@ -154,7 +154,7 @@ export const useSmartStore = create<SmartState>()(
       clearServersError: () => set({ serversError: null }),
       clearHealthcareUsersError: () => set({ healthcareUsersError: null }),
 
-      updateHealthcareUser: (userId: string, updatedUser: GetAdminHealthcareUsers200ResponseInner) => {
+      updateHealthcareUser: (userId: string, updatedUser: HealthcareUser) => {
         const { healthcareUsers } = get();
         const updatedUsers = healthcareUsers.map(user => 
           user.id === userId ? updatedUser : user

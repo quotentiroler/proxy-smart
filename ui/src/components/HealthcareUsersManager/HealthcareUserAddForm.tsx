@@ -11,15 +11,14 @@ import {
 } from '@/components/ui/select';
 import { Plus, Shield, Loader2, Server, Database, Trash2 } from 'lucide-react';
 import type { 
-  FhirServer, 
-  CreateHealthcareUserRequest, 
+  FhirServer,
   HealthcareUserFormData
 } from '@/lib/types/api';
 
 interface HealthcareUserAddFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (formData: CreateHealthcareUserRequest) => Promise<void>;
+  onSubmit: (formData: HealthcareUserFormData) => Promise<void>;
   submitting: boolean;
   fhirServers: FhirServer[];
   availableRealmRoles: string[];
@@ -32,6 +31,8 @@ const initialFormData: HealthcareUserFormData = {
   firstName: '',
   lastName: '',
   email: '',
+  enabled: true,
+  emailVerified: false,
   organization: '',
   password: '',
   temporaryPassword: false,
@@ -57,29 +58,8 @@ export function HealthcareUserAddForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Prepare API data directly from form data (minimal conversion)
-    const apiData: CreateHealthcareUserRequest = {
-      username: formData.username,
-      email: formData.email,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      organization: formData.organization,
-      password: formData.password,
-      temporaryPassword: formData.temporaryPassword,
-      realmRoles: formData.realmRoles?.length ? formData.realmRoles : undefined,
-      clientRoles: formData.clientRoles && Object.keys(formData.clientRoles).length 
-        ? formData.clientRoles 
-        : undefined,
-      // Convert UI helper field to API format
-      fhirUser: formData.fhirPersons?.length 
-        ? formData.fhirPersons
-            .filter(fp => fp.serverName && fp.personId)
-            .map(fp => `${fp.serverName}:${fp.personId}`)
-            .join(',')
-        : undefined,
-    };
-    
-    await onSubmit(apiData);
+    // Pass the form data - the parent will convert it to API format
+    await onSubmit(formData);
     setFormData(initialFormData);
   };
 
@@ -117,8 +97,8 @@ export function HealthcareUserAddForm({
   };
 
   const createPersonInFhir = async (serverName: string, userData: { firstName: string; lastName: string; email: string }) => {
-    // Mock implementation
-    const mockPersonId = `Person/${Date.now()}`;
+    // Mock implementation - generate ID at execution time, not render time
+    const mockPersonId = `Person/${crypto.randomUUID()}`;
     console.log(`Creating Person resource in ${serverName}:`, userData);
     return mockPersonId;
   };

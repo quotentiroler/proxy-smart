@@ -66,14 +66,14 @@ export async function validateToken(token: string): Promise<JwtPayload> {
   } catch (error) {
     logger.auth.error('Token validation failed', { 
       error: error instanceof Error ? error.message : 'Unknown error',
-      errorType: (error as any)?.constructor?.name
+      errorType: error instanceof Error ? error.constructor.name : 'Unknown'
     })
     
     // Check for specific JWT errors
     if (error instanceof jwt.TokenExpiredError) {
       throw new AuthenticationError('Token has expired')
     } else if (error instanceof jwt.JsonWebTokenError) {
-      throw new AuthenticationError(`Invalid token: ${error.message}`)
+      throw new AuthenticationError(`Invalid token: ${(error as Error).message}`)
     } else if (error instanceof jwt.NotBeforeError) {
       throw new AuthenticationError('Token not yet valid')
     } else if (error instanceof AuthenticationError) {

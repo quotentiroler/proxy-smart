@@ -3,17 +3,14 @@ import fetch, { Headers } from 'cross-fetch'
 import { validateToken } from '../lib/auth'
 import { config } from '../config'
 import { fhirServerStore, getServerByName, getServerInfoByName } from '../lib/fhir-server-store'
-import { ErrorResponse } from '../schemas/common'
+import { CommonErrorResponses, ErrorResponse, CacheRefreshResponse, SmartConfigurationResponse, FhirProxyResponse } from '../schemas'
 import { smartConfigService } from '../lib/smart-config'
 import { logger } from '../lib/logger'
 import { fetchWithMtls, getMtlsConfig } from './fhir-servers'
 import type { SmartConfiguration } from '../types'
 
-async function proxyFHIR({ params, request, set }: { 
-  params: { server_name: string, fhir_version: string }, 
-  request: Request, 
-  set: { status: number, headers: Record<string, string> } 
-}) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function proxyFHIR({ params, request, set }: any) {
   // 1) early version sanity check
   if (!config.fhir.supportedVersions.includes(params.fhir_version)) {
     set.status = 400
@@ -26,9 +23,9 @@ async function proxyFHIR({ params, request, set }: {
       set.status = 404
       return { error: `FHIR server '${params.server_name}' not found` }
     }
-    
+
     const serverUrl = serverInfo.url
-    
+
     // skip auth on metadata
     if (request.method !== 'GET' || !request.url.endsWith('/metadata')) {
       const auth = request.headers.get('authorization')?.replace(/^Bearer\s+/, '')
@@ -38,7 +35,7 @@ async function proxyFHIR({ params, request, set }: {
       }
       await validateToken(auth)
     }
-    
+
     // build target path
     const parts = new URL(request.url).pathname.split('/').filter(Boolean)
     const resourcePath = parts.slice(3).join('/')
@@ -51,17 +48,17 @@ async function proxyFHIR({ params, request, set }: {
     const fetchOptions = {
       method: request.method,
       headers,
-      body: ['POST','PUT','PATCH'].includes(request.method) 
-        ? await request.text() 
+      body: ['POST', 'PUT', 'PATCH'].includes(request.method)
+        ? await request.text()
         : undefined
     }
 
     // Check if mTLS is configured for this server
     const mtlsConfig = getMtlsConfig(serverInfo.identifier)
     const useMtls = mtlsConfig?.enabled && target.startsWith('https://')
-    
+
     // Use appropriate fetch method based on mTLS configuration
-    const resp = useMtls 
+    const resp = useMtls
       ? await fetchWithMtls(target, { ...fetchOptions, serverId: serverInfo.identifier })
       : await fetch(target, fetchOptions)
 
@@ -72,7 +69,7 @@ async function proxyFHIR({ params, request, set }: {
         set.headers = { ...set.headers, [k]: v }
       }
     })
-    set.headers['Access-Control-Allow-Origin']  = '*'
+    set.headers['Access-Control-Allow-Origin'] = '*'
     set.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
     set.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
 
@@ -90,18 +87,14 @@ async function proxyFHIR({ params, request, set }: {
 
 // Reusable schema for proxy endpoint
 const proxySchema = {
-  response: t.Any(),
+  response: {
+    200: FhirProxyResponse
+  },
   detail: {
     summary: 'FHIR Resource Proxy',
     description: 'Proxy authenticated FHIR requests to the upstream FHIR server',
     tags: ['fhir'],
-    security: [{ BearerAuth: [] }],
-    response: { 
-      200: { description: 'FHIR resource response' },
-      401: { description: 'Unauthorized - Bearer token required' },
-      403: { description: 'Forbidden - Invalid token' },
-      404: { description: 'Resource not found' }
-    }
+    security: [{ BearerAuth: [] }]
   }
 }
 /**
@@ -136,25 +129,13 @@ export const fhirRoutes = new Elysia({ prefix: `/${config.name}/:server_name/:fh
       server_name: t.String({ description: 'FHIR server name or identifier' }),
       fhir_version: t.String({ description: 'FHIR version (e.g., R4, R5)' })
     }),
-    response: t.Object({
-      issuer: t.String({ description: 'OpenID Connect issuer URL' }),
-      authorization_endpoint: t.String({ description: 'OAuth2 authorization endpoint' }),
-      token_endpoint: t.String({ description: 'OAuth2 token endpoint' }),
-      introspection_endpoint: t.String({ description: 'OAuth2 token introspection endpoint' }),
-      registration_endpoint: t.Optional(t.String({ description: 'RFC 7591 Dynamic Client Registration endpoint' })),
-      code_challenge_methods_supported: t.Array(t.String({ description: 'Supported PKCE code challenge methods' })),
-      grant_types_supported: t.Array(t.String({ description: 'Supported OAuth2 grant types' })),
-      response_types_supported: t.Array(t.String({ description: 'Supported OAuth2 response types' })),
-      scopes_supported: t.Array(t.String({ description: 'Supported OAuth2 scopes' })),
-      capabilities: t.Array(t.String({ description: 'SMART on FHIR capabilities' })),
-      token_endpoint_auth_methods_supported: t.Array(t.String({ description: 'Supported token endpoint authentication methods' })),
-      token_endpoint_auth_signing_alg_values_supported: t.Array(t.String({ description: 'Supported JWT signing algorithms for token endpoint auth' }))
-    }),
+    response: {
+      200: SmartConfigurationResponse
+    },
     detail: {
       summary: 'SMART on FHIR Configuration for Specific Server',
       description: 'Get SMART on FHIR well-known configuration for this specific FHIR server and version',
-      tags: ['smart-apps'],
-      response: { 200: { description: 'SMART on FHIR configuration object' } }
+      tags: ['smart-apps']
     }
   })
   // CORS preflight
@@ -173,16 +154,12 @@ export const fhirRoutes = new Elysia({ prefix: `/${config.name}/:server_name/:fh
     detail: {
       summary: 'FHIR CORS Preflight',
       description: 'Handle CORS preflight requests for FHIR endpoints',
-      tags: ['fhir'],
-      response: { 200: { description: 'CORS preflight response' } }
+      tags: ['fhir']
     }
   })
-  
+
   // Root FHIR path - serve the FHIR server base URL content
-  .get('/', async ({ params, set }: { 
-    params: { server_name: string, fhir_version: string }, 
-    set: { status: number, headers: Record<string, string> } 
-  }) => {
+  .get('/', async ({ params, set }) => {
     // early version sanity check
     if (!config.fhir.supportedVersions.includes(params.fhir_version)) {
       set.status = 400
@@ -199,24 +176,24 @@ export const fhirRoutes = new Elysia({ prefix: `/${config.name}/:server_name/:fh
 
       const headers = new Headers()
       headers.set('accept', 'application/fhir+json')
-      
+
       const resp = await fetch(serverUrl, {
         method: 'GET',
         headers
       })
-      
+
       set.status = resp.status
       resp.headers.forEach((v: string, k: string) => {
         if (k.match(/content-type|etag/)) {
           set.headers = { ...set.headers, [k]: v }
         }
       })
-      
+
       // Set CORS headers
       set.headers['Access-Control-Allow-Origin'] = '*'
       set.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
       set.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-      
+
       const text = await resp.text()
       // Rewrite URLs to use our proxy base URL
       const body = text.replaceAll(
@@ -240,11 +217,7 @@ export const fhirRoutes = new Elysia({ prefix: `/${config.name}/:server_name/:fh
     detail: {
       summary: 'FHIR Server Base URL',
       description: 'Serve the content from the FHIR server base URL',
-      tags: ['fhir'],
-      response: { 
-        200: { description: 'FHIR server base response' },
-        500: { description: 'Failed to serve FHIR server content' }
-      }
+      tags: ['fhir']
     }
   })
 
@@ -256,28 +229,28 @@ export const fhirRoutes = new Elysia({ prefix: `/${config.name}/:server_name/:fh
       set.status = 401
       return { error: 'Authentication required' }
     }
-    
+
     try {
       await validateToken(auth)
-      
+
       // Get server info by name (automatically initializes if needed)
       const serverInfo = await getServerInfoByName(params.server_name)
       if (!serverInfo) {
         set.status = 404
         return { error: `FHIR server '${params.server_name}' not found` }
       }
-      
+
       // Refresh specific server in the store
       await fhirServerStore.refreshServer(params.server_name)
-      
+
       // Get the updated server info
       const updatedServerInfo = fhirServerStore.getServerByName(params.server_name)
-      
+
       if (!updatedServerInfo) {
         set.status = 500
         return { error: 'Failed to refresh server info' }
       }
-      
+
       return {
         success: true,
         message: 'FHIR server cache refreshed successfully',
@@ -293,35 +266,18 @@ export const fhirRoutes = new Elysia({ prefix: `/${config.name}/:server_name/:fh
       fhir_version: t.String({ description: 'FHIR version (e.g., R4, R5)' })
     }),
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether refresh was successful' }),
-        message: t.String({ description: 'Success message' }),
-        serverInfo: t.Object({
-          fhirVersion: t.String({ description: 'FHIR version supported by server' }),
-          serverVersion: t.Optional(t.String({ description: 'Server software version' })),
-          serverName: t.Optional(t.String({ description: 'Server software name' })),
-          supported: t.Boolean({ description: 'Whether this version is supported' })
-        })
-      }),
-      401: ErrorResponse,
-      403: ErrorResponse,
-      500: ErrorResponse
+      200: CacheRefreshResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Refresh FHIR Server Cache',
       description: 'Clear and refresh the cached FHIR server information',
       tags: ['fhir'],
-      security: [{ BearerAuth: [] }],
-      response: { 
-        200: { description: 'Cache refreshed successfully' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Invalid token' },
-        500: { description: 'Failed to refresh cache' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
-    // all other FHIR requests - proxy to the FHIR server
+  // all other FHIR requests - proxy to the FHIR server
   .get('/*', proxyFHIR, proxySchema)
   .post('/*', proxyFHIR, proxySchema)
   .put('/*', proxyFHIR, proxySchema)

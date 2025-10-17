@@ -3,7 +3,7 @@ import { oauthRoutes } from './oauth'
 import { clientRegistrationRoutes } from './client-registration'
 import { config } from '../../config'
 import { checkKeycloakConnection, isKeycloakAccessible } from '../../init'
-import { t } from 'elysia'
+import { AuthConfigResponse } from '../../schemas/auth/config'
 
 /**
  * Authentication routes - OAuth2 and Dynamic Client Registration
@@ -39,15 +39,9 @@ export const authRoutes = new Elysia({ prefix: '/auth', tags: ['authentication']
       description: 'Returns the current authentication configuration status',
       tags: ['authentication']
     },
-    response: t.Object({
-      keycloak: t.Object({
-        isConfigured: t.Boolean(),
-        baseUrl: t.Union([t.String(), t.Null()]),
-        realm: t.Union([t.String(), t.Null()]),
-        authorizationEndpoint: t.Union([t.String(), t.Null()]),
-        tokenEndpoint: t.Union([t.String(), t.Null()])
-      })
-    })
+    response: {
+      200: AuthConfigResponse
+    }
   })
   .use(oauthRoutes)
   .use(clientRegistrationRoutes)

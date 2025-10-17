@@ -35,18 +35,19 @@ import {
   Monitor
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useAIChatStore } from '../stores/aiChatStore';
 
 interface NavigationProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   profile: UserProfile;
-  onChatToggle: () => void;
 }
 
-export function Navigation({ activeTab, onTabChange, profile, onChatToggle }: NavigationProps) {
+export function Navigation({ activeTab, onTabChange, profile }: NavigationProps) {
   const logout = useAuthStore((state) => state.logout);
   const { language: currentLanguage, setLanguage } = useAppStore();
   const { theme: currentTheme, setTheme } = useTheme();
+  const { setIsOpen } = useAIChatStore();
   const { t } = useTranslation();
   const [showPreferences, setShowPreferences] = useState(false);
 
@@ -319,7 +320,7 @@ export function Navigation({ activeTab, onTabChange, profile, onChatToggle }: Na
             <div className="hidden xl:flex items-center">
               <Button
                 variant="ghost"
-                onClick={onChatToggle}
+                onClick={() => setIsOpen(true)}
                 className="p-0 h-auto hover:bg-transparent"
               >
                 <Badge 
@@ -335,7 +336,7 @@ export function Navigation({ activeTab, onTabChange, profile, onChatToggle }: Na
             <div className="xl:hidden flex items-center">
               <Button
                 variant="ghost"
-                onClick={onChatToggle}
+                onClick={() => setIsOpen(true)}
                 className="h-9 w-9 sm:h-10 sm:w-10 rounded-full p-0 hover:bg-muted transition-all duration-300 hover:shadow-md flex-shrink-0"
               >
                 <Sparkles className="w-4 h-4 text-green-600 animate-pulse" />

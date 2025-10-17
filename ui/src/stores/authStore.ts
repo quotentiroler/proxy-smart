@@ -3,11 +3,11 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { openidService } from '../service/openid-service';
 import { createClientApis, setAuthErrorHandler } from '../lib/apiClient';
+import { registerRefreshHandler } from '../lib/tokenRefresh';
 import { 
   getItem, 
   storeItem, 
   removeItem, 
-  getSessionItem, 
   setSessionItem, 
   removeSessionItem,
   clearAllAuthData,
@@ -98,6 +98,11 @@ export const useAuthStore = create<AuthState>()(
         if (!get().isInitializing) return; // Already initialized
         
         set({ isInitializing: true, loading: true });
+        
+        // Register refresh handler for apiClient to use (breaks circular dependency)
+        registerRefreshHandler(async () => {
+          await get().refreshTokens();
+        });
         
         try {
           const tokens = await getStoredTokens();
@@ -211,10 +216,6 @@ export const useAuthStore = create<AuthState>()(
           setSessionItem('pkce_code_verifier', codeVerifier);
           setSessionItem('oauth_state', state);
           
-          if (idpHint) {
-            console.log(`Initiating login with Identity Provider: ${idpHint}`);
-          }
-          
           // Redirect to authorization server
           window.location.href = url;
         } catch (error) {
@@ -227,11 +228,6 @@ export const useAuthStore = create<AuthState>()(
       },
 
       exchangeCodeForToken: async (code: string, codeVerifier: string) => {
-        console.log('🔄 Starting token exchange with code:', code.substring(0, 10) + '...');
-        console.log('🔑 Using code verifier:', codeVerifier.substring(0, 10) + '...');
-        console.log('📍 Current URL:', window.location.href);
-        console.log('🔗 Stored code verifier:', getSessionItem('pkce_code_verifier')?.substring(0, 10) + '...');
-        
         set({ loading: true, error: null });
 
         try {
@@ -260,12 +256,8 @@ export const useAuthStore = create<AuthState>()(
           removeSessionItem('pkce_code_verifier');
           removeSessionItem('oauth_state');
           
-          console.log('✅ Token exchange successful!');
-          
         } catch (error) {
-          console.error('❌ Token exchange failed:', error);
-          console.log('🔍 Failed with code:', code.substring(0, 10) + '...');
-          console.log('🔍 Failed with verifier:', codeVerifier.substring(0, 10) + '...');
+          console.error('Token exchange failed:', error);
           
           // IMPORTANT: Clean up session data even on error to prevent contamination
           removeSessionItem('pkce_code_verifier');
@@ -380,7 +372,6 @@ export const useAuthStore = create<AuthState>()(
         
         // Generate logout URL with additional parameters for better cleanup
         const logoutUrl = openidService.getLogoutUrl(tokens?.id_token);
-        console.log('🔗 Logout URL:', logoutUrl);
         
         // Force a complete page reload after logout to ensure clean state
         window.location.href = logoutUrl;

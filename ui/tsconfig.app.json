@@ -4,7 +4,6 @@
     "target": "ES2022",
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["@testing-library/jest-dom"],
     "module": "ESNext",
     "skipLibCheck": true,
     "baseUrl": ".",
@@ -33,6 +32,6 @@
   "exclude": [
     "node_modules",
     "dist",
-    "**/lib/api-client/**",
+    "**/lib/api-client/**"
   ]
 }

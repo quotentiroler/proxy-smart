@@ -10,9 +10,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { FhirServerDetailsResponse } from '@/lib/types/api';
+import type { FhirServerDetails } from '@/lib/types/api';
 
-export function ServerDetails(server: FhirServerDetailsResponse) {
+export function ServerDetails(server: FhirServerDetails) {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     // You could add a toast notification here
@@ -91,7 +91,7 @@ export function ServerDetails(server: FhirServerDetailsResponse) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => copyToClipboard(server.url)}
+                  onClick={() => copyToClipboard(server.url || '')}
                   className="h-8 px-3 rounded-lg hover:bg-muted transition-colors duration-200"
                 >
                   <Copy className="w-3 h-3" />
@@ -106,7 +106,7 @@ export function ServerDetails(server: FhirServerDetailsResponse) {
       </div>
 
       {/* API Endpoints - only show for servers without connection errors */}
-      {server.fhirVersion !== 'Unknown' && server.supported && (
+      {server.fhirVersion !== 'Unknown' && server.supported && server.endpoints && (
         <div className="mt-8">
           <h3 className="text-lg font-bold text-foreground mb-6 flex items-center">
             <div className="w-8 h-8 bg-purple-500/10 dark:bg-purple-400/20 rounded-lg flex items-center justify-center mr-3">

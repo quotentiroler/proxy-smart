@@ -1,24 +1,24 @@
-import { t } from 'elysia'
+import { t, type Static } from 'elysia'
 
 /**
- * Common schemas used across API routes
+ * Common schemas shared across all API routes
  */
 
-// Standard error response
+// ==================== Standard Responses ====================
+
 export const ErrorResponse = t.Object({
   error: t.String({ description: 'Error message' }),
   code: t.Optional(t.String({ description: 'Error code' })),
-  details: t.Optional(t.Any({ description: 'Additional error details' }))
-})
+  details: t.Optional(t.Any())
+}, { title: 'ErrorResponse' })
 
-// Success response
 export const SuccessResponse = t.Object({
   success: t.Boolean({ description: 'Whether the operation was successful' }),
   message: t.Optional(t.String({ description: 'Success message' }))
-})
+}, { title: 'SuccessResponse' })
 
 // Common response schemas for different HTTP status codes
-export const CommonResponses = {
+export const CommonErrorResponses = {
   400: ErrorResponse,
   401: ErrorResponse,
   403: ErrorResponse,
@@ -26,223 +26,92 @@ export const CommonResponses = {
   500: ErrorResponse
 }
 
-// Pagination query parameters
+// TypeScript type inference helpers
+export type ErrorResponseType = Static<typeof ErrorResponse>
+export type SuccessResponseType = Static<typeof SuccessResponse>
+
+// ==================== Count Responses ====================
+
+export const CountResponse = t.Object({
+  count: t.Number({ description: 'Number of enabled items' }),
+  total: t.Number({ description: 'Total number of items' })
+}, { title: 'CountResponse' })
+
+export type CountResponseType = Static<typeof CountResponse>
+
+// ==================== Server Operation Responses ====================
+
+export const ServerOperationResponse = t.Object({
+  success: t.Boolean({ description: 'Whether the operation was successful' }),
+  message: t.String({ description: 'Operation message' }),
+  timestamp: t.String({ description: 'Timestamp (ISO 8601)' })
+}, { title: 'ServerOperationResponse' })
+
+export type ServerOperationResponseType = Static<typeof ServerOperationResponse>
+
+// ==================== Pagination ====================
+
 export const PaginationQuery = t.Object({
-  limit: t.Optional(t.Numeric({ description: 'Maximum number of items to return', minimum: 1, maximum: 100, default: 50 })),
-  offset: t.Optional(t.Numeric({ description: 'Number of items to skip', minimum: 0, default: 0 }))
+  limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, default: 50, description: 'Number of items per page' })),
+  offset: t.Optional(t.Numeric({ minimum: 0, default: 0, description: 'Number of items to skip' }))
 })
 
-// User profile schema (reusable across routes)
-export const UserProfile = t.Object({
-  id: t.String({ description: 'User ID' }),
-  username: t.String({ description: 'Username' }),
-  email: t.String({ description: 'Email address' }),
-  firstName: t.String({ description: 'First name' }),
-  lastName: t.String({ description: 'Last name' }),
-  enabled: t.Boolean({ description: 'Whether user is enabled' }),
-  attributes: t.Optional(t.Record(t.String(), t.Union([t.String(), t.Array(t.String())]))),
-  createdTimestamp: t.Optional(t.Number({ description: 'Creation timestamp' })),
-  lastLogin: t.Optional(t.Union([t.Number(), t.Null()], { description: 'Last login timestamp' })),
-  realmRoles: t.Optional(t.Array(t.String(), { description: 'Keycloak realm roles' })),
-  clientRoles: t.Optional(t.Record(t.String(), t.Array(t.String()), { description: 'Keycloak client roles' })),
-  organization: t.Optional(t.String({ description: 'Organization' })),
-  fhirUser: t.Optional(t.String({ description: 'FHIR User identifier' }))
-})
+// TypeScript type inference helpers
+export type PaginationQueryType = Static<typeof PaginationQuery>
 
-// SMART App/Client schema (reusable)
-export const SmartAppClient = t.Object({
-  id: t.Optional(t.String({ description: 'Client ID' })),
-  clientId: t.Optional(t.String({ description: 'Client identifier' })),
-  name: t.Optional(t.String({ description: 'Application name' })),
-  description: t.Optional(t.String({ description: 'Application description' })),
-  enabled: t.Optional(t.Boolean({ description: 'Whether app is enabled' })),
-  protocol: t.Optional(t.String({ description: 'OAuth protocol' })),
-  publicClient: t.Optional(t.Boolean({ description: 'Whether app is public client' })),
-  redirectUris: t.Optional(t.Array(t.String({ description: 'Redirect URIs' }))),
-  webOrigins: t.Optional(t.Array(t.String({ description: 'Web origins' }))),
-  attributes: t.Optional(t.Record(t.String(), t.Union([t.String(), t.Array(t.String())]))),
-  // Backend Services specific fields
-  clientAuthenticatorType: t.Optional(t.String({ description: 'Client authentication method (client-jwt, client-secret, none)' })),
-  serviceAccountsEnabled: t.Optional(t.Boolean({ description: 'Whether service accounts (client_credentials) are enabled' })),
-  standardFlowEnabled: t.Optional(t.Boolean({ description: 'Whether authorization code flow is enabled' })),
-  implicitFlowEnabled: t.Optional(t.Boolean({ description: 'Whether implicit flow is enabled' })),
-  directAccessGrantsEnabled: t.Optional(t.Boolean({ description: 'Whether password grants are enabled' })),
-  // SMART specific attributes
-  defaultClientScopes: t.Optional(t.Array(t.String({ description: 'Default OAuth scopes' }), { description: 'Default OAuth scopes' })),
-  optionalClientScopes: t.Optional(t.Array(t.String({ description: 'Optional OAuth scopes' }), { description: 'Optional OAuth scopes' })),
-  access: t.Optional(t.Record(t.String(), t.Boolean(), { description: 'Access permissions' }))
-})
+// ==================== Health & Status Responses ====================
 
-// Role schema (reusable)
-export const Role = t.Object({
-  id: t.Optional(t.String({ description: 'Role ID' })),
-  name: t.String({ description: 'Role name' }),
-  description: t.Optional(t.String({ description: 'Role description' })),
-  attributes: t.Optional(t.Record(t.String(), t.Union([t.String(), t.Array(t.String())])))
-})
+export const HealthResponse = t.Object({
+  status: t.String({ description: 'Health status (healthy, degraded, unhealthy)' }),
+  timestamp: t.String({ description: 'Timestamp (ISO 8601)' }),
+  uptime: t.Number({ description: 'Server uptime in milliseconds' })
+}, { title: 'HealthResponse' })
 
-// Launch context configuration schema (admin-defined workflow integration)
-export const LaunchContextConfig = t.Object({
-  id: t.String({ description: 'Launch context configuration ID' }),
-  name: t.String({ description: 'Launch context name' }),
-  description: t.Optional(t.String({ description: 'Launch context description' })),
-  intent: t.String({ description: 'Launch intent (e.g., patient-chart, encounter-summary)' }),
-  
-  // FHIR Server Association
-  fhirServerName: t.Optional(t.String({ description: 'Specific FHIR server this context is for (if server-specific)' })),
-  supportedServers: t.Optional(t.Array(t.String({ description: 'List of FHIR server names this context supports' }))),
-  serverScope: t.Optional(t.Union([
-    t.Literal('global', { description: 'Works with any FHIR server' }),
-    t.Literal('specific', { description: 'Works only with specified servers' }),
-    t.Literal('single', { description: 'Works with one specific server' })
-  ], { description: 'Server scope for this launch context' })),
-  
-  targetClientIds: t.Optional(t.Array(t.String({ description: 'Client IDs this context can launch' }))),
-  embedLocation: t.Optional(t.String({ description: 'Where in EHR this context appears' })),
-  fhirContextTemplate: t.Optional(t.Array(t.Object({
-    type: t.String({ description: 'FHIR resource type (e.g., Patient, Encounter)' }),
-    reference: t.String({ description: 'Reference template (e.g., {patient.id}, {encounter.id})' }),
-    display: t.Optional(t.String({ description: 'Display name template' }))
-  }))),
-  requiredScopes: t.Optional(t.Array(t.String({ description: 'Required SMART scopes for this context' }))),
-  optionalScopes: t.Optional(t.Array(t.String({ description: 'Optional SMART scopes for this context' }))),
-  needPatientBanner: t.Optional(t.Boolean({ description: 'Whether patient banner is required' })),
-  needEncounterContext: t.Optional(t.Boolean({ description: 'Whether encounter context is required' })),
-  smartStyleUrl: t.Optional(t.String({ description: 'SMART style URL for this context' })),
-  parameters: t.Optional(t.Record(t.String(), t.String({ description: 'Additional launch parameters' }))),
-  isActive: t.Optional(t.Boolean({ description: 'Whether this launch context is active' })),
-  createdBy: t.Optional(t.String({ description: 'User who created this context' })),
-  createdAt: t.Optional(t.String({ description: 'Creation timestamp' })),
-  lastModified: t.Optional(t.String({ description: 'Last modification timestamp' }))
-})
+export type HealthResponseType = Static<typeof HealthResponse>
 
-// Runtime launch context (generated when app is actually launched)
-export const RuntimeLaunchContext = t.Object({
-  id: t.String({ description: 'Runtime launch context ID' }),
-  configId: t.String({ description: 'Launch context configuration ID' }),
-  fhirServerName: t.String({ description: 'FHIR server being used for this launch' }),
-  fhirServerUrl: t.String({ description: 'FHIR server base URL' }),
-  clientId: t.String({ description: 'Client ID being launched' }),
-  userId: t.String({ description: 'User ID who initiated launch' }),
-  patientId: t.Optional(t.String({ description: 'Current patient ID' })),
-  encounterId: t.Optional(t.String({ description: 'Current encounter ID' })),
-  launchUrl: t.String({ description: 'Generated launch URL' }),
-  createdAt: t.String({ description: 'Launch timestamp' }),
-  expiresAt: t.Optional(t.String({ description: 'Launch context expiration' }))
-})
+export const HealthErrorResponse = t.Object({
+  status: t.String({ description: 'Health status' }),
+  timestamp: t.String({ description: 'Timestamp (ISO 8601)' }),
+  error: t.String({ description: 'Error message' })
+}, { title: 'HealthErrorResponse' })
 
-// Identity Provider schema (reusable)
-export const IdentityProvider = t.Object({
-  id: t.Optional(t.String({ description: 'Identity Provider ID' })),
-  alias: t.String({ description: 'Identity Provider alias' }),
-  displayName: t.Optional(t.String({ description: 'Display name' })),
-  providerId: t.String({ description: 'Provider type' }),
-  enabled: t.Optional(t.Boolean({ description: 'Whether IdP is enabled' })),
-  config: t.Optional(t.Record(t.String(), t.String()))
-})
+export type HealthErrorResponseType = Static<typeof HealthErrorResponse>
 
-// FHIR Server configuration schema
-export const FhirServerConfig = t.Object({
-  name: t.String({ description: 'Server identifier/name' }),
-  displayName: t.String({ description: 'Human-readable server name' }),
-  url: t.String({ description: 'FHIR server base URL' }),
-  fhirVersion: t.String({ description: 'FHIR version (e.g., R4, R5)' }),
-  serverName: t.Optional(t.String({ description: 'Server software name' })),
-  serverVersion: t.Optional(t.String({ description: 'Server software version' })),
-  supported: t.Boolean({ description: 'Whether server is supported' }),
-  enabled: t.Optional(t.Boolean({ description: 'Whether server is enabled for use' })),
-  endpoints: t.Object({
-    base: t.String({ description: 'Base FHIR endpoint' }),
-    smartConfig: t.String({ description: 'SMART configuration endpoint' }),
-    metadata: t.String({ description: 'FHIR metadata endpoint' })
+export const FhirServerInfo = t.Object({
+  name: t.String({ description: 'FHIR server name' }),
+  url: t.String({ description: 'FHIR server URL' }),
+  status: t.String({ description: 'Server status (healthy, unhealthy)' }),
+  accessible: t.Boolean({ description: 'Whether server is accessible' }),
+  version: t.String({ description: 'FHIR version' }),
+  serverName: t.Optional(t.String({ description: 'Server-reported name' })),
+  serverVersion: t.Optional(t.String({ description: 'Server-reported version' })),
+  error: t.Optional(t.String({ description: 'Error details if unhealthy' }))
+}, { title: 'FhirServerHealthInfo' })
+
+export type FhirServerInfoType = Static<typeof FhirServerInfo>
+
+export const SystemStatusResponse = t.Object({
+  version: t.String({ description: 'API version' }),
+  timestamp: t.String({ description: 'Timestamp (ISO 8601)' }),
+  uptime: t.Number({ description: 'Server uptime in milliseconds' }),
+  overall: t.String({ description: 'Overall system status' }),
+  fhir: t.Object({
+    status: t.String({ description: 'FHIR infrastructure status' }),
+    totalServers: t.Number({ description: 'Total FHIR servers configured' }),
+    healthyServers: t.Number({ description: 'Number of healthy FHIR servers' }),
+    servers: t.Array(FhirServerInfo, { description: 'FHIR server status details' })
   }),
-  capabilities: t.Optional(t.Array(t.String({ description: 'Server capabilities' }))),
-  lastUpdated: t.Optional(t.String({ description: 'Last metadata refresh timestamp' }))
-})
-
-// Server-Context association (for many-to-many relationships)
-export const ServerContextAssociation = t.Object({
-  id: t.String({ description: 'Association ID' }),
-  fhirServerName: t.String({ description: 'FHIR server name' }),
-  launchContextId: t.String({ description: 'Launch context configuration ID' }),
-  isDefault: t.Optional(t.Boolean({ description: 'Whether this is the default context for this server' })),
-  customParameters: t.Optional(t.Record(t.String(), t.String({ description: 'Server-specific launch parameters' }))),
-  createdAt: t.Optional(t.String({ description: 'Association creation timestamp' }))
-})
-
-// FHIR Server response schemas for clean OpenAPI generation
-export const FhirServerResponse = t.Object({
-  id: t.String({ description: 'Server identifier used in URLs' }),
-  name: t.String({ description: 'Human-readable server name' }),
-  url: t.String({ description: 'Original server URL' }),
-  fhirVersion: t.String({ description: 'FHIR version supported by server' }),
-  serverVersion: t.Optional(t.String({ description: 'Server software version' })),
-  serverName: t.Optional(t.String({ description: 'Server software name' })),
-  supported: t.Boolean({ description: 'Whether this server is supported' }),
-  endpoints: t.Object({
-    base: t.String({ description: 'Base FHIR endpoint URL' }),
-    smartConfig: t.String({ description: 'SMART configuration endpoint URL' }),
-    metadata: t.String({ description: 'FHIR metadata endpoint URL' })
-  })
-}, { title: 'FhirServer' })
-
-export const FhirServerListResponse = t.Object({
-  totalServers: t.Number({ description: 'Total number of configured FHIR servers' }),
-  servers: t.Array(t.Object({
-    id: t.String({ description: 'Unique server identifier' }),
-    name: t.String({ description: 'Human-readable server name' }),
-    url: t.String({ description: 'Original server URL' }),
-    fhirVersion: t.String({ description: 'FHIR version supported by server' }),
-    serverVersion: t.Optional(t.String({ description: 'Server software version' })),
-    serverName: t.Optional(t.String({ description: 'Server software name from FHIR metadata' })),
-    supported: t.Boolean({ description: 'Whether this server is supported' }),
-    error: t.Optional(t.String({ description: 'Error message if server info failed to fetch' })),
-    endpoints: t.Object({
-      base: t.String({ description: 'Base FHIR endpoint URL' }),
-      smartConfig: t.String({ description: 'SMART configuration endpoint URL' }),
-      metadata: t.String({ description: 'FHIR metadata endpoint URL' })
-    })
-  }))
-}, { title: 'FhirServerList' })
-
-export const MtlsConfigResponse = t.Object({
-  enabled: t.Boolean({ description: 'Whether mTLS is enabled for this server' }),
-  hasCertificates: t.Object({
-    clientCert: t.Boolean({ description: 'Whether client certificate is uploaded' }),
-    clientKey: t.Boolean({ description: 'Whether client private key is uploaded' }),
-    caCert: t.Boolean({ description: 'Whether CA certificate is uploaded' })
+  keycloak: t.Object({
+    status: t.String({ description: 'Keycloak status' }),
+    accessible: t.Boolean({ description: 'Whether Keycloak is accessible' }),
+    realm: t.String({ description: 'Keycloak realm' }),
+    lastConnected: t.Optional(t.String({ description: 'Last successful connection timestamp' }))
   }),
-  certDetails: t.Optional(t.Object({
-    subject: t.String({ description: 'Certificate subject' }),
-    issuer: t.String({ description: 'Certificate issuer' }),
-    validFrom: t.String({ description: 'Certificate valid from date' }),
-    validTo: t.String({ description: 'Certificate valid to date' }),
-    fingerprint: t.String({ description: 'Certificate fingerprint' })
-  }))
-}, { title: 'MtlsConfig' })
-
-export const CertificateUploadResponse = t.Object({
-  success: t.Boolean({ description: 'Whether the upload was successful' }),
-  message: t.String({ description: 'Success message' }),
-  certDetails: t.Optional(t.Object({
-    subject: t.String({ description: 'Certificate subject' }),
-    issuer: t.String({ description: 'Certificate issuer' }),
-    validFrom: t.String({ description: 'Certificate valid from date' }),
-    validTo: t.String({ description: 'Certificate valid to date' }),
-    fingerprint: t.String({ description: 'Certificate fingerprint' })
-  }))
-}, { title: 'CertificateUpload' })
-
-export const FhirServerInfoResponse = t.Object({
-  name: t.String({ description: 'Human-readable server name' }),
-  url: t.String({ description: 'Original server URL' }),
-  fhirVersion: t.String({ description: 'FHIR version supported by server' }),
-  serverVersion: t.Optional(t.String({ description: 'Server software version' })),
-  serverName: t.Optional(t.String({ description: 'Server software name from FHIR metadata' })),
-  supported: t.Boolean({ description: 'Whether this server is supported' }),
-  endpoints: t.Object({
-    base: t.String({ description: 'Base FHIR endpoint URL' }),
-    smartConfig: t.String({ description: 'SMART configuration endpoint URL' }),
-    metadata: t.String({ description: 'FHIR metadata endpoint URL' })
+  memory: t.Object({
+    used: t.Number({ description: 'Memory used in bytes' }),
+    total: t.Number({ description: 'Total memory in bytes' })
   })
-}, { title: 'FhirServerInfo' })
+}, { title: 'SystemStatusResponse' })
+
+export type SystemStatusResponseType = Static<typeof SystemStatusResponse>
+

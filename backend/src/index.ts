@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia'
-import { swagger } from '@elysiajs/swagger'
+import { openapi, fromTypes } from '@elysiajs/openapi'
 import { cors } from '@elysiajs/cors'
 import { keycloakPlugin } from './lib/keycloak-plugin'
 import { fhirRoutes } from './routes/fhir'
@@ -14,6 +14,8 @@ import { logger } from './lib/logger'
 import { initializeServer, displayServerEndpoints } from './init'
 import { oauthMetricsLogger } from './lib/oauth-metrics-logger'
 import staticPlugin from '@elysiajs/static'
+import { aiRoutes } from './routes/admin/ai'
+import { join } from 'path'
 
 // Debug CORS configuration
 console.log('[DEBUG] NODE_ENV:', process.env.NODE_ENV)
@@ -36,7 +38,15 @@ const app = new Elysia({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
   }))
-  .use(swagger({
+  .use(openapi({
+    references: fromTypes(
+      process.env.NODE_ENV === 'production'
+        ? 'dist/index.d.ts'
+        : 'src/index.ts',
+      {
+        projectRoot: join(import.meta.dir, '..')
+      }
+    ),
     documentation: {
       info: {
         title: config.displayName,
@@ -53,6 +63,7 @@ const app = new Elysia({
         { name: 'smart-apps', description: 'SMART on FHIR configuration endpoints' },
         { name: 'oauth-ws-monitoring', description: 'OAuth monitoring via WebSocket' },
         { name: 'oauth-sse-monitoring', description: 'OAuth monitoring via Server-Sent Events' },
+        { name: 'ai', description: 'AI assistant endpoints proxied to MCP server' },
       ],
       components: {
         securitySchemes: {
@@ -85,7 +96,11 @@ const app = new Elysia({
   .use(adminRoutes) //admin keycloak endpoints
   .use(oauthMonitoringRoutes) // OAuth monitoring and analytics endpoints
   .use(oauthWebSocket) // OAuth WebSocket for real-time monitoring
+  .use(aiRoutes) // AI assistant proxy endpoints
   .use(fhirRoutes) // the actual FHIR proxy endpoints
+
+// Export the app instance for type generation
+export { app }
 
 // Initialize and start server
 initializeServer()

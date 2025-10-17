@@ -4,12 +4,21 @@ import { ensureServersInitialized, getAllServers } from './lib/fhir-server-store
 
 // Global state to track Keycloak connectivity
 let keycloakAccessible = false
+// Global state to track MCP server connectivity
+let mcpServerAccessible = false
 
 /**
  * Get the current Keycloak accessibility status
  */
 export function isKeycloakAccessible(): boolean {
   return config.keycloak.isConfigured || keycloakAccessible
+}
+
+/**
+ * Get the current MCP server accessibility status
+ */
+export function isMcpServerAccessible(): boolean {
+  return config.ai.enabled && mcpServerAccessible
 }
 
 /**
@@ -153,6 +162,126 @@ export async function checkKeycloakConnection(retries?: number, interval?: numbe
 }
 
 /**
+ * Check MCP server connection health with retry logic
+ */
+export async function checkMcpServerConnection(retries?: number, interval?: number): Promise<void> {
+  // Check if MCP server is configured
+  if (!config.ai.enabled || !config.ai.baseUrl) {
+    logger.server.warn('MCP server connection verification skipped: Not configured')
+    return
+  }
+
+  const maxRetries = retries ?? 3; // Default to 3 retries if not specified
+  const retryInterval = interval ?? 2000; // Default to 2 seconds (shorter than Keycloak)
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      logger.server.info(`Checking MCP server connection (attempt ${attempt}/${maxRetries})...`, {
+        baseUrl: config.ai.baseUrl,
+        healthEndpoint: config.ai.healthEndpoint
+      });
+      
+      const fetchWithTimeout = async (url: string, timeout: number = 5000) => {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), timeout)
+        
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            },
+            signal: controller.signal
+          })
+          clearTimeout(timeoutId)
+          return response
+        } catch (error) {
+          clearTimeout(timeoutId)
+          throw error
+        }
+      }
+      
+      // Test MCP health endpoint
+      const startTime = Date.now()
+      const response = await fetchWithTimeout(config.ai.healthEndpoint)
+      const responseTime = Date.now() - startTime
+      
+      if (!response.ok) {
+        throw new Error(`MCP health endpoint returned ${response.status}: ${response.statusText}`)
+      }
+      
+      const healthData = await response.json()
+      
+      logger.server.info('Successfully connected to MCP server', {
+        baseUrl: config.ai.baseUrl,
+        status: healthData.status || 'healthy',
+        responseTime: `${responseTime}ms`,
+        openai_available: healthData.openai_available ?? false,
+        knowledge_base_loaded: healthData.knowledge_base_loaded ?? false,
+        timestamp: healthData.timestamp
+      })
+      
+      // If we reach here, the connection was successful
+      mcpServerAccessible = true
+      return;
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      
+      if (attempt === maxRetries) {
+        // This is the final attempt, log detailed error information
+        logger.server.error('MCP server connection check failed after all retry attempts', { 
+          error: errorMessage,
+          baseUrl: config.ai.baseUrl,
+          healthEndpoint: config.ai.healthEndpoint
+        })
+        
+        // Provide helpful error messages based on common issues
+        if (errorMessage.includes('ECONNRESET') || errorMessage.includes('ECONNREFUSED')) {
+          logger.server.error('MCP server is not accessible - Possible causes:', {
+            causes: [
+              'MCP server is not running',
+              'MCP server URL is incorrect',
+              'Network connectivity issues',
+              `Check if MCP server is running at: ${config.ai.baseUrl}`,
+              'Try running: cd mcp-server && uv run python run.py'
+            ]
+          })
+        } else if (errorMessage.includes('404')) {
+          logger.server.error('MCP health endpoint not found - Possible causes:', {
+            causes: [
+              'MCP server health endpoint path is incorrect',
+              'MCP server version mismatch',
+              `Verify health endpoint exists at: ${config.ai.healthEndpoint}`
+            ]
+          })
+        } else if (errorMessage.includes('timeout') || errorMessage.includes('aborted')) {
+          logger.server.error('MCP server connection timeout - Possible causes:', {
+            causes: [
+              'MCP server is slow to respond',
+              'MCP server is overloaded',
+              'Network latency issues'
+            ]
+          })
+        }
+        
+        logger.server.warn('⚠️  AI assistant features will be unavailable until MCP server is running')
+        logger.server.warn('💡 Start MCP server with: cd mcp-server && uv run python run.py')
+        logger.server.warn('📋 Server will continue without AI features')
+        return;
+      } else {
+        // Not the final attempt, log retry message
+        logger.server.warn(`MCP server connection attempt ${attempt} failed`, { error: errorMessage })
+        logger.server.info(`Retrying in ${retryInterval / 1000} seconds...`)
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, retryInterval))
+      }
+    }
+  }
+}
+
+/**
  * Initialize FHIR server connections
  */
 export async function initializeFhirServers(): Promise<void> {
@@ -217,6 +346,18 @@ export async function initializeServer(): Promise<void> {
       logger.keycloak.warn('Configure Keycloak settings in the admin UI to enable full functionality')
     }
     
+    // Check MCP server connection
+    if (config.ai.enabled) {
+      logger.server.info('Initializing MCP server connection...')
+      logger.server.info(`MCP Server: ${config.ai.baseUrl}`)
+      logger.server.info(`Chat Endpoint: ${config.ai.chatEndpoint}`)
+      logger.server.info(`Health Endpoint: ${config.ai.healthEndpoint}`)
+      
+      await checkMcpServerConnection()
+    } else {
+      logger.server.warn('MCP server not configured - AI assistant features will be unavailable')
+    }
+    
     // Initialize FHIR servers
     await initializeFhirServers()
     
@@ -274,6 +415,11 @@ export async function displayServerEndpoints(): Promise<void> {
   logger.server.info(`Health check available at ${config.baseUrl}/health`)
   logger.server.info(`API Documentation available at ${config.baseUrl}/swagger`)
   logger.server.info(`Server Discovery available at ${config.baseUrl}/fhir-servers`)
+
+  // Display AI endpoints if MCP server is accessible
+  if (mcpServerAccessible) {
+    logger.server.info(`AI Assistant available at ${config.baseUrl}/api/ai/chat`)
+  }
 
   // Get server info from store for display
   try {

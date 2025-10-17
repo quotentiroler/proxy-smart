@@ -102,7 +102,7 @@ export async function getValidatedAdmin(
  * @param user Keycloak user object
  * @returns Standardized user profile
  */
-export function mapUserProfile(user: KeycloakUser) {
+export function mapHealthcareUser(user: KeycloakUser) {
   return {
     id: user.id ?? '',
     username: user.username ?? '',

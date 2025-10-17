@@ -1,6 +1,6 @@
 {
   "name": "proxy-smart",
-  "version": "0.0.1-beta.202508171209.d59444a",
+  "version": "0.0.1-alpha.202510170109.139bb12",
   "repository": {
     "type": "git",
     "url": "https://github.com/quotentiroler/proxy-smart.git"
@@ -12,6 +12,7 @@
     "eslint": "^9.30.0",
     "glob": "^11.0.3",
     "globals": "^16.2.0",
+    "typescript": "5.9.3",
     "typescript-eslint": "^8.35.0"
   },
   "description": "Proxy Smart - Healthcare interoperability proxy with Keycloak integration",
@@ -32,9 +33,10 @@
   "license": "AGPL-3.0-or-later",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"bun run dev:backend\" \"bun run dev:ui\"",
+    "dev": "concurrently \"bun run dev:backend\" \"bun run dev:ui\" \"bun run dev:mcp\"",
     "dev:backend": "cd backend && bun run dev",
     "dev:ui": "cd ui && bun run dev",
+    "dev:mcp": "cd mcp-server && uv run python run.py",
     "dev:mono": "bun run build:ui:mono && bun run copy:ui-to-backend && cd backend && bun run dev",
     "copy:ui-to-backend": "node scripts/copy-ui-dist.js",
     "build": "bun run build:backend && bun run build:ui",
@@ -47,9 +49,10 @@
     "start:ui": "cd ui && bun run preview",
     "normalize": "git add --renormalize .",
     "normalize:api": "cd ui && git add --renormalize src/lib/api-client/",
-    "generate": "concurrently \"bun run generate:ui\" \"bun run generate:test\"",
+    "generate": "concurrently \"bun run generate:ui\" \"bun run generate:mcp\"",
     "generate:ui": "cd backend && bun run export-openapi && cd ../ui && bun run generate",
     "generate:ui:normalized": "bun run generate:ui && git add --renormalize ui/src/lib/api-client/",
+    "generate:mcp": "cd backend && bun run export-openapi && cd ../mcp-server && bunx --bun @openapitools/openapi-generator-cli generate -i ../backend/dist/openapi.json -g python -o ./src/generated -c ./openapi-generator-config.json --skip-validate-spec && uv run python src/generate_mcp_tools.py",
     "generate:test": "cd testing && bun run generate",
     "validate-api": "concurrently \"bun run validate-api:ui\" \"bun run validate-api:test\"",
     "validate-api:ui": "cd ui && bun run validate-api",
@@ -91,16 +94,12 @@
     "version:set": "node scripts/version.js set",
     "version:check": "node scripts/version.js check",
     "version:base": "node scripts/version.js base",
-    "ai:commit-comment": "node scripts/ai-commit-comment.mjs",
+    "ai:commit-comment": "cd scripts && node ai-commit-comment.mjs",
     "precommit": "bun run version:sync"
   },
   "type": "module",
   "workspaces": [
     "backend",
     "ui"
-  ],
-  "dependencies": {
-    "@octokit/rest": "^22.0.0",
-    "openai": "^5.12.2"
-  }
+  ]
 }

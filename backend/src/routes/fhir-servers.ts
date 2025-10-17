@@ -12,9 +12,18 @@ import {
   FhirServerResponse,
   FhirServerListResponse,
   FhirServerInfoResponse,
+  AddFhirServerRequest,
+  UpdateFhirServerRequest,
+  ServerIdParam,
   MtlsConfigResponse,
-  CertificateUploadResponse
-} from '../schemas/common'
+  CertificateUploadResponse,
+  UpdateMtlsConfigRequest,
+  UploadCertificateRequest,
+  CommonErrorResponses,
+  FhirServerInfoResponseType,
+  FhirServerListResponseType,
+  ErrorResponseType
+} from '../schemas'
 
 /**
  * In-memory mTLS configuration storage
@@ -203,9 +212,21 @@ export async function fetchWithMtls(
       }
 
       // Use node-fetch with custom agent for mTLS
+      // Convert Headers to plain object for node-fetch compatibility
+      let headers: Record<string, string> | undefined
+      if (fetchOptions.headers) {
+        headers = {}
+        const headersObj = fetchOptions.headers as Record<string, string>
+        for (const key in headersObj) {
+          if (Object.prototype.hasOwnProperty.call(headersObj, key)) {
+            headers[key] = headersObj[key]
+          }
+        }
+      }
+
       const response = await nodeFetch(url, {
         method: fetchOptions.method || 'GET',
-        headers: fetchOptions.headers,
+        headers,
         body,
         agent
       })
@@ -288,31 +309,20 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
       return { error: 'Failed to add FHIR server', details: error }
     }
   }, {
-    body: t.Object({
-      url: t.String({ description: 'FHIR server base URL' }),
-      name: t.Optional(t.String({ description: 'Optional custom name for the server' }))
-    }),
+    body: AddFhirServerRequest,
     response: {
       200: t.Object({
         success: t.Boolean({ description: 'Whether the server was added successfully' }),
         message: t.String({ description: 'Success message' }),
         server: FhirServerResponse
       }, { title: 'AddFhirServerResponse' }),
-      401: t.Object({
-        error: t.String({ description: 'Error message' })
-      }, { title: 'UnauthorizedError' }),
-      500: ErrorResponse
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Add New FHIR Server',
       description: 'Add a new FHIR server to the system by providing its base URL',
       tags: ['servers'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'Server added successfully' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        500: { description: 'Failed to add server' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
@@ -376,44 +386,26 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
       return { error: 'Failed to update FHIR server', details: error }
     }
   }, {
-    params: t.Object({
-      server_id: t.String({ description: 'Server identifier to update' })
-    }),
-    body: t.Object({
-      url: t.String({ description: 'New FHIR server base URL' }),
-      name: t.Optional(t.String({ description: 'Optional custom name for the server' }))
-    }),
+    params: ServerIdParam,
+    body: UpdateFhirServerRequest,
     response: {
       200: t.Object({
         success: t.Boolean({ description: 'Whether the server was updated successfully' }),
         message: t.String({ description: 'Success message' }),
         server: FhirServerResponse
       }, { title: 'UpdateFhirServerResponse' }),
-      400: t.Object({
-        error: t.String({ description: 'Error message' }),
-        details: t.Optional(t.String({ description: 'Error details' }))
-      }),
-      401: t.Object({
-        error: t.String({ description: 'Error message' })
-      }, { title: 'UnauthorizedError' }),
-      500: ErrorResponse
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Update FHIR Server',
       description: 'Update an existing FHIR server by providing its new base URL',
       tags: ['servers'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'Server updated successfully' },
-        400: { description: 'Bad request - Invalid URL or server not reachable' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        500: { description: 'Failed to update server' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
   // List all available FHIR servers
-  .get('/', async ({ set }) => {
+  .get('/', async ({ set }): Promise<FhirServerListResponseType | ErrorResponseType> => {
     try {
       // Ensure servers are initialized
       await ensureServersInitialized()
@@ -453,16 +445,12 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
     detail: {
       summary: 'List Available FHIR Servers',
       description: 'Get a list of all configured FHIR servers with their connection information and endpoints',
-      tags: ['servers'],
-      response: {
-        200: { description: 'List of available FHIR servers' },
-        500: { description: 'Failed to list servers' }
-      }
+      tags: ['servers']
     }
   })
 
   // Get specific server information
-  .get('/:server_id', async ({ params, set }) => {
+  .get('/:server_id', async ({ params, set }): Promise<FhirServerInfoResponseType | ErrorResponseType> => {
     try {
       // Ensure servers are initialized
       await ensureServersInitialized()
@@ -475,6 +463,10 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
         return { error: `FHIR server '${params.server_id}' not found` }
       }
 
+      // Build proxy endpoints for this FHIR server
+      // These are the SMART on FHIR endpoints that the PROXY provides
+      const proxyBase = `${config.baseUrl}/${config.name}/${serverInfo.identifier}/${serverInfo.metadata.fhirVersion}`
+
       return {
         name: serverInfo.name,
         url: serverInfo.url,
@@ -483,9 +475,18 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
         serverName: serverInfo.metadata.serverName,
         supported: serverInfo.metadata.supported,
         endpoints: {
-          base: `${config.baseUrl}/${config.name}/${serverInfo.identifier}/${serverInfo.metadata.fhirVersion}`,
-          smartConfig: `${config.baseUrl}/${config.name}/${serverInfo.identifier}/${serverInfo.metadata.fhirVersion}/.well-known/smart-configuration`,
-          metadata: `${config.baseUrl}/${config.name}/${serverInfo.identifier}/${serverInfo.metadata.fhirVersion}/metadata`
+          // Proxy's FHIR endpoints
+          base: proxyBase,
+          smartConfig: `${proxyBase}/.well-known/smart-configuration`,
+          metadata: `${proxyBase}/metadata`,
+
+          // Proxy's OAuth endpoints (provided by Keycloak via the proxy)
+          authorize: `${config.baseUrl}/auth/authorize`,
+          token: `${config.baseUrl}/auth/token`,
+          registration: `${config.baseUrl}/auth/register`,
+          manage: `${config.baseUrl}/auth/manage`,
+          introspection: `${config.baseUrl}/auth/introspect`,
+          revocation: `${config.baseUrl}/auth/revoke`
         }
       }
     } catch (error) {
@@ -494,25 +495,15 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
       return { error: 'Failed to get server information', details: error }
     }
   }, {
-    params: t.Object({
-      server_id: t.String({ description: 'FHIR server identifier' })
-    }),
+    params: ServerIdParam,
     response: {
       200: FhirServerInfoResponse,
-      404: t.Object({
-        error: t.String({ description: 'Error message' })
-      }, { title: 'NotFoundError' }),
-      500: ErrorResponse
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Get Server Information',
       description: 'Get detailed information about a specific FHIR server',
-      tags: ['servers'],
-      response: {
-        200: { description: 'Server information' },
-        404: { description: 'Server not found' },
-        500: { description: 'Failed to get server information' }
-      }
+      tags: ['servers']
     }
   })
 
@@ -545,26 +536,16 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
       return { error: 'Failed to get mTLS configuration' }
     }
   }, {
-    params: t.Object({
-      server_id: t.String({ description: 'FHIR server identifier' })
-    }),
+    params: ServerIdParam,
     response: {
       200: MtlsConfigResponse,
-      401: t.Object({
-        error: t.String({ description: 'Error message' })
-      }, { title: 'UnauthorizedError' }),
-      500: ErrorResponse
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Get mTLS Configuration',
       description: 'Get the mutual TLS configuration for a specific FHIR server',
       tags: ['servers'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'mTLS configuration' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        500: { description: 'Failed to get mTLS configuration' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
@@ -608,12 +589,8 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
       return { error: 'Failed to update mTLS configuration' }
     }
   }, {
-    params: t.Object({
-      server_id: t.String({ description: 'FHIR server identifier' })
-    }),
-    body: t.Object({
-      enabled: t.Boolean({ description: 'Whether to enable mTLS for this server' })
-    }),
+    params: ServerIdParam,
+    body: UpdateMtlsConfigRequest,
     response: {
       200: t.Object({
         success: t.Boolean({ description: 'Whether the update was successful' }),
@@ -627,21 +604,13 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
           })
         })
       }, { title: 'UpdateMtlsConfigResponse' }),
-      401: t.Object({
-        error: t.String({ description: 'Error message' })
-      }, { title: 'UnauthorizedError' }),
-      500: ErrorResponse
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Update mTLS Configuration',
       description: 'Enable or disable mutual TLS for a specific FHIR server',
       tags: ['servers'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'mTLS configuration updated successfully' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        500: { description: 'Failed to update mTLS configuration' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
@@ -703,34 +672,16 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
       return { error: 'Failed to upload certificate' }
     }
   }, {
-    params: t.Object({
-      server_id: t.String({ description: 'FHIR server identifier' })
-    }),
-    body: t.Object({
-      type: t.String({ description: 'Certificate type: "client", "key", or "ca"' }),
-      content: t.String({ description: 'Base64 encoded certificate or key content' }),
-      filename: t.Optional(t.String({ description: 'Original filename' }))
-    }),
+    params: ServerIdParam,
+    body: UploadCertificateRequest,
     response: {
       200: CertificateUploadResponse,
-      400: t.Object({
-        error: t.String({ description: 'Error message' })
-      }, { title: 'BadRequestError' }),
-      401: t.Object({
-        error: t.String({ description: 'Error message' })
-      }, { title: 'UnauthorizedError' }),
-      500: ErrorResponse
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Upload Certificate',
       description: 'Upload a certificate or private key for mTLS authentication',
       tags: ['servers'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'Certificate uploaded successfully' },
-        400: { description: 'Bad request - Invalid certificate type or content' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        500: { description: 'Failed to upload certificate' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })

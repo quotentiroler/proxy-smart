@@ -1,6 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export * from './AdminApi';
+export * from './AiApi';
 export * from './AuthenticationApi';
 export * from './FhirApi';
 export * from './HealthcareUsersApi';

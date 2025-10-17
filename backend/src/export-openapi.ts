@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia'
-import { swagger } from '@elysiajs/swagger'
+import { openapi, fromTypes } from '@elysiajs/openapi'
 import { cors } from '@elysiajs/cors'
 import { config } from './config'
 import { keycloakPlugin } from './lib/keycloak-plugin'
@@ -10,6 +10,7 @@ import { oauthMonitoringRoutes } from './routes/oauth-monitoring'
 import { oauthWebSocket } from './routes/oauth-websocket'
 import { adminRoutes } from './routes/admin'
 import { authRoutes } from './routes/auth'
+import { aiRoutes } from './routes/admin/ai'
 import { writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 
@@ -59,7 +60,15 @@ const app = new Elysia({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
   }))
-  .use(swagger({
+  .use(openapi({
+    references: fromTypes(
+      process.env.NODE_ENV === 'production'
+        ? 'dist/index.d.ts'
+        : 'src/index.ts',
+      {
+        projectRoot: join(import.meta.dir, '..')
+      }
+    ),
     documentation: {
       info: {
         title: exportConfig.displayName,
@@ -76,6 +85,7 @@ const app = new Elysia({
         { name: 'smart-apps', description: 'SMART on FHIR configuration endpoints' },
         { name: 'oauth-ws-monitoring', description: 'OAuth monitoring via WebSocket' },
         { name: 'oauth-sse-monitoring', description: 'OAuth monitoring via Server-Sent Events' },
+        { name: 'ai', description: 'AI assistant endpoints proxied to MCP server' },
       ],
       components: {
         securitySchemes: {
@@ -107,53 +117,53 @@ const app = new Elysia({
   .use(adminRoutes)
   .use(oauthMonitoringRoutes)
   .use(oauthWebSocket)
+  .use(aiRoutes)
   .use(fhirRoutes)
 
-// Use a simple approach: start a temporary server and fetch the spec
-const startServer = () => {
-  const tempServer = app.listen(0, async () => {
-    try {
-      // Wait a bit for the server to fully initialize
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const port = tempServer.server?.port as number
-      
-      if (!port) {
-        throw new Error('Failed to get server port')
-      }
-      
-      console.log(`🔄 Temporary server started on port ${port}`)
-      
-      // Wait a bit more to ensure swagger endpoint is ready
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      const response = await fetch(`http://localhost:${port}/swagger/json`)
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-      
-      const spec = await response.json()
-      
-      // Ensure dist directory exists
-      const distDir = join(process.cwd(), 'dist')
-      mkdirSync(distDir, { recursive: true })
+// The OpenAPI plugin doesn't expose the spec directly, so we need to start a server
+// However, we can optimize it by fetching immediately with minimal delay (100ms)
+let serverInstance: ReturnType<typeof app.listen> | null = null
 
-      // Write to file
-      const outputPath = join(distDir, 'openapi.json')
-      writeFileSync(outputPath, JSON.stringify(spec, null, 2))
-
-      console.log(`✅ OpenAPI spec exported to: ${outputPath}`)
-      
-      // Close the temporary server
-      tempServer.stop()
-      process.exit(0)
-    } catch (error) {
-      console.error('❌ Failed to fetch OpenAPI spec:', error)
-      tempServer.stop()
-      process.exit(1)
+const exportSpec = async () => {
+  try {
+    // Small delay to ensure server port is available
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    const port = serverInstance?.server?.port as number
+    
+    if (!port) {
+      throw new Error('Failed to get server port')
     }
-  })
+    
+    console.log(`🔄 Fetching OpenAPI spec from port ${port}`)
+    
+    // Fetch the spec - Bun is fast enough that we don't need extra delays
+    // Note: @elysiajs/openapi uses /openapi/json by default (not /swagger/json)
+    const response = await fetch(`http://localhost:${port}/openapi/json`)
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+    
+    const spec = await response.json()
+    
+    // Ensure dist directory exists
+    const distDir = join(process.cwd(), 'dist')
+    mkdirSync(distDir, { recursive: true })
+
+    // Write to file
+    const outputPath = join(distDir, 'openapi.json')
+    writeFileSync(outputPath, JSON.stringify(spec, null, 2))
+
+    console.log(`✅ OpenAPI spec exported to: ${outputPath}`)
+    
+    serverInstance?.stop()
+    process.exit(0)
+  } catch (error) {
+    console.error('❌ Failed to export OpenAPI spec:', error)
+    serverInstance?.stop()
+    process.exit(1)
+  }
 }
 
-startServer()
+serverInstance = app.listen(0, exportSpec)

@@ -2,6 +2,7 @@ import { Elysia } from 'elysia';
 import { oauthMetricsLogger, type OAuthFlowEvent } from '../lib/oauth-metrics-logger';
 import { validateToken } from '../lib/auth';
 import { logger } from '../lib/logger';
+import { WebSocketInfoResponse } from '../schemas/websocket';
 
 interface WebSocketClient {
   id: string;
@@ -34,6 +35,10 @@ interface ControlMessage {
 
 export const oauthWebSocket = new Elysia({ prefix: '/oauth/monitoring' })
   .ws('/websocket', {
+    // Enable permessage-deflate compression (Bun 1.3 feature)
+    // Reduces bandwidth by 60-80% for JSON messages
+    perMessageDeflate: true,
+    
     // WebSocket connection handler
     open(ws) {
       const clientId = generateClientId();
@@ -123,12 +128,15 @@ export const oauthWebSocket = new Elysia({ prefix: '/oauth/monitoring' })
       ]
     };
   }, {
+    response: {
+      200: WebSocketInfoResponse
+    },
     detail: {
       summary: 'WebSocket Connection Info',
-      description: 'Information about the OAuth monitoring WebSocket endpoint',
+      description: 'Get information about WebSocket endpoints and supported subscriptions',
       tags: ['oauth-monitoring']
     }
-  });
+  })
 
 // Helper functions
 function generateClientId(): string {

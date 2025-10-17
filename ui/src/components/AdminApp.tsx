@@ -26,7 +26,6 @@ import { IdPManager } from './IdPManager/IdPManager';
 
 export function AdminApp() {
     const [currentView, setCurrentView] = useState<string>('dashboard');
-    const [isChatOpen, setIsChatOpen] = useState(false);
     const { isAuthenticated, loading, profile } = useAuth();
     const { activeTab, setActiveTab } = useAppStore();
     const { t } = useTranslation();
@@ -36,10 +35,6 @@ export function AdminApp() {
     const handleTabChange = (tab: string) => {
         setActiveTab(tab);
         setCurrentView(tab);
-    };
-
-    const handleChatToggle = () => {
-        setIsChatOpen(!isChatOpen);
     };
 
     // Show loading state while fetching profile
@@ -72,7 +67,6 @@ export function AdminApp() {
                 activeTab={currentTab} 
                 onTabChange={handleTabChange} 
                 profile={profile} 
-                onChatToggle={handleChatToggle} 
             />
             <AppShell
                 logo={
@@ -110,8 +104,8 @@ export function AdminApp() {
             {/* Alert Dialogs */}
             <AlertDialogs />
 
-            {/* AI Chat Overlay */}
-            <AIChatOverlay isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+            {/* AI Chat Overlay - uses internal persisted state */}
+            <AIChatOverlay />
         </div>
     );
 }

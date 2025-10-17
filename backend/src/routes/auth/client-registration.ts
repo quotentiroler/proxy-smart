@@ -1,8 +1,9 @@
-import { Elysia, t } from 'elysia'
+import { Elysia } from 'elysia'
 import { logger } from '../../lib/logger'
 import KcAdminClient from '@keycloak/keycloak-admin-client'
 import * as crypto from 'crypto'
 import { getClientRegistrationSettings } from '../admin/client-registration-settings'
+import { ClientRegistrationRequest, ClientRegistrationResponse, CommonErrorResponses } from '../../schemas'
 
 /**
  * OAuth 2.0 Dynamic Client Registration Protocol (RFC 7591)
@@ -18,7 +19,7 @@ import { getClientRegistrationSettings } from '../admin/client-registration-sett
  * that conforms to RFC 7591 Dynamic Client Registration standard.
  */
 
-interface ClientRegistrationResponse {
+export interface ClientRegistrationResponse {
   client_id: string
   client_secret?: string
   client_id_issued_at: number
@@ -330,31 +331,14 @@ export const clientRegistrationRoutes = new Elysia({ tags: ['authentication'] })
       }
     }
   }, {
-    body: t.Object({
-      redirect_uris: t.Array(t.String({ format: 'uri' })),
-      client_name: t.Optional(t.String()),
-      client_uri: t.Optional(t.String({ format: 'uri' })),
-      logo_uri: t.Optional(t.String({ format: 'uri' })),
-      scope: t.Optional(t.String()),
-      contacts: t.Optional(t.Array(t.String())),
-      tos_uri: t.Optional(t.String({ format: 'uri' })),
-      policy_uri: t.Optional(t.String({ format: 'uri' })),
-      jwks_uri: t.Optional(t.String({ format: 'uri' })),
-      jwks: t.Optional(t.Object({})),
-      software_id: t.Optional(t.String()),
-      software_version: t.Optional(t.String()),
-      // SMART extensions
-      fhir_versions: t.Optional(t.Array(t.String())),
-      launch_uris: t.Optional(t.Array(t.String({ format: 'uri' })))
-    }),
+    body: ClientRegistrationRequest,
+    response: {
+      200: ClientRegistrationResponse,
+      ...CommonErrorResponses
+    },
     detail: {
       summary: 'Dynamic Client Registration',
       description: 'Register a new OAuth2 client dynamically according to RFC 7591. This is a public endpoint that does not require authentication.',
-      tags: ['authentication'],
-      response: {
-        200: { description: 'Client registered successfully' },
-        400: { description: 'Invalid request' },
-        500: { description: 'Server error' }
-      }
+      tags: ['authentication']
     }
   })

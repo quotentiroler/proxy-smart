@@ -5,14 +5,13 @@ import { HealthcareUsersHeader } from './HealthcareUsersHeader';
 import { HealthcareUsersStats } from './HealthcareUsersStats';
 import { HealthcareUserAddForm } from './HealthcareUserAddForm';
 import { HealthcareUserEditForm } from './HealthcareUserEditForm';
-import type { FhirPersonAssociation, HealthcareUserFormData } from '@/lib/types/api';
+import type { FhirPersonAssociation, HealthcareUserFormData, HealthcareUser } from '@/lib/types/api';
 import { useFhirServers } from '@/stores/smartStore';
 import { AddFhirPersonModal } from './AddFhirPersonModal';
-import type { GetAdminHealthcareUsers200ResponseInner } from '@/lib/api-client';
 import { HealthcareUsersTable } from './HealthcareUsersTable';
 
 // Extend the API type to include our UI-specific computed properties
-type HealthcareUserWithPersons = GetAdminHealthcareUsers200ResponseInner & {
+type HealthcareUserWithPersons = HealthcareUser & {
   name: string; // Computed from firstName + lastName
   organization: string; // Computed from attributes
   fhirPersons: FhirPersonAssociation[]; // UI-specific Person associations
@@ -116,7 +115,7 @@ function serializeFhirPersons(fhirPersons: FhirPersonAssociation[]): string {
 /**
  * Transform API user data to our internal format
  */
-function transformApiUser(apiUser: GetAdminHealthcareUsers200ResponseInner): HealthcareUserWithPersons {
+function transformApiUser(apiUser: HealthcareUser): HealthcareUserWithPersons {
   const attributes = apiUser.attributes as Record<string, string[]> || {};
   const organization = apiUser.organization || '';
   const fhirUser = apiUser.fhirUser || '';
@@ -199,7 +198,7 @@ export function HealthcareUsersManager() {
       
       await clientApis.healthcareUsers.putAdminHealthcareUsersByUserId({
         userId: id,
-        putAdminHealthcareUsersByUserIdRequest: {
+        updateHealthcareUserRequest: {
           enabled: newEnabled
         }
       });
@@ -305,7 +304,7 @@ export function HealthcareUsersManager() {
             };
 
             const createdUser = await clientApis.healthcareUsers.postAdminHealthcareUsers({
-              postAdminHealthcareUsersRequest: createRequest
+              createHealthcareUserRequest: createRequest
             });
 
             // Add the new user to the list
@@ -351,7 +350,7 @@ export function HealthcareUsersManager() {
 
             const updatedUser = await clientApis.healthcareUsers.putAdminHealthcareUsersByUserId({
               userId: formData.id,
-              putAdminHealthcareUsersByUserIdRequest: updateRequest
+              updateHealthcareUserRequest: updateRequest
             });
 
             // Update the user in the local state

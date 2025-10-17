@@ -1,8 +1,15 @@
-import { Elysia, t } from 'elysia'
+import { Elysia } from 'elysia'
 import { logger } from '../../lib/logger'
 import { config } from '../../config'
 import fs from 'fs'
 import path from 'path'
+import {
+  TestKeycloakConnectionRequest,
+  TestKeycloakConnectionResponse,
+  SaveKeycloakConfigRequest,
+  SaveKeycloakConfigResponse,
+  KeycloakConfigResponse
+} from '../../schemas/admin/keycloak'
 
 /**
  * Keycloak Configuration Management
@@ -149,12 +156,9 @@ export const keycloakConfigRoutes = new Elysia({ prefix: '/keycloak-config', tag
       description: 'Get current Keycloak settings for administrative purposes. Use /auth/config for public availability check.',
       tags: ['admin']
     },
-    response: t.Object({
-      baseUrl: t.Union([t.String(), t.Null()], { description: 'Keycloak base URL' }),
-      realm: t.Union([t.String(), t.Null()], { description: 'Keycloak realm name' }),
-      hasAdminClient: t.Boolean({ description: 'Whether admin client credentials are configured' }),
-      adminClientId: t.Union([t.String(), t.Null()], { description: 'Admin client ID (if configured)' })
-    })
+    response: {
+      200: KeycloakConfigResponse
+    }
   })
   
   // Test Keycloak connection without saving
@@ -183,20 +187,15 @@ export const keycloakConfigRoutes = new Elysia({ prefix: '/keycloak-config', tag
       }
     }
   }, {
-    body: t.Object({
-      baseUrl: t.String({ format: 'uri', description: 'Keycloak base URL (e.g., http://localhost:8080)' }),
-      realm: t.String({ description: 'Keycloak realm name' })
-    }),
+    body: TestKeycloakConnectionRequest,
     detail: {
       summary: 'Test Keycloak Connection',
       description: 'Test connection to Keycloak without saving configuration',
       tags: ['admin']
     },
-    response: t.Object({
-      success: t.Boolean({ description: 'Whether the test was successful' }),
-      message: t.Optional(t.String({ description: 'Success message' })),
-      error: t.Optional(t.String({ description: 'Error message if test failed' }))
-    })
+    response: {
+      200: TestKeycloakConnectionResponse
+    }
   })
   
   // Configure Keycloak connection
@@ -241,21 +240,14 @@ export const keycloakConfigRoutes = new Elysia({ prefix: '/keycloak-config', tag
       }
     }
   }, {
-    body: t.Object({
-      baseUrl: t.String({ format: 'uri', description: 'Keycloak base URL (e.g., http://localhost:8080)' }),
-      realm: t.String({ description: 'Keycloak realm name' }),
-      adminClientId: t.Optional(t.String({ description: 'Admin client ID for dynamic registration (optional)' })),
-      adminClientSecret: t.Optional(t.String({ description: 'Admin client secret for dynamic registration (optional)' }))
-    }),
+    body: SaveKeycloakConfigRequest,
     detail: {
       summary: 'Configure Keycloak Connection',
       description: 'Save Keycloak configuration to environment and restart connection',
       tags: ['admin']
     },
-    response: t.Object({
-      success: t.Boolean({ description: 'Whether the configuration was saved' }),
-      message: t.Optional(t.String({ description: 'Success message' })),
-      error: t.Optional(t.String({ description: 'Error message if configuration failed' })),
-      restartRequired: t.Optional(t.Boolean({ description: 'Whether a server restart is required' }))
-    })
+    response: {
+      200: SaveKeycloakConfigResponse
+    }
   })
+

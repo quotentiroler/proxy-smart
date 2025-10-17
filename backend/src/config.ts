@@ -1,12 +1,29 @@
 import { readFileSync } from 'fs'
-import { join, dirname } from 'path'
+import { join, dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 
-// Get package.json path and read it
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const packageJsonPath = join(__dirname, '..', 'package.json')
-const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+// Get package.json path - try multiple strategies for robustness
+let packageJson: { name: string; displayName?: string; version: string }
+try {
+  // Strategy 1: Use import.meta.url (works in ES modules)
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = dirname(__filename)
+  const packageJsonPath = join(__dirname, '..', 'package.json')
+  packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+} catch {
+  // Strategy 2: Use process.cwd() (works in Bun)
+  try {
+    const packageJsonPath = resolve(process.cwd(), 'package.json')
+    packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+  } catch {
+    // Strategy 3: Fallback defaults
+    packageJson = {
+      name: 'proxy-smart-backend',
+      displayName: 'Proxy Smart Backend',
+      version: '0.0.1-alpha'
+    }
+  }
+}
 
 /**
  * Application configuration from environment variables
@@ -69,6 +86,24 @@ export const config = {
     configCacheTtl: parseInt(process.env.SMART_CONFIG_CACHE_TTL || '300000'), // 5 minutes
     scopesSupported: process.env.SMART_SCOPES_SUPPORTED?.split(',').map(s => s.trim()),
     capabilities: process.env.SMART_CAPABILITIES?.split(',').map(s => s.trim()),
+  },
+
+  ai: {
+    get baseUrl() {
+      return process.env.MCP_SERVER_URL || 'http://localhost:8081';
+    },
+    get chatEndpoint() {
+      return `${this.baseUrl.replace(/\/$/, '')}/ai/chat`;
+    },
+    get healthEndpoint() {
+      return `${this.baseUrl.replace(/\/$/, '')}/health`;
+    },
+    get timeoutMs() {
+      return Number.parseInt(process.env.MCP_SERVER_TIMEOUT_MS || '30000', 10); // 30 seconds for reasoning models
+    },
+    get enabled() {
+      return !!this.baseUrl;
+    }
   },
 
   cors: {

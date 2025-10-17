@@ -2,6 +2,18 @@ import { Elysia, t } from 'elysia';
 import { oauthMetricsLogger } from '../lib/oauth-metrics-logger';
 import { logger } from '../lib/logger';
 import { validateToken } from '../lib/auth';
+import { CommonErrorResponses } from '../schemas';
+import { 
+  StreamResponse, 
+  MonitoringHealthResponse, 
+  ExportResponse, 
+  OAuthEventsResponse, 
+  OAuthAnalyticsResponse,
+  MonitoringHealthResponseType,
+  ExportResponseType,
+  OAuthEventsResponseType,
+  OAuthAnalyticsResponseType
+} from '../schemas/monitoring';
 
 /**
  * OAuth monitoring routes - provides real-time monitoring and analytics
@@ -136,6 +148,12 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
     headers: t.Object({
       authorization: t.Optional(t.String({ description: 'Bearer token' }))
     }),
+    response: {
+      200: StreamResponse,
+      400: CommonErrorResponses[400],
+      401: CommonErrorResponses[401],
+      500: CommonErrorResponses[500]
+    },
     detail: {
       summary: 'OAuth Events Stream',
       description: 'Server-sent events stream for real-time OAuth flow monitoring. Token can be passed as query parameter or Authorization header.',
@@ -270,6 +288,12 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
     headers: t.Object({
       authorization: t.Optional(t.String({ description: 'Bearer token' }))
     }),
+    response: {
+      200: StreamResponse,
+      400: CommonErrorResponses[400],
+      401: CommonErrorResponses[401],
+      500: CommonErrorResponses[500]
+    },
     detail: {
       summary: 'OAuth Analytics Stream',
       description: 'Server-sent events stream for real-time OAuth analytics updates. Token can be passed as query parameter or Authorization header.',
@@ -279,7 +303,7 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
   })
 
   // Get recent OAuth events with filtering
-  .get('/events', async ({ query, headers, set }) => {
+  .get('/events', async ({ query, headers, set }): Promise<OAuthEventsResponseType> => {
     // Validate authentication
     if (!headers.authorization) {
       set.status = 401;
@@ -320,36 +344,12 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
     headers: t.Object({
       authorization: t.Optional(t.String({ description: 'Bearer token' }))
     }),
-    response: t.Object({
-      events: t.Array(t.Object({
-        id: t.String(),
-        timestamp: t.String(),
-        type: t.String(),
-        status: t.String(),
-        clientId: t.String(),
-        clientName: t.Optional(t.String()),
-        userId: t.Optional(t.String()),
-        userName: t.Optional(t.String()),
-        scopes: t.Array(t.String()),
-        grantType: t.String(),
-        responseTime: t.Number(),
-        ipAddress: t.String(),
-        userAgent: t.String(),
-        errorMessage: t.Optional(t.String()),
-        errorCode: t.Optional(t.String()),
-        tokenType: t.Optional(t.String()),
-        expiresIn: t.Optional(t.Number()),
-        refreshToken: t.Optional(t.Boolean()),
-        fhirContext: t.Optional(t.Object({
-          patient: t.Optional(t.String()),
-          encounter: t.Optional(t.String()),
-          location: t.Optional(t.String()),
-          fhirUser: t.Optional(t.String())
-        }))
-      })),
-      total: t.Number(),
-      timestamp: t.String()
-    }),
+    response: {
+      200: OAuthEventsResponse,
+      400: CommonErrorResponses[400],
+      401: CommonErrorResponses[401],
+      500: CommonErrorResponses[500]
+    },
     detail: {
       summary: 'Get OAuth Events',
       description: 'Retrieve recent OAuth events with optional filtering',
@@ -359,7 +359,7 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
   })
 
   // Get current OAuth analytics
-  .get('/analytics', async ({ headers, set }) => {
+  .get('/analytics', async ({ headers, set }): Promise<OAuthAnalyticsResponseType> => {
     // Validate authentication
     if (!headers.authorization) {
       set.status = 401;
@@ -378,7 +378,9 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
     
     if (!analytics) {
       return {
-        totalFlows: 0,
+        totalRequests: 0,
+        successfulRequests: 0,
+        failedRequests: 0,
         successRate: 0,
         averageResponseTime: 0,
         activeTokens: 0,
@@ -391,34 +393,28 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
     }
 
     return {
-      ...analytics,
+      totalRequests: analytics.totalFlows || 0,
+      successfulRequests: (analytics.totalFlows || 0) * ((analytics.successRate || 0) / 100),
+      failedRequests: (analytics.totalFlows || 0) * (1 - ((analytics.successRate || 0) / 100)),
+      successRate: analytics.successRate || 0,
+      averageResponseTime: analytics.averageResponseTime || 0,
+      activeTokens: analytics.activeTokens || 0,
+      topClients: analytics.topClients || [],
+      flowsByType: analytics.flowsByType || {},
+      errorsByType: analytics.errorsByType || {},
+      hourlyStats: analytics.hourlyStats || [],
       timestamp: new Date().toISOString()
     };
   }, {
     headers: t.Object({
       authorization: t.Optional(t.String({ description: 'Bearer token' }))
     }),
-    response: t.Object({
-      totalFlows: t.Number(),
-      successRate: t.Number(),
-      averageResponseTime: t.Number(),
-      activeTokens: t.Number(),
-      topClients: t.Array(t.Object({
-        clientId: t.String(),
-        clientName: t.String(),
-        count: t.Number(),
-        successRate: t.Number()
-      })),
-      flowsByType: t.Record(t.String(), t.Number()),
-      errorsByType: t.Record(t.String(), t.Number()),
-      hourlyStats: t.Array(t.Object({
-        hour: t.String(),
-        success: t.Number(),
-        error: t.Number(),
-        total: t.Number()
-      })),
-      timestamp: t.String()
-    }),
+    response: {
+      200: OAuthAnalyticsResponse,
+      400: CommonErrorResponses[400],
+      401: CommonErrorResponses[401],
+      500: CommonErrorResponses[500]
+    },
     detail: {
       summary: 'Get OAuth Analytics',
       description: 'Get current OAuth analytics and metrics',
@@ -428,7 +424,7 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
   })
 
   // Get system health metrics
-  .get('/health', async ({ headers, set }) => {
+  .get('/health', async ({ headers, set }): Promise<MonitoringHealthResponseType> => {
     // Validate authentication
     if (!headers.authorization) {
       set.status = 401;
@@ -477,6 +473,10 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
     headers: t.Object({
       authorization: t.Optional(t.String({ description: 'Bearer token' }))
     }),
+    response: {
+      200: MonitoringHealthResponse,
+      ...CommonErrorResponses
+    },
     detail: {
       summary: 'Get System Health',
       description: 'Get OAuth system health metrics and alerts',
@@ -486,7 +486,7 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
   })
 
   // Export analytics data as downloadable file
-  .get('/analytics/export', async ({ set, headers }) => {
+  .get('/analytics/export', async ({ set, headers }): Promise<ExportResponseType> => {
     // Validate authentication
     if (!headers.authorization) {
       set.status = 401;
@@ -516,8 +516,7 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
 
       // Return the analytics data
       return {
-        exportedAt: new Date().toISOString(),
-        exportType: 'oauth-analytics',
+        format: 'json',
         data: analytics
       };
     } catch (error) {
@@ -529,6 +528,10 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
     headers: t.Object({
       authorization: t.String({ description: 'Bearer token' })
     }),
+    response: {
+      200: ExportResponse,
+      ...CommonErrorResponses
+    },
     detail: {
       summary: 'Export Analytics Data',
       description: 'Download current OAuth analytics data as JSON file',
@@ -538,7 +541,7 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
   })
 
   // Export events data as downloadable file
-  .get('/events/export', async ({ set, headers }) => {
+  .get('/events/export', async ({ set, headers }): Promise<string> => {
     // Validate authentication
     if (!headers.authorization) {
       set.status = 401;
@@ -587,6 +590,10 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
     headers: t.Object({
       authorization: t.String({ description: 'Bearer token' })
     }),
+    response: {
+      200: t.String(),
+      ...CommonErrorResponses
+    },
     detail: {
       summary: 'Export Events Data',
       description: 'Download OAuth events log as JSONL file',
