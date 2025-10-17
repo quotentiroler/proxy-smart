@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 
 # **delete_admin_idps_by_alias**
-> DeleteAdminRolesByRoleName200Response delete_admin_idps_by_alias(alias)
+> SuccessResponse delete_admin_idps_by_alias(alias)
 
 Delete Identity Provider
 
@@ -25,7 +25,7 @@ Delete an identity provider by alias
 
 ```python
 import api_client
-from api_client.models.delete_admin_roles_by_role_name200_response import DeleteAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -71,7 +71,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DeleteAdminRolesByRoleName200Response**](DeleteAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -80,20 +80,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**404** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_idps**
-> List[GetAdminIdps200ResponseInner] get_admin_idps()
+> List[IdentityProviderResponse] get_admin_idps()
 
 List Identity Providers
 
@@ -105,7 +108,7 @@ Get all configured identity providers
 
 ```python
 import api_client
-from api_client.models.get_admin_idps200_response_inner import GetAdminIdps200ResponseInner
+from api_client.models.identity_provider_response import IdentityProviderResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -147,7 +150,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**List[GetAdminIdps200ResponseInner]**](GetAdminIdps200ResponseInner.md)
+[**List[IdentityProviderResponse]**](IdentityProviderResponse.md)
 
 ### Authorization
 
@@ -156,20 +159,23 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_idps_by_alias**
-> GetAdminIdps200ResponseInner get_admin_idps_by_alias(alias)
+> IdentityProviderResponse get_admin_idps_by_alias(alias)
 
 Get Identity Provider
 
@@ -181,7 +187,7 @@ Get an identity provider by alias
 
 ```python
 import api_client
-from api_client.models.get_admin_idps200_response_inner import GetAdminIdps200ResponseInner
+from api_client.models.identity_provider_response import IdentityProviderResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -227,7 +233,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAdminIdps200ResponseInner**](GetAdminIdps200ResponseInner.md)
+[**IdentityProviderResponse**](IdentityProviderResponse.md)
 
 ### Authorization
 
@@ -236,21 +242,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**404** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_idps_count**
-> GetAdminIdpsCount200Response get_admin_idps_count()
+> CountResponse get_admin_idps_count()
 
 Get Identity Providers Count
 
@@ -262,7 +270,7 @@ Get the count of enabled and total identity providers
 
 ```python
 import api_client
-from api_client.models.get_admin_idps_count200_response import GetAdminIdpsCount200Response
+from api_client.models.count_response import CountResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -304,7 +312,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetAdminIdpsCount200Response**](GetAdminIdpsCount200Response.md)
+[**CountResponse**](CountResponse.md)
 
 ### Authorization
 
@@ -313,20 +321,23 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_idps**
-> GetAdminIdps200ResponseInner post_admin_idps(post_admin_idps_request)
+> IdentityProviderResponse post_admin_idps(create_identity_provider_request)
 
 Create Identity Provider
 
@@ -338,8 +349,8 @@ Create a new identity provider
 
 ```python
 import api_client
-from api_client.models.get_admin_idps200_response_inner import GetAdminIdps200ResponseInner
-from api_client.models.post_admin_idps_request import PostAdminIdpsRequest
+from api_client.models.create_identity_provider_request import CreateIdentityProviderRequest
+from api_client.models.identity_provider_response import IdentityProviderResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -363,11 +374,11 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.IdentityProvidersApi(api_client)
-    post_admin_idps_request = api_client.PostAdminIdpsRequest() # PostAdminIdpsRequest | 
+    create_identity_provider_request = api_client.CreateIdentityProviderRequest() # CreateIdentityProviderRequest | 
 
     try:
         # Create Identity Provider
-        api_response = api_instance.post_admin_idps(post_admin_idps_request)
+        api_response = api_instance.post_admin_idps(create_identity_provider_request)
         print("The response of IdentityProvidersApi->post_admin_idps:\n")
         pprint(api_response)
     except Exception as e:
@@ -381,11 +392,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **post_admin_idps_request** | [**PostAdminIdpsRequest**](PostAdminIdpsRequest.md)|  | 
+ **create_identity_provider_request** | [**CreateIdentityProviderRequest**](CreateIdentityProviderRequest.md)|  | 
 
 ### Return type
 
-[**GetAdminIdps200ResponseInner**](GetAdminIdps200ResponseInner.md)
+[**IdentityProviderResponse**](IdentityProviderResponse.md)
 
 ### Authorization
 
@@ -393,21 +404,24 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_admin_idps_by_alias**
-> PutAdminRolesByRoleName200Response put_admin_idps_by_alias(alias, put_admin_idps_by_alias_request)
+> SuccessResponse put_admin_idps_by_alias(alias, update_identity_provider_request)
 
 Update Identity Provider
 
@@ -419,8 +433,8 @@ Update an identity provider by alias
 
 ```python
 import api_client
-from api_client.models.put_admin_idps_by_alias_request import PutAdminIdpsByAliasRequest
-from api_client.models.put_admin_roles_by_role_name200_response import PutAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
+from api_client.models.update_identity_provider_request import UpdateIdentityProviderRequest
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -445,11 +459,11 @@ with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.IdentityProvidersApi(api_client)
     alias = 'alias_example' # str | 
-    put_admin_idps_by_alias_request = api_client.PutAdminIdpsByAliasRequest() # PutAdminIdpsByAliasRequest | 
+    update_identity_provider_request = api_client.UpdateIdentityProviderRequest() # UpdateIdentityProviderRequest | 
 
     try:
         # Update Identity Provider
-        api_response = api_instance.put_admin_idps_by_alias(alias, put_admin_idps_by_alias_request)
+        api_response = api_instance.put_admin_idps_by_alias(alias, update_identity_provider_request)
         print("The response of IdentityProvidersApi->put_admin_idps_by_alias:\n")
         pprint(api_response)
     except Exception as e:
@@ -464,11 +478,11 @@ with api_client.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **alias** | **str**|  | 
- **put_admin_idps_by_alias_request** | [**PutAdminIdpsByAliasRequest**](PutAdminIdpsByAliasRequest.md)|  | 
+ **update_identity_provider_request** | [**UpdateIdentityProviderRequest**](UpdateIdentityProviderRequest.md)|  | 
 
 ### Return type
 
-[**PutAdminRolesByRoleName200Response**](PutAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -476,16 +490,19 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

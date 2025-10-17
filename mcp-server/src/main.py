@@ -36,6 +36,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await ai_assistant.knowledge_base.initialize_embeddings()
         logger.info("Embeddings initialized successfully")
     
+    # Fetch Keycloak token for backend API access
+    if not settings.backend_api_token:
+        try:
+            logger.info("Fetching Keycloak access token for backend API...")
+            from services.keycloak_auth import get_keycloak_auth
+            keycloak_auth = get_keycloak_auth()
+            token = await keycloak_auth.get_access_token()
+            settings.backend_api_token = token
+            logger.info("Successfully obtained backend API token")
+        except Exception as e:
+            logger.warning(f"Failed to get backend API token: {e}")
+            logger.warning("Backend API tools may fail with 401 errors")
+    
     # Initialize MCP backend client asynchronously (don't block startup)
     async def init_backend_client():
         try:
@@ -89,12 +102,16 @@ async def health_check() -> HealthResponse:
     
     Returns basic health status without waiting for background tasks.
     """
+    # Check if backend API is authenticated
+    backend_authenticated = bool(settings.backend_api_token)
+    
     # Don't call knowledge_base.get_stats() as it might be slow
     # Just return a simple response
     return HealthResponse(
         status="healthy",
         openai_available=settings.is_openai_configured(),
         knowledge_base_loaded=True,  # Assume loaded, don't check synchronously
+        backend_authenticated=backend_authenticated,
     )
 
 

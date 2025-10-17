@@ -1,12 +1,29 @@
 import { readFileSync } from 'fs'
-import { join, dirname } from 'path'
+import { join, dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 
-// Get package.json path and read it
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const packageJsonPath = join(__dirname, '..', 'package.json')
-const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+// Get package.json path - try multiple strategies for robustness
+let packageJson: { name: string; displayName?: string; version: string }
+try {
+  // Strategy 1: Use import.meta.url (works in ES modules)
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = dirname(__filename)
+  const packageJsonPath = join(__dirname, '..', 'package.json')
+  packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+} catch {
+  // Strategy 2: Use process.cwd() (works in Bun)
+  try {
+    const packageJsonPath = resolve(process.cwd(), 'package.json')
+    packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+  } catch {
+    // Strategy 3: Fallback defaults
+    packageJson = {
+      name: 'proxy-smart-backend',
+      displayName: 'Proxy Smart Backend',
+      version: '0.0.1-alpha'
+    }
+  }
+}
 
 /**
  * Application configuration from environment variables

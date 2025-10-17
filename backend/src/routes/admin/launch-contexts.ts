@@ -1,6 +1,15 @@
 import { Elysia, t } from 'elysia'
 import { keycloakPlugin } from '../../lib/keycloak-plugin'
-import { ErrorResponse } from '../../schemas/common'
+import { 
+  CommonErrorResponses,
+  SetFhirContextRequest,
+  SetIntentRequest,
+  SetNeedPatientBannerRequest,
+  SetSmartStyleUrlRequest,
+  SetTenantRequest,
+  LaunchContextUser,
+  SuccessResponse
+} from '../../schemas'
 import { extractBearerToken, UNAUTHORIZED_RESPONSE, getValidatedAdmin, getUserAttribute, getUserAttributeBoolean, setUserAttribute } from '../../lib/admin-utils'
 import { logger } from '../../lib/logger'
 
@@ -87,23 +96,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Array(t.Object({
-        userId: t.String({ description: 'User ID' }),
-        username: t.String({ description: 'Username' }),
-        fhirUser: t.String({ description: 'FHIR resource representing the current user (e.g., Practitioner/123)' }),
-        patient: t.String({ description: 'Patient context (e.g., Patient/456)' }),
-        encounter: t.String({ description: 'Encounter context (e.g., Encounter/789)' }),
-        fhirContext: t.String({ description: 'Additional FHIR resources in context (JSON array)' }),
-        intent: t.String({ description: 'Intent string (e.g., reconcile-medications)' }),
-        smartStyleUrl: t.String({ description: 'URL to CSS stylesheet for styling' }),
-        tenant: t.String({ description: 'Tenant identifier' }),
-        needPatientBanner: t.Boolean({ description: 'Whether patient banner is required' }),
-        // Legacy support
-        launchPatient: t.String({ description: 'Legacy patient context' }),
-        launchEncounter: t.String({ description: 'Legacy encounter context' })
-      })),
-      401: ErrorResponse,
-      500: ErrorResponse
+      200: t.Array(LaunchContextUser),
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'List Launch Contexts',
@@ -146,11 +140,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the update was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Set FHIR User Context',
@@ -193,11 +184,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the update was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Set Patient Context',
@@ -231,11 +219,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the update was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Set Encounter Context',
@@ -284,15 +269,10 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
       return { error: 'Failed to set fhirContext', details: error }
     }
   }, {
-    body: t.Object({
-      fhirContext: t.String({ description: 'Additional FHIR resources in context (JSON array of objects)' })
-    }),
+    body: SetFhirContextRequest,
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the update was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Set FHIR Context',
@@ -324,11 +304,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the delete was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Remove FHIR User Context',
@@ -361,11 +338,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the delete was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Remove Patient Context',
@@ -398,11 +372,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the delete was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Remove Encounter Context',
@@ -433,11 +404,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the delete was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Remove FHIR Context',
@@ -467,15 +435,10 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
       return { error: 'Failed to set intent context', details: error }
     }
   }, {
-    body: t.Object({
-      intent: t.String({ description: 'Intent string (e.g., reconcile-medications)' })
-    }),
+    body: SetIntentRequest,
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the update was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Set Intent Context',
@@ -504,15 +467,10 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
       return { error: 'Failed to set need-patient-banner context', details: error }
     }
   }, {
-    body: t.Object({
-      needPatientBanner: t.Boolean({ description: 'Whether patient banner is required' })
-    }),
+    body: SetNeedPatientBannerRequest,
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the update was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Set Need Patient Banner Context',
@@ -541,15 +499,10 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
       return { error: 'Failed to set smart-style-url context', details: error }
     }
   }, {
-    body: t.Object({
-      styleUrl: t.String({ description: 'URL to CSS stylesheet for styling' })
-    }),
+    body: SetSmartStyleUrlRequest,
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the update was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Set Smart Style URL Context',
@@ -578,15 +531,10 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
       return { error: 'Failed to set tenant context', details: error }
     }
   }, {
-    body: t.Object({
-      tenant: t.String({ description: 'Tenant identifier' })
-    }),
+    body: SetTenantRequest,
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the update was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Set Tenant Context',
@@ -618,11 +566,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the delete was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Remove Intent Context',
@@ -653,11 +598,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the delete was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Remove Need Patient Banner Context',
@@ -688,11 +630,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the delete was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Remove Smart Style URL Context',
@@ -723,11 +662,8 @@ export const launchContextRoutes = new Elysia({ prefix: '/launch-contexts' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the delete was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Remove Tenant Context',

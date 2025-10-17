@@ -1,7 +1,16 @@
 import { Elysia, t } from 'elysia'
 import { keycloakPlugin } from '../../lib/keycloak-plugin'
-import { SmartAppClient, ErrorResponse, SuccessResponse } from '../../schemas/common'
-import { config } from '../../config'
+import { 
+  SuccessResponse,
+  CommonErrorResponses,
+  SmartApp, 
+  CreateSmartAppRequest,
+  UpdateSmartAppRequest,
+  ClientIdParam,
+  SmartAppType,
+  SuccessResponseType,
+  ErrorResponseType
+} from '../../schemas'
 import { logger } from '../../lib/logger'
 import { handleAdminError } from '../../lib/admin-error-handler'
 import * as crypto from 'crypto'
@@ -52,7 +61,7 @@ async function registerPublicKeyForClient(admin: KcAdminClient, clientId: string
 export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart-apps'] })
   .use(keycloakPlugin)
 
-  .get('/', async ({ getAdmin, headers, set }) => {
+  .get('/', async ({ getAdmin, headers, set }): Promise<SmartAppType[] | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -124,11 +133,16 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
               }
             }
 
-            // Return enriched client with scope names instead of IDs
+            // Extract appType from client_type attribute
+            const clientType = fullClient.attributes?.['client_type']
+            const appType = Array.isArray(clientType) ? clientType[0] : clientType
+
+            // Return enriched client with scope names instead of IDs and appType
             return {
               ...fullClient,
               defaultClientScopes: defaultScopeNames,
-              optionalClientScopes: optionalScopeNames
+              optionalClientScopes: optionalScopeNames,
+              appType: appType || (fullClient.serviceAccountsEnabled ? 'backend-service' : 'standalone-app')
             }
           } catch (error) {
             logger.admin.warn('Failed to enrich client with scope details', { clientId: client.clientId, error })
@@ -157,26 +171,18 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
     }
   }, {
     response: {
-      200: t.Array(SmartAppClient),
-      401: ErrorResponse,
-      403: ErrorResponse,
-      500: ErrorResponse
+      200: t.Array(SmartApp),
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'List SMART on FHIR Applications',
       description: 'Get all registered SMART on FHIR applications',
       tags: ['smart-apps'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'A list of all registered SMART on FHIR applications.' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Insufficient permissions' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
-  .post('/', async ({ getAdmin, body, headers, set }) => {
+  .post('/', async ({ getAdmin, body, headers, set }): Promise<SmartAppType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -187,9 +193,19 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
 
       const admin = await getAdmin(token)
 
+      // Map UI appType to backend clientType if appType is provided
+      let effectiveClientType = body.clientType
+      if (body.appType) {
+        if (body.appType === 'agent' || body.appType === 'backend-service') {
+          effectiveClientType = 'backend-service'
+        } else if (body.appType === 'standalone-app' || body.appType === 'ehr-launch') {
+          effectiveClientType = body.publicClient ? 'public' : 'confidential'
+        }
+      }
+
       // Determine client configuration based on type
-      const isBackendService = body.clientType === 'backend-service'
-      const isPublicClient = body.publicClient || body.clientType === 'public'
+      const isBackendService = effectiveClientType === 'backend-service'
+      const isPublicClient = body.publicClient || effectiveClientType === 'public'
 
       // Validate Backend Services requirements
       if (isBackendService) {
@@ -211,8 +227,11 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
         attributes: {
           ...(body.smartVersion && { 'smart_version': body.smartVersion }),
           ...(body.fhirVersion && { 'fhir_version': body.fhirVersion }),
+          // Store the original UI appType as client_type attribute
+          ...(body.appType && { 'client_type': body.appType }),
+          // If no appType, fallback to clientType
+          ...(!body.appType && isBackendService && { 'client_type': 'backend-service' }),
           ...(isBackendService && {
-            'client_type': 'backend-service',
             ...(body.jwksUri && {
               'use.jwks.url': 'true',
               'jwks.url': body.jwksUri
@@ -352,47 +371,20 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
       return { error: 'Failed to create SMART application', details: error }
     }
   }, {
-    body: t.Object({
-      clientId: t.String({ description: 'Unique client identifier' }),
-      name: t.String({ description: 'Application name' }),
-      description: t.Optional(t.String({ description: 'Application description' })),
-      publicClient: t.Optional(t.Boolean({ description: 'Whether this is a public client (default: false)' })),
-      redirectUris: t.Optional(t.Array(t.String({ description: 'Valid redirect URIs' }))),
-      webOrigins: t.Optional(t.Array(t.String({ description: 'Valid web origins' }))),
-      defaultScopes: t.Optional(t.Array(t.String({ description: 'Default OAuth scopes' }))),
-      optionalScopes: t.Optional(t.Array(t.String({ description: 'Optional OAuth scopes' }))),
-      smartVersion: t.Optional(t.String({ description: 'SMART version (default: 2.0.0)' })),
-      fhirVersion: t.Optional(t.String({ description: `FHIR version (default: ${config.fhir.supportedVersions[0]})` })),
-      // Backend Services specific fields
-      clientType: t.Optional(t.Union([t.Literal('public'), t.Literal('confidential'), t.Literal('backend-service')], { description: 'Client type (public, confidential, backend-service)' })),
-      publicKey: t.Optional(t.String({ description: 'PEM-formatted public key for JWT authentication (required for backend-service)' })),
-      jwksUri: t.Optional(t.String({ description: 'JWKS URI for public key discovery (alternative to publicKey)' })),
-      systemScopes: t.Optional(t.Array(t.String({ description: 'System-level scopes for Backend Services (e.g., system/*.read)' })))
-    }),
+    body: CreateSmartAppRequest,
     response: {
-      200: SmartAppClient,
-      400: ErrorResponse,
-      401: ErrorResponse,
-      403: ErrorResponse,
-      404: ErrorResponse,
-      500: ErrorResponse
+      200: SmartApp,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Create SMART on FHIR Application',
       description: 'Create a new SMART on FHIR application',
       tags: ['smart-apps'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'SMART app client created.' },
-        400: { description: 'Invalid request data' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Insufficient permissions' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
-  .get('/:clientId', async ({ getAdmin, params, headers, set }) => {
+  .get('/:clientId', async ({ getAdmin, params, headers, set }): Promise<SmartAppType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -485,32 +477,20 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
       return handleAdminError(error, set)
     }
   }, {
-    params: t.Object({
-      clientId: t.String({ description: 'SMART application client ID' })
-    }),
+    params: ClientIdParam,
     response: {
-      200: SmartAppClient,
-      404: ErrorResponse,
-      401: ErrorResponse,
-      403: ErrorResponse,
-      500: ErrorResponse
+      200: SmartApp,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Get SMART on FHIR Application',
       description: 'Get a single SMART on FHIR application by clientId',
       tags: ['smart-apps'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'SMART app client details.' },
-        404: { description: 'SMART application not found' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Insufficient permissions' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
-  .put('/:clientId', async ({ getAdmin, params, body, headers, set }) => {
+  .put('/:clientId', async ({ getAdmin, params, body, headers, set }): Promise<SuccessResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -616,45 +596,21 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
       return { error: 'Failed to update SMART application', details: error }
     }
   }, {
-    params: t.Object({
-      clientId: t.String({ description: 'SMART application client ID' })
-    }),
-    body: t.Object({
-      name: t.Optional(t.String({ description: 'Application name' })),
-      description: t.Optional(t.String({ description: 'Application description' })),
-      enabled: t.Optional(t.Boolean({ description: 'Whether application is enabled' })),
-      redirectUris: t.Optional(t.Array(t.String({ description: 'Valid redirect URIs' }))),
-      webOrigins: t.Optional(t.Array(t.String({ description: 'Valid web origins' }))),
-      defaultScopes: t.Optional(t.Array(t.String({ description: 'Default OAuth scopes' }))),
-      optionalScopes: t.Optional(t.Array(t.String({ description: 'Optional OAuth scopes' }))),
-      smartVersion: t.Optional(t.String({ description: 'SMART version' })),
-      fhirVersion: t.Optional(t.String({ description: 'FHIR version' }))
-    }),
+    params: ClientIdParam,
+    body: UpdateSmartAppRequest,
     response: {
       200: SuccessResponse,
-      400: ErrorResponse,
-      404: ErrorResponse,
-      401: ErrorResponse,
-      403: ErrorResponse,
-      500: ErrorResponse
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Update SMART on FHIR Application',
       description: 'Update an existing SMART on FHIR application',
       tags: ['smart-apps'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'SMART app client updated.' },
-        400: { description: 'Invalid request data' },
-        404: { description: 'SMART application not found' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Insufficient permissions' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
-  .delete('/:clientId', async ({ getAdmin, params, headers, set }) => {
+  .delete('/:clientId', async ({ getAdmin, params, headers, set }): Promise<SuccessResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -675,27 +631,15 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
       return handleAdminError(error, set)
     }
   }, {
-    params: t.Object({
-      clientId: t.String({ description: 'SMART application client ID' })
-    }),
+    params: ClientIdParam,
     response: {
       200: SuccessResponse,
-      404: ErrorResponse,
-      401: ErrorResponse,
-      403: ErrorResponse,
-      500: ErrorResponse
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Delete SMART on FHIR Application',
       description: 'Delete a SMART on FHIR application by clientId',
       tags: ['smart-apps'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'SMART app client deleted.' },
-        404: { description: 'SMART application not found' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Insufficient permissions' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })

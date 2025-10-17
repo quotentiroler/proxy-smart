@@ -2,9 +2,10 @@ import { config } from '@/config';
 import { getStoredToken, createOauthMonitoringApi } from '../lib/apiClient';
 import type { 
   OAuthEvent,
-  OAuthAnalytics,
-  OAuthEventsListResponse
+  OAuthEventsListResponse,
+  OAuthAnalyticsResponse
 } from '../lib/types/api';
+import type { OAuthAnalytics } from './oauth-websocket-service';
 
 export interface SystemHealth {
   oauthServer: {
@@ -123,7 +124,21 @@ class OAuthMonitoringService {
     const api = createOauthMonitoringApi(token);
     
     try {
-      return await api.getMonitoringOauthAnalytics({});
+      const response: OAuthAnalyticsResponse = await api.getMonitoringOauthAnalytics({});
+      // Convert API response to internal format
+      return {
+        totalRequests: response.totalRequests,
+        successfulRequests: response.successfulRequests,
+        failedRequests: response.failedRequests,
+        successRate: response.successRate,
+        averageResponseTime: response.averageResponseTime,
+        activeTokens: response.activeTokens,
+        topClients: response.topClients,
+        flowsByType: response.flowsByType as Record<string, number>,
+        errorsByType: response.errorsByType as Record<string, number>,
+        hourlyStats: response.hourlyStats || [],
+        timestamp: response.timestamp || new Date().toISOString()
+      };
     } catch (error) {
       console.error('Failed to fetch OAuth analytics:', error);
       throw error;

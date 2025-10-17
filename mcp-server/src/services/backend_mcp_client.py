@@ -40,7 +40,7 @@ class BackendMCPClient:
             # Configure server parameters for stdio connection
             server_params = StdioServerParameters(
                 command="uv",
-                args=["run", "python", "src/backend_mcp_server.py"],
+                args=["run", "python", "src/backend_mcp_server_generated.py"],
                 env={
                     "BACKEND_API_URL": settings.backend_api_url,
                     "BACKEND_API_TOKEN": settings.backend_api_token,

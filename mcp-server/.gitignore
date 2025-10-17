@@ -34,6 +34,11 @@ ENV/
 .env
 .env.local
 
+# Private keys (NEVER commit these!)
+keys/
+*.pem
+*.key
+
 # IDE
 .vscode/
 .idea/

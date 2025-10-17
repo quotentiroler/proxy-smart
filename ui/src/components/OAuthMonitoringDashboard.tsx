@@ -119,14 +119,17 @@ export function OAuthMonitoringDashboard() {
             }));
             
             const convertedAnalytics: OAuthAnalytics = {
-              totalFlows: initialAnalyticsResponse.totalFlows || 0,
+              totalRequests: initialAnalyticsResponse.totalRequests || 0,
+              successfulRequests: initialAnalyticsResponse.successfulRequests || 0,
+              failedRequests: initialAnalyticsResponse.failedRequests || 0,
               successRate: initialAnalyticsResponse.successRate || 0,
               averageResponseTime: initialAnalyticsResponse.averageResponseTime || 0,
               activeTokens: initialAnalyticsResponse.activeTokens || 0,
               topClients: initialAnalyticsResponse.topClients || [],
               flowsByType: (initialAnalyticsResponse.flowsByType as Record<string, number>) || {},
               errorsByType: (initialAnalyticsResponse.errorsByType as Record<string, number>) || {},
-              hourlyStats: initialAnalyticsResponse.hourlyStats || []
+              hourlyStats: initialAnalyticsResponse.hourlyStats || [],
+              timestamp: initialAnalyticsResponse.timestamp || new Date().toISOString()
             };
             
             if (isInitialLoadRef.current || isRealTimeActiveRef.current) {
@@ -657,9 +660,9 @@ export function OAuthMonitoringDashboard() {
                         <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/30 rounded-xl flex items-center justify-center shadow-sm">
                           <BarChart3 className="w-6 h-6 text-primary" />
                         </div>
-                        <h3 className="text-sm font-semibold text-primary tracking-wide">{t('Total Flows')}</h3>
+                        <h3 className="text-sm font-semibold text-primary tracking-wide">{t('Total Requests')}</h3>
                       </div>
-                      <div className="text-3xl font-bold text-foreground mb-2">{analytics?.totalFlows ? analytics.totalFlows.toLocaleString() : '0'}</div>
+                      <div className="text-3xl font-bold text-foreground mb-2">{analytics?.totalRequests ? analytics.totalRequests.toLocaleString() : '0'}</div>
                       <p className="text-sm text-muted-foreground font-medium">{t('Last 24 hours')}</p>
                     </div>
                   </div>
@@ -732,7 +735,8 @@ export function OAuthMonitoringDashboard() {
                     </div>
                   </div>
                   <div className="h-[300px]">
-                    {analytics?.hourlyStats?.length ? (
+                    {/* TODO: hourlyStats not available in current API response */}
+                    {analytics?.hourlyStats && analytics.hourlyStats.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart
                           data={analytics.hourlyStats}
@@ -965,7 +969,8 @@ export function OAuthMonitoringDashboard() {
                     </div>
                   </div>
                   <div className="h-[300px]">
-                    {analytics?.hourlyStats?.length ? (
+                    {/* TODO: hourlyStats not available in current API response */}
+                    {analytics?.hourlyStats && analytics.hourlyStats.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={analytics.hourlyStats}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />

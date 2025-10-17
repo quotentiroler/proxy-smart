@@ -49,4 +49,5 @@ class HealthResponse(BaseModel):
     status: Literal["healthy", "degraded", "unhealthy"] = Field(..., description="Service status")
     openai_available: bool = Field(..., description="Whether OpenAI API is configured")
     knowledge_base_loaded: bool = Field(..., description="Whether knowledge base is loaded")
+    backend_authenticated: bool = Field(default=False, description="Whether backend API authentication is successful")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Check timestamp")

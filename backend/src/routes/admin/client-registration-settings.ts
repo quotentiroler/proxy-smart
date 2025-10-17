@@ -1,6 +1,6 @@
-import { Elysia, t } from 'elysia'
+import { Elysia } from 'elysia'
 import { keycloakPlugin } from '../../lib/keycloak-plugin'
-import { ErrorResponse, SuccessResponse } from '../../schemas/common'
+import { ErrorResponse, SuccessResponse, ClientRegistrationSettings } from '../../schemas'
 import { logger } from '../../lib/logger'
 import type KcAdminClient from '@keycloak/keycloak-admin-client'
 
@@ -143,22 +143,7 @@ export const clientRegistrationSettingsRoutes = new Elysia({ prefix: '/client-re
     }
   }, {
     response: {
-      200: t.Object({
-        enabled: t.Boolean({ description: 'Whether dynamic client registration is enabled' }),
-        requireHttps: t.Boolean({ description: 'Whether HTTPS is required for redirect URIs' }),
-        allowedScopes: t.Array(t.String({ description: 'Scopes that can be requested during registration' })),
-        maxClientLifetime: t.Number({ description: 'Maximum client lifetime in days (0 = no limit)' }),
-        requireTermsOfService: t.Boolean({ description: 'Whether terms of service URI is required' }),
-        requirePrivacyPolicy: t.Boolean({ description: 'Whether privacy policy URI is required' }),
-        allowPublicClients: t.Boolean({ description: 'Whether public clients are allowed' }),
-        allowConfidentialClients: t.Boolean({ description: 'Whether confidential clients are allowed' }),
-        allowBackendServices: t.Boolean({ description: 'Whether backend service clients are allowed' }),
-        adminApprovalRequired: t.Boolean({ description: 'Whether admin approval is required for new clients' }),
-        rateLimitPerMinute: t.Number({ description: 'Rate limit for registration requests per minute' }),
-        maxRedirectUris: t.Number({ description: 'Maximum number of redirect URIs per client' }),
-        allowedRedirectUriPatterns: t.Array(t.String({ description: 'Allowed redirect URI regex patterns' })),
-        notificationEmail: t.Optional(t.String({ description: 'Email to notify of new registrations' }))
-      }),
+      200: ClientRegistrationSettings,
       401: ErrorResponse,
       403: ErrorResponse,
       500: ErrorResponse
@@ -167,13 +152,7 @@ export const clientRegistrationSettingsRoutes = new Elysia({ prefix: '/client-re
       summary: 'Get Dynamic Client Registration Settings',
       description: 'Get current settings for dynamic client registration',
       tags: ['admin'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'Client registration settings' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Admin permissions required' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
@@ -196,22 +175,7 @@ export const clientRegistrationSettingsRoutes = new Elysia({ prefix: '/client-re
       return { error: 'Failed to update client registration settings', details: error }
     }
   }, {
-    body: t.Object({
-      enabled: t.Boolean({ description: 'Whether dynamic client registration is enabled' }),
-      requireHttps: t.Boolean({ description: 'Whether HTTPS is required for redirect URIs' }),
-      allowedScopes: t.Array(t.String({ description: 'Scopes that can be requested during registration' })),
-      maxClientLifetime: t.Number({ description: 'Maximum client lifetime in days (0 = no limit)' }),
-      requireTermsOfService: t.Boolean({ description: 'Whether terms of service URI is required' }),
-      requirePrivacyPolicy: t.Boolean({ description: 'Whether privacy policy URI is required' }),
-      allowPublicClients: t.Boolean({ description: 'Whether public clients are allowed' }),
-      allowConfidentialClients: t.Boolean({ description: 'Whether confidential clients are allowed' }),
-      allowBackendServices: t.Boolean({ description: 'Whether backend service clients are allowed' }),
-      adminApprovalRequired: t.Boolean({ description: 'Whether admin approval is required for new clients' }),
-      rateLimitPerMinute: t.Number({ description: 'Rate limit for registration requests per minute' }),
-      maxRedirectUris: t.Number({ description: 'Maximum number of redirect URIs per client' }),
-      allowedRedirectUriPatterns: t.Array(t.String({ description: 'Allowed redirect URI regex patterns' })),
-      notificationEmail: t.Optional(t.String({ description: 'Email to notify of new registrations' }))
-    }),
+    body: ClientRegistrationSettings,
     response: {
       200: SuccessResponse,
       400: ErrorResponse,
@@ -223,14 +187,7 @@ export const clientRegistrationSettingsRoutes = new Elysia({ prefix: '/client-re
       summary: 'Update Dynamic Client Registration Settings',
       description: 'Update settings for dynamic client registration',
       tags: ['admin'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'Settings updated successfully' },
-        400: { description: 'Invalid request data' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Admin permissions required' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 
@@ -263,13 +220,7 @@ export const clientRegistrationSettingsRoutes = new Elysia({ prefix: '/client-re
       summary: 'Reset Client Registration Settings to Defaults',
       description: 'Reset all client registration settings to their default values',
       tags: ['admin'],
-      security: [{ BearerAuth: [] }],
-      response: {
-        200: { description: 'Settings reset successfully' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Admin permissions required' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
 

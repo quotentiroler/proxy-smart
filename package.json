@@ -12,6 +12,7 @@
     "eslint": "^9.30.0",
     "glob": "^11.0.3",
     "globals": "^16.2.0",
+    "typescript": "5.9.3",
     "typescript-eslint": "^8.35.0"
   },
   "description": "Proxy Smart - Healthcare interoperability proxy with Keycloak integration",
@@ -51,7 +52,7 @@
     "generate": "concurrently \"bun run generate:ui\" \"bun run generate:mcp\"",
     "generate:ui": "cd backend && bun run export-openapi && cd ../ui && bun run generate",
     "generate:ui:normalized": "bun run generate:ui && git add --renormalize ui/src/lib/api-client/",
-    "generate:mcp": "cd backend && bun run export-openapi && bunx @openapitools/openapi-generator-cli generate -i ./dist/openapi.json -g python -o ../mcp-server/src/api_client --skip-validate-spec --additional-properties=packageName=api_client,projectName=proxy-smart-api-client,packageVersion=0.0.1",
+    "generate:mcp": "cd backend && bun run export-openapi && cd ../ui && bunx --bun @openapitools/openapi-generator-cli generate -i ../backend/dist/openapi.json -g python -o ../mcp-server/src/api_client --skip-validate-spec --additional-properties=packageName=api_client,projectName=proxy-smart-api-client,packageVersion=0.0.1 && cd ../mcp-server && uv run python src/generate_mcp_tools.py",
     "generate:test": "cd testing && bun run generate",
     "validate-api": "concurrently \"bun run validate-api:ui\" \"bun run validate-api:test\"",
     "validate-api:ui": "cd ui && bun run validate-api",
@@ -93,16 +94,12 @@
     "version:set": "node scripts/version.js set",
     "version:check": "node scripts/version.js check",
     "version:base": "node scripts/version.js base",
-    "ai:commit-comment": "node scripts/ai-commit-comment.mjs",
+    "ai:commit-comment": "cd scripts && node ai-commit-comment.mjs",
     "precommit": "bun run version:sync"
   },
   "type": "module",
   "workspaces": [
     "backend",
     "ui"
-  ],
-  "dependencies": {
-    "@octokit/rest": "^22.0.0",
-    "openai": "^5.12.2"
-  }
+  ]
 }

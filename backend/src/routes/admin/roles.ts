@@ -1,6 +1,15 @@
 import { Elysia, t } from 'elysia'
 import { keycloakPlugin } from '../../lib/keycloak-plugin'
-import { ErrorResponse } from '../../schemas/common'
+import { 
+  CommonErrorResponses, 
+  CreateRoleRequest, 
+  UpdateRoleRequest,
+  RoleResponse,
+  SuccessResponse,
+  type RoleResponseType,
+  type SuccessResponseType,
+  type ErrorResponseType
+} from '../../schemas'
 import { handleAdminError } from '../../lib/admin-error-handler'
 
 /**
@@ -12,7 +21,7 @@ import { handleAdminError } from '../../lib/admin-error-handler'
 export const rolesRoutes = new Elysia({ prefix: '/roles' })
   .use(keycloakPlugin)
 
-  .get('/', async ({ getAdmin, headers, set }) => {
+  .get('/', async ({ getAdmin, headers, set }): Promise<RoleResponseType[] | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -30,14 +39,8 @@ export const rolesRoutes = new Elysia({ prefix: '/roles' })
     }
   }, {
     response: {
-      200: t.Array(t.Object({
-        id: t.Optional(t.String({ description: 'Role ID' })),
-        name: t.Optional(t.String({ description: 'Role name' })),
-        description: t.Optional(t.String({ description: 'Role description' })),
-        attributes: t.Optional(t.Record(t.String(), t.Array(t.String()))),
-      })),
-      401: ErrorResponse,
-      500: ErrorResponse
+      200: t.Array(RoleResponse),
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'List All Roles',
@@ -46,7 +49,7 @@ export const rolesRoutes = new Elysia({ prefix: '/roles' })
     }
   })
 
-  .post('/', async ({ getAdmin, body, headers, set }) => {
+  .post('/', async ({ getAdmin, body, headers, set }): Promise<RoleResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -74,20 +77,10 @@ export const rolesRoutes = new Elysia({ prefix: '/roles' })
       return { error: 'Failed to create role', details: error }
     }
   }, {
-    body: t.Object({
-      name: t.String({ description: 'Role name' }),
-      description: t.Optional(t.String({ description: 'Role description' })),
-      fhirScopes: t.Optional(t.Array(t.String({ description: 'FHIR scopes for this role' })))
-    }),
+    body: CreateRoleRequest,
     response: {
-      200: t.Object({
-        id: t.Optional(t.String({ description: 'Role ID' })),
-        name: t.Optional(t.String({ description: 'Role name' })),
-        description: t.Optional(t.String({ description: 'Role description' })),
-        attributes: t.Optional(t.Record(t.String(), t.Array(t.String()))),
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: RoleResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Create Healthcare Role',
@@ -96,7 +89,7 @@ export const rolesRoutes = new Elysia({ prefix: '/roles' })
     }
   })
 
-  .get('/:roleName', async ({ getAdmin, params, headers, set }) => {
+  .get('/:roleName', async ({ getAdmin, params, headers, set }): Promise<RoleResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -119,15 +112,8 @@ export const rolesRoutes = new Elysia({ prefix: '/roles' })
     }
   }, {
     response: {
-      200: t.Object({
-        id: t.Optional(t.String({ description: 'Role ID' })),
-        name: t.Optional(t.String({ description: 'Role name' })),
-        description: t.Optional(t.String({ description: 'Role description' })),
-        attributes: t.Optional(t.Record(t.String(), t.Array(t.String()))),
-      }),
-      401: ErrorResponse,
-      404: ErrorResponse,
-      500: ErrorResponse
+      200: RoleResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Get Healthcare Role',
@@ -136,7 +122,7 @@ export const rolesRoutes = new Elysia({ prefix: '/roles' })
     }
   })
 
-  .put('/:roleName', async ({ getAdmin, params, body, headers, set }) => {
+  .put('/:roleName', async ({ getAdmin, params, body, headers, set }): Promise<SuccessResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -168,17 +154,10 @@ export const rolesRoutes = new Elysia({ prefix: '/roles' })
       return { error: 'Failed to update role', details: error }
     }
   }, {
-    body: t.Object({
-      description: t.Optional(t.String({ description: 'Role description' })),
-      fhirScopes: t.Optional(t.Array(t.String({ description: 'FHIR scopes for this role' })))
-    }),
+    body: UpdateRoleRequest,
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the update was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse,
-      404: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Update Healthcare Role',
@@ -187,7 +166,7 @@ export const rolesRoutes = new Elysia({ prefix: '/roles' })
     }
   })
 
-  .delete('/:roleName', async ({ getAdmin, params, headers, set }) => {
+  .delete('/:roleName', async ({ getAdmin, params, headers, set }): Promise<SuccessResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -213,12 +192,8 @@ export const rolesRoutes = new Elysia({ prefix: '/roles' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the delete was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse,
-      404: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Delete Healthcare Role',

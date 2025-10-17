@@ -256,42 +256,46 @@ function findLabelForInput(input: HTMLElement): string | null {
 
 /**
  * Create a concise text summary for the AI
+ * MINIMAL version - only include essential page info to preserve conversation context
  */
 export function summarizePageContext(context: PageContext): string {
   const parts: string[] = [];
 
+  // Just the basics - page title and section
   parts.push(`Page: ${context.title}`);
   
   if (context.currentSection) {
-    parts.push(`Current Section: ${context.currentSection}`);
+    parts.push(`Section: ${context.currentSection}`);
   }
 
-  if (context.visibleText) {
-    parts.push(`\nVisible Content:\n${context.visibleText.slice(0, 1000)}`);
-  }
-
+  // Only include key interactive elements (no visible text dump!)
+  // Limit to top 5 most important actions
   if (context.interactiveElements.length > 0) {
-    parts.push('\nAvailable Actions:');
-    context.interactiveElements.slice(0, 10).forEach((el) => {
-      if (el.type === 'button' && el.text) {
-        parts.push(`  - Button: "${el.text}"`);
-      } else if (el.type === 'input' && el.label) {
-        parts.push(`  - Input: "${el.label}"`);
+    const keyActions: string[] = [];
+    
+    // Prioritize buttons over inputs
+    const buttons = context.interactiveElements.filter(el => el.type === 'button' && el.text);
+    buttons.slice(0, 5).forEach((el) => {
+      if (el.text && !el.text.includes('Close') && !el.text.includes('Cancel')) {
+        keyActions.push(el.text);
       }
     });
+    
+    if (keyActions.length > 0) {
+      parts.push(`Actions: ${keyActions.join(', ')}`);
+    }
   }
 
+  // Only mention if there's an active form (no field details)
   if (context.forms.length > 0) {
-    parts.push('\nForms:');
-    context.forms.forEach((form) => {
-      if (form.title) {
-        parts.push(`  - ${form.title}:`);
-      }
-      form.fields.slice(0, 5).forEach((field) => {
-        parts.push(`    • ${field.label || field.name || field.placeholder || field.type}`);
-      });
-    });
+    const formTitles = context.forms
+      .map(f => f.title)
+      .filter(Boolean)
+      .slice(0, 2);
+    if (formTitles.length > 0) {
+      parts.push(`Forms: ${formTitles.join(', ')}`);
+    }
   }
 
-  return parts.join('\n');
+  return parts.join(' | ');
 }

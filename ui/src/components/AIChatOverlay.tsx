@@ -17,7 +17,8 @@ import {
     Brain,
     Sparkles,
     FileText,
-    RotateCcw
+    RotateCcw,
+    ShieldCheck
 } from 'lucide-react';
 
 interface AIChatOverlayProps {
@@ -66,20 +67,25 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isOpenAIReady, setIsOpenAIReady] = useState(false);
+    const [isBackendAuthenticated, setIsBackendAuthenticated] = useState(false);
     const [currentMessage, setCurrentMessage] = useState('');
     const [isExpanded, setIsExpanded] = useState(false);
     const [isFullWidth, setIsFullWidth] = useState(false);
+    const [reasoningText, setReasoningText] = useState<string>('');
+    const [isReasoning, setIsReasoning] = useState(false);
 
     // Simple scroll: only when user sends a message (shouldScrollRef is set to true)
     useEffect(() => {
         // Only scroll if explicitly requested (when user sends message)
         if (shouldScrollRef.current) {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            // Use requestAnimationFrame to batch scroll updates
+            requestAnimationFrame(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            });
             shouldScrollRef.current = false; // Reset the flag
         }
         
         // Update previous message count
-        prevMessageCountRef.current = chatMessages.length;
         prevMessageCountRef.current = chatMessages.length;
     }, [chatMessages]);
 
@@ -89,13 +95,16 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
         (async () => {
             try {
                 const available = await aiAssistant.isOpenAIAvailable();
+                const authenticated = await aiAssistant.isBackendAuthenticated();
                 if (isMounted) {
                     setIsOpenAIReady(available);
+                    setIsBackendAuthenticated(authenticated);
                 }
             } catch (error) {
                 console.warn('Failed to determine OpenAI availability:', error);
                 if (isMounted) {
                     setIsOpenAIReady(false);
+                    setIsBackendAuthenticated(false);
                 }
             }
         })();
@@ -128,19 +137,25 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, isMinimized]); // Only run when open/minimized state changes, not on every scroll
 
-    // Set up scroll listener to save position
+    // Set up scroll listener to save position (debounced)
     useEffect(() => {
         const container = messagesContainerRef.current;
         if (!container || !isOpen || isMinimized) return;
 
-        // Save scroll position when user scrolls
+        let scrollTimeout: NodeJS.Timeout;
+        
+        // Debounced scroll handler - only save after user stops scrolling
         const handleScroll = () => {
-            setScrollPosition(container.scrollTop);
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                setScrollPosition(container.scrollTop);
+            }, 150); // Save after 150ms of no scrolling
         };
 
         container.addEventListener('scroll', handleScroll, { passive: true });
         
         return () => {
+            clearTimeout(scrollTimeout);
             container.removeEventListener('scroll', handleScroll);
         };
     }, [isOpen, isMinimized, setScrollPosition]); // Don't include scrollPosition here!
@@ -198,21 +213,67 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
             // Use streaming API
             let fullContent = '';
             let sources: DocumentChunk[] = [];
+            const functionCalls: string[] = [];
             let streamingFailed = false;
+            let updateCounter = 0;
+            const updateThrottle = 3; // Update UI every N chunks to reduce re-renders
 
             for await (const chunk of aiAssistant.generateResponseStream(userMessage.content, conversationId || undefined)) {
                 if (chunk.type === 'sources' && chunk.sources) {
                     sources = chunk.sources;
+                } else if (chunk.type === 'reasoning' && chunk.content) {
+                    // Stream reasoning text as "thinking" indicator
+                    setReasoningText(prev => prev + chunk.content);
+                    setIsReasoning(true);
+                } else if (chunk.type === 'reasoning_done') {
+                    // Reasoning complete, now generating response
+                    setIsReasoning(false);
+                    setReasoningText('');
+                } else if (chunk.type === 'function_calling' && chunk.name) {
+                    // Track function calls and show notification
+                    functionCalls.push(chunk.name);
+                    const functionName = chunk.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    
+                    // Append function call notification to content
+                    const notification = `\n\n🔧 **Executing: ${functionName}**\n\n`;
+                    fullContent += notification;
+                    updateMessage(agentMessageId, { content: fullContent, sources, functionCalls });
                 } else if (chunk.type === 'content' && chunk.content) {
                     fullContent += chunk.content;
+                    updateCounter++;
                     
-                    // Update the message with accumulated content
-                    updateMessage(agentMessageId, { content: fullContent, sources });
+                    // Throttle updates: only update every N chunks or if it's a substantial update
+                    if (updateCounter >= updateThrottle || chunk.content.length > 20) {
+                        updateMessage(agentMessageId, { content: fullContent, sources, functionCalls });
+                        updateCounter = 0;
+                    }
                 } else if (chunk.type === 'done') {
-                    // Mark streaming as complete
-                    updateMessage(agentMessageId, { streaming: false, sources });
+                    // Final update with complete content
+                    console.log('[AIChatOverlay] Stream done, final fullContent length:', fullContent.length);
+                    
+                    // Validate that we have actual content (not just function call notifications)
+                    // Remove function call notifications to check if there's real content
+                    const contentWithoutNotifications = fullContent.replace(/\n\n🔧 \*\*Executing:.*?\*\*\n\n/g, '').trim();
+                    
+                    if (!contentWithoutNotifications || contentWithoutNotifications.length < 10) {
+                        console.warn('[AIChatOverlay] Stream completed but content is empty or too short:', {
+                            fullContentLength: fullContent.length,
+                            contentWithoutNotifications: contentWithoutNotifications.length,
+                            functionCalls
+                        });
+                        
+                        // Provide a fallback message - mention function calls if they were made
+                        if (functionCalls.length > 0) {
+                            const functionList = functionCalls.map(fn => fn.replace(/_/g, ' ')).join(', ');
+                            fullContent += `\n\n${t('I called the following functions')}: **${functionList}**\n\n${t('However, I was unable to generate a proper response with the results. Please try rephrasing your question or ask me to explain what I found.')}`;
+                        } else {
+                            fullContent = t('I apologize, but I was unable to generate a proper response. This might be due to a processing issue. Please try rephrasing your question or try again.');
+                        }
+                    }
+                    
+                    updateMessage(agentMessageId, { content: fullContent, streaming: false, sources, functionCalls });
                 } else if (chunk.type === 'error') {
-                    console.error('Streaming error:', chunk.error);
+                    console.error('[AIChatOverlay] Streaming error:', chunk.error);
                     
                     // Check if we should fall back to non-streaming
                     if (chunk.error?.includes('temporarily unavailable') || chunk.error?.includes('not supported')) {
@@ -230,6 +291,29 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                     });
                     break; // Stop processing stream
                 }
+            }
+            
+            // Ensure final content is displayed even if loop ended before 'done' chunk
+            if (!streamingFailed && fullContent && updateCounter > 0) {
+                // Validate content before final update
+                const contentWithoutNotifications = fullContent.replace(/\n\n🔧 \*\*Executing:.*?\*\*\n\n/g, '').trim();
+                
+                if (!contentWithoutNotifications || contentWithoutNotifications.length < 10) {
+                    console.warn('[AIChatOverlay] Stream ended without done chunk and content is empty/short:', {
+                        fullContentLength: fullContent.length,
+                        contentWithoutNotifications: contentWithoutNotifications.length
+                    });
+                    
+                    // Mention function calls if they were made
+                    if (functionCalls.length > 0) {
+                        const functionList = functionCalls.map(fn => fn.replace(/_/g, ' ')).join(', ');
+                        fullContent += `\n\n${t('I called the following functions')}: **${functionList}**\n\n${t('However, I was unable to generate a proper response with the results. Please try rephrasing your question.')}`;
+                    } else {
+                        fullContent = t('I apologize, but I was unable to generate a proper response. Please try again.');
+                    }
+                }
+                
+                updateMessage(agentMessageId, { content: fullContent, streaming: false, sources, functionCalls });
             }
             
             // Fallback to non-streaming if streaming failed
@@ -392,6 +476,12 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                                     {isOpenAIReady && (
                                         <Sparkles className="w-3 h-3 text-primary animate-pulse" />
                                     )}
+                                    {isBackendAuthenticated && (
+                                        <div className="flex items-center gap-1 bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
+                                            <ShieldCheck className="w-3 h-3" />
+                                            <span className="text-[10px] font-medium">Authenticated</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <p className="text-xs text-muted-foreground">
                                     {isOpenAIReady 
@@ -456,11 +546,11 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                                                         code: ({ children }) => <code className="bg-muted/60 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
                                                     }}
                                                 >
-                                                    {message.content}
+                                                    {message.content || t('(Empty response - this should not happen)')}
                                                 </ReactMarkdown>
                                             </div>
                                         ) : (
-                                            <div className="whitespace-pre-wrap">{message.content}</div>
+                                            <div className="whitespace-pre-wrap">{message.content || t('(Empty message)')}</div>
                                         )}
                                         
                                         
@@ -486,13 +576,25 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                             ))}
                             
                             {/* Processing indicator */}
-                            {isProcessing && (
+                            {(isProcessing || isReasoning) && (
                                 <div className="flex justify-start">
-                                    <div className="bg-muted text-foreground p-3 rounded-lg rounded-bl-sm text-sm">
-                                        <div className="flex items-center space-x-2">
-                                            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                            <span>{t('Assistant is thinking')}...</span>
-                                        </div>
+                                    <div className="bg-muted text-foreground p-3 rounded-lg rounded-bl-sm text-sm max-w-xl">
+                                        {isReasoning && reasoningText ? (
+                                            <div className="space-y-2">
+                                                <div className="flex items-center space-x-2 text-amber-600 dark:text-amber-400">
+                                                    <Brain className="w-4 h-4 animate-pulse" />
+                                                    <span className="font-medium">{t('Reasoning')}...</span>
+                                                </div>
+                                                <div className="text-xs text-muted-foreground italic whitespace-pre-wrap border-l-2 border-amber-500/30 pl-2">
+                                                    {reasoningText}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center space-x-2">
+                                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                                <span>{t('Assistant is thinking')}...</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}

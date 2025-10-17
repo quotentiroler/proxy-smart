@@ -12,7 +12,7 @@ Method | HTTP request | Description
 
 
 # **delete_admin_roles_by_role_name**
-> DeleteAdminRolesByRoleName200Response delete_admin_roles_by_role_name(role_name)
+> SuccessResponse delete_admin_roles_by_role_name(role_name)
 
 Delete Healthcare Role
 
@@ -24,7 +24,7 @@ Delete a healthcare-specific role by name
 
 ```python
 import api_client
-from api_client.models.delete_admin_roles_by_role_name200_response import DeleteAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -70,7 +70,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DeleteAdminRolesByRoleName200Response**](DeleteAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -79,21 +79,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
-**404** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_roles**
-> List[GetAdminRoles200ResponseInner] get_admin_roles()
+> List[RoleResponse] get_admin_roles()
 
 List All Roles
 
@@ -105,7 +107,7 @@ Get all roles
 
 ```python
 import api_client
-from api_client.models.get_admin_roles200_response_inner import GetAdminRoles200ResponseInner
+from api_client.models.role_response import RoleResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -147,7 +149,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**List[GetAdminRoles200ResponseInner]**](GetAdminRoles200ResponseInner.md)
+[**List[RoleResponse]**](RoleResponse.md)
 
 ### Authorization
 
@@ -156,20 +158,23 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_roles_by_role_name**
-> GetAdminRoles200ResponseInner get_admin_roles_by_role_name(role_name)
+> RoleResponse get_admin_roles_by_role_name(role_name)
 
 Get Healthcare Role
 
@@ -181,7 +186,7 @@ Get a healthcare-specific role by name
 
 ```python
 import api_client
-from api_client.models.get_admin_roles200_response_inner import GetAdminRoles200ResponseInner
+from api_client.models.role_response import RoleResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -227,7 +232,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAdminRoles200ResponseInner**](GetAdminRoles200ResponseInner.md)
+[**RoleResponse**](RoleResponse.md)
 
 ### Authorization
 
@@ -236,21 +241,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**404** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_roles**
-> GetAdminRoles200ResponseInner post_admin_roles(post_admin_roles_request)
+> RoleResponse post_admin_roles(create_role_request)
 
 Create Healthcare Role
 
@@ -262,8 +269,8 @@ Create a new healthcare-specific role
 
 ```python
 import api_client
-from api_client.models.get_admin_roles200_response_inner import GetAdminRoles200ResponseInner
-from api_client.models.post_admin_roles_request import PostAdminRolesRequest
+from api_client.models.create_role_request import CreateRoleRequest
+from api_client.models.role_response import RoleResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -287,11 +294,11 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.RolesApi(api_client)
-    post_admin_roles_request = api_client.PostAdminRolesRequest() # PostAdminRolesRequest | 
+    create_role_request = api_client.CreateRoleRequest() # CreateRoleRequest | 
 
     try:
         # Create Healthcare Role
-        api_response = api_instance.post_admin_roles(post_admin_roles_request)
+        api_response = api_instance.post_admin_roles(create_role_request)
         print("The response of RolesApi->post_admin_roles:\n")
         pprint(api_response)
     except Exception as e:
@@ -305,11 +312,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **post_admin_roles_request** | [**PostAdminRolesRequest**](PostAdminRolesRequest.md)|  | 
+ **create_role_request** | [**CreateRoleRequest**](CreateRoleRequest.md)|  | 
 
 ### Return type
 
-[**GetAdminRoles200ResponseInner**](GetAdminRoles200ResponseInner.md)
+[**RoleResponse**](RoleResponse.md)
 
 ### Authorization
 
@@ -317,21 +324,24 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_admin_roles_by_role_name**
-> PutAdminRolesByRoleName200Response put_admin_roles_by_role_name(role_name, put_admin_roles_by_role_name_request)
+> SuccessResponse put_admin_roles_by_role_name(role_name, update_role_request)
 
 Update Healthcare Role
 
@@ -343,8 +353,8 @@ Update a healthcare-specific role by name
 
 ```python
 import api_client
-from api_client.models.put_admin_roles_by_role_name200_response import PutAdminRolesByRoleName200Response
-from api_client.models.put_admin_roles_by_role_name_request import PutAdminRolesByRoleNameRequest
+from api_client.models.success_response import SuccessResponse
+from api_client.models.update_role_request import UpdateRoleRequest
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -369,11 +379,11 @@ with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.RolesApi(api_client)
     role_name = 'role_name_example' # str | 
-    put_admin_roles_by_role_name_request = api_client.PutAdminRolesByRoleNameRequest() # PutAdminRolesByRoleNameRequest | 
+    update_role_request = api_client.UpdateRoleRequest() # UpdateRoleRequest | 
 
     try:
         # Update Healthcare Role
-        api_response = api_instance.put_admin_roles_by_role_name(role_name, put_admin_roles_by_role_name_request)
+        api_response = api_instance.put_admin_roles_by_role_name(role_name, update_role_request)
         print("The response of RolesApi->put_admin_roles_by_role_name:\n")
         pprint(api_response)
     except Exception as e:
@@ -388,11 +398,11 @@ with api_client.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **role_name** | **str**|  | 
- **put_admin_roles_by_role_name_request** | [**PutAdminRolesByRoleNameRequest**](PutAdminRolesByRoleNameRequest.md)|  | 
+ **update_role_request** | [**UpdateRoleRequest**](UpdateRoleRequest.md)|  | 
 
 ### Return type
 
-[**PutAdminRolesByRoleName200Response**](PutAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -400,17 +410,19 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
-**404** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

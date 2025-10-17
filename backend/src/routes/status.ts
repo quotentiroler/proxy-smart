@@ -1,5 +1,14 @@
 import { Elysia, t } from 'elysia'
 import { collectSystemStatus } from '../lib/system-status'
+import { 
+  HealthResponse, 
+  HealthErrorResponse, 
+  SystemStatusResponse, 
+  ErrorResponse,
+  HealthResponseType,
+  HealthErrorResponseType,
+  SystemStatusResponseType
+} from '../schemas'
 
 // Legacy helper removed: FHIR server health collection centralized in system-status.ts
 
@@ -9,7 +18,7 @@ import { collectSystemStatus } from '../lib/system-status'
 export const statusRoutes = new Elysia({ tags: ['server', 'info', 'health'] })
 
   // Health check endpoint - check if server is healthy
-  .get('/health', async ({ set, query }) => {
+  .get('/health', async ({ set, query }): Promise<HealthResponseType | HealthErrorResponseType> => {
     const force = query.force === '1';
     try {
       const full = await collectSystemStatus(force);
@@ -29,62 +38,25 @@ export const statusRoutes = new Elysia({ tags: ['server', 'info', 'health'] })
       force: t.Optional(t.String())
     }),
     response: {
-      200: t.Object({
-        status: t.String(),
-        timestamp: t.String(),
-        uptime: t.Number()
-      }),
-      503: t.Object({
-        status: t.String(),
-        timestamp: t.String(),
-        error: t.String()
-      })
+      200: HealthResponse,
+      503: HealthErrorResponse
     },
     detail: {
       summary: 'Health Check (lean)',
-  description: 'Fast liveness/readiness probe. Use /status for detailed system information.',
+      description: 'Fast liveness/readiness probe. Use /status for detailed system information.',
       tags: ['server']
     }
   })
 
   // System status endpoint - comprehensive system health check
-  .get('/status', async ({ set }) => {
+  .get('/status', async ({ set }): Promise<SystemStatusResponseType> => {
     const status = await collectSystemStatus(true);
     if (status.overall === 'unhealthy') set.status = 503;
     return status;
   }, {
     response: {
-      200: t.Object({
-        version: t.String(),
-        timestamp: t.String(),
-        uptime: t.Number(),
-        overall: t.String(),
-        fhir: t.Object({
-          status: t.String(),
-            totalServers: t.Number(),
-            healthyServers: t.Number(),
-            servers: t.Array(t.Object({
-              name: t.String(),
-              url: t.String(),
-              status: t.String(),
-              accessible: t.Boolean(),
-              version: t.String(),
-              serverName: t.Optional(t.String()),
-              serverVersion: t.Optional(t.String()),
-              error: t.Optional(t.String())
-            }))
-        }),
-        keycloak: t.Object({
-          status: t.String(),
-          accessible: t.Boolean(),
-          realm: t.String(),
-          lastConnected: t.Optional(t.String())
-        }),
-        memory: t.Object({
-          used: t.Number(),
-          total: t.Number()
-        })
-      })
+      200: SystemStatusResponse,
+      503: ErrorResponse
     },
     detail: {
       summary: 'System Status',
@@ -92,3 +64,4 @@ export const statusRoutes = new Elysia({ tags: ['server', 'info', 'health'] })
       tags: ['server']
     }
   })
+

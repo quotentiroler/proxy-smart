@@ -24,7 +24,7 @@ Method | HTTP request | Description
 
 
 # **delete_admin_launch_contexts_by_user_id_encounter**
-> DeleteAdminRolesByRoleName200Response delete_admin_launch_contexts_by_user_id_encounter(user_id)
+> SuccessResponse delete_admin_launch_contexts_by_user_id_encounter(user_id)
 
 Remove Encounter Context
 
@@ -36,7 +36,7 @@ Remove the encounter context for a user
 
 ```python
 import api_client
-from api_client.models.delete_admin_roles_by_role_name200_response import DeleteAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -82,7 +82,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DeleteAdminRolesByRoleName200Response**](DeleteAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -91,20 +91,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_admin_launch_contexts_by_user_id_fhir_context**
-> DeleteAdminRolesByRoleName200Response delete_admin_launch_contexts_by_user_id_fhir_context(user_id)
+> SuccessResponse delete_admin_launch_contexts_by_user_id_fhir_context(user_id)
 
 Remove FHIR Context
 
@@ -116,7 +119,7 @@ Remove additional FHIR resources in context
 
 ```python
 import api_client
-from api_client.models.delete_admin_roles_by_role_name200_response import DeleteAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -162,7 +165,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DeleteAdminRolesByRoleName200Response**](DeleteAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -171,20 +174,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_admin_launch_contexts_by_user_id_fhir_user**
-> DeleteAdminRolesByRoleName200Response delete_admin_launch_contexts_by_user_id_fhir_user(user_id)
+> SuccessResponse delete_admin_launch_contexts_by_user_id_fhir_user(user_id)
 
 Remove FHIR User Context
 
@@ -196,7 +202,7 @@ Remove the fhirUser context for a user
 
 ```python
 import api_client
-from api_client.models.delete_admin_roles_by_role_name200_response import DeleteAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -242,7 +248,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DeleteAdminRolesByRoleName200Response**](DeleteAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -251,20 +257,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_admin_launch_contexts_by_user_id_intent**
-> DeleteAdminRolesByRoleName200Response delete_admin_launch_contexts_by_user_id_intent(user_id)
+> SuccessResponse delete_admin_launch_contexts_by_user_id_intent(user_id)
 
 Remove Intent Context
 
@@ -276,7 +285,7 @@ Remove the intent context for a user
 
 ```python
 import api_client
-from api_client.models.delete_admin_roles_by_role_name200_response import DeleteAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -322,7 +331,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DeleteAdminRolesByRoleName200Response**](DeleteAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -331,20 +340,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_admin_launch_contexts_by_user_id_need_patient_banner**
-> DeleteAdminRolesByRoleName200Response delete_admin_launch_contexts_by_user_id_need_patient_banner(user_id)
+> SuccessResponse delete_admin_launch_contexts_by_user_id_need_patient_banner(user_id)
 
 Remove Need Patient Banner Context
 
@@ -356,7 +368,7 @@ Remove the need-patient-banner context for a user
 
 ```python
 import api_client
-from api_client.models.delete_admin_roles_by_role_name200_response import DeleteAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -402,7 +414,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DeleteAdminRolesByRoleName200Response**](DeleteAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -411,20 +423,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_admin_launch_contexts_by_user_id_patient**
-> DeleteAdminRolesByRoleName200Response delete_admin_launch_contexts_by_user_id_patient(user_id)
+> SuccessResponse delete_admin_launch_contexts_by_user_id_patient(user_id)
 
 Remove Patient Context
 
@@ -436,7 +451,7 @@ Remove the patient context for a user
 
 ```python
 import api_client
-from api_client.models.delete_admin_roles_by_role_name200_response import DeleteAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -482,7 +497,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DeleteAdminRolesByRoleName200Response**](DeleteAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -491,20 +506,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_admin_launch_contexts_by_user_id_smart_style_url**
-> DeleteAdminRolesByRoleName200Response delete_admin_launch_contexts_by_user_id_smart_style_url(user_id)
+> SuccessResponse delete_admin_launch_contexts_by_user_id_smart_style_url(user_id)
 
 Remove Smart Style URL Context
 
@@ -516,7 +534,7 @@ Remove the smart-style-url context for a user
 
 ```python
 import api_client
-from api_client.models.delete_admin_roles_by_role_name200_response import DeleteAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -562,7 +580,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DeleteAdminRolesByRoleName200Response**](DeleteAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -571,20 +589,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **delete_admin_launch_contexts_by_user_id_tenant**
-> DeleteAdminRolesByRoleName200Response delete_admin_launch_contexts_by_user_id_tenant(user_id)
+> SuccessResponse delete_admin_launch_contexts_by_user_id_tenant(user_id)
 
 Remove Tenant Context
 
@@ -596,7 +617,7 @@ Remove the tenant context for a user
 
 ```python
 import api_client
-from api_client.models.delete_admin_roles_by_role_name200_response import DeleteAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -642,7 +663,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**DeleteAdminRolesByRoleName200Response**](DeleteAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -651,20 +672,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_launch_contexts**
-> List[GetAdminLaunchContexts200ResponseInner] get_admin_launch_contexts()
+> List[LaunchContextUser] get_admin_launch_contexts()
 
 List Launch Contexts
 
@@ -676,7 +700,7 @@ Get all users with launch context attributes
 
 ```python
 import api_client
-from api_client.models.get_admin_launch_contexts200_response_inner import GetAdminLaunchContexts200ResponseInner
+from api_client.models.launch_context_user import LaunchContextUser
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -718,7 +742,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**List[GetAdminLaunchContexts200ResponseInner]**](GetAdminLaunchContexts200ResponseInner.md)
+[**List[LaunchContextUser]**](LaunchContextUser.md)
 
 ### Authorization
 
@@ -727,20 +751,23 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_launch_contexts_by_user_id_encounter_by_encounter_id**
-> PutAdminRolesByRoleName200Response post_admin_launch_contexts_by_user_id_encounter_by_encounter_id(user_id, encounter_id)
+> SuccessResponse post_admin_launch_contexts_by_user_id_encounter_by_encounter_id(user_id, encounter_id)
 
 Set Encounter Context
 
@@ -752,7 +779,7 @@ Set the encounter context for a user
 
 ```python
 import api_client
-from api_client.models.put_admin_roles_by_role_name200_response import PutAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -800,7 +827,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**PutAdminRolesByRoleName200Response**](PutAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -809,20 +836,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_launch_contexts_by_user_id_fhir_context**
-> PutAdminRolesByRoleName200Response post_admin_launch_contexts_by_user_id_fhir_context(user_id, post_admin_launch_contexts_by_user_id_fhir_context_request)
+> SuccessResponse post_admin_launch_contexts_by_user_id_fhir_context(user_id, set_fhir_context_request)
 
 Set FHIR Context
 
@@ -834,8 +864,8 @@ Set additional FHIR resources in context as per SMART 2.2.0 spec
 
 ```python
 import api_client
-from api_client.models.post_admin_launch_contexts_by_user_id_fhir_context_request import PostAdminLaunchContextsByUserIdFhirContextRequest
-from api_client.models.put_admin_roles_by_role_name200_response import PutAdminRolesByRoleName200Response
+from api_client.models.set_fhir_context_request import SetFhirContextRequest
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -860,11 +890,11 @@ with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.LaunchContextsApi(api_client)
     user_id = 'user_id_example' # str | 
-    post_admin_launch_contexts_by_user_id_fhir_context_request = api_client.PostAdminLaunchContextsByUserIdFhirContextRequest() # PostAdminLaunchContextsByUserIdFhirContextRequest | 
+    set_fhir_context_request = api_client.SetFhirContextRequest() # SetFhirContextRequest | 
 
     try:
         # Set FHIR Context
-        api_response = api_instance.post_admin_launch_contexts_by_user_id_fhir_context(user_id, post_admin_launch_contexts_by_user_id_fhir_context_request)
+        api_response = api_instance.post_admin_launch_contexts_by_user_id_fhir_context(user_id, set_fhir_context_request)
         print("The response of LaunchContextsApi->post_admin_launch_contexts_by_user_id_fhir_context:\n")
         pprint(api_response)
     except Exception as e:
@@ -879,11 +909,11 @@ with api_client.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **user_id** | **str**|  | 
- **post_admin_launch_contexts_by_user_id_fhir_context_request** | [**PostAdminLaunchContextsByUserIdFhirContextRequest**](PostAdminLaunchContextsByUserIdFhirContextRequest.md)|  | 
+ **set_fhir_context_request** | [**SetFhirContextRequest**](SetFhirContextRequest.md)|  | 
 
 ### Return type
 
-[**PutAdminRolesByRoleName200Response**](PutAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -891,21 +921,24 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_launch_contexts_by_user_id_fhir_user_by_fhir_user_id**
-> PutAdminRolesByRoleName200Response post_admin_launch_contexts_by_user_id_fhir_user_by_fhir_user_id(user_id, fhir_user_id)
+> SuccessResponse post_admin_launch_contexts_by_user_id_fhir_user_by_fhir_user_id(user_id, fhir_user_id)
 
 Set FHIR User Context
 
@@ -917,7 +950,7 @@ Set the fhirUser context for a user (e.g., Practitioner/123)
 
 ```python
 import api_client
-from api_client.models.put_admin_roles_by_role_name200_response import PutAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -965,7 +998,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**PutAdminRolesByRoleName200Response**](PutAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -974,20 +1007,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_launch_contexts_by_user_id_patient_by_patient_id**
-> PutAdminRolesByRoleName200Response post_admin_launch_contexts_by_user_id_patient_by_patient_id(user_id, patient_id)
+> SuccessResponse post_admin_launch_contexts_by_user_id_patient_by_patient_id(user_id, patient_id)
 
 Set Patient Context
 
@@ -999,7 +1035,7 @@ Set the patient context for a user
 
 ```python
 import api_client
-from api_client.models.put_admin_roles_by_role_name200_response import PutAdminRolesByRoleName200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -1047,7 +1083,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**PutAdminRolesByRoleName200Response**](PutAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -1056,20 +1092,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_admin_launch_contexts_by_user_id_intent**
-> PutAdminRolesByRoleName200Response put_admin_launch_contexts_by_user_id_intent(user_id, put_admin_launch_contexts_by_user_id_intent_request)
+> SuccessResponse put_admin_launch_contexts_by_user_id_intent(user_id, set_intent_request)
 
 Set Intent Context
 
@@ -1081,8 +1120,8 @@ Set the intent context for a user
 
 ```python
 import api_client
-from api_client.models.put_admin_launch_contexts_by_user_id_intent_request import PutAdminLaunchContextsByUserIdIntentRequest
-from api_client.models.put_admin_roles_by_role_name200_response import PutAdminRolesByRoleName200Response
+from api_client.models.set_intent_request import SetIntentRequest
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -1107,11 +1146,11 @@ with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.LaunchContextsApi(api_client)
     user_id = 'user_id_example' # str | 
-    put_admin_launch_contexts_by_user_id_intent_request = api_client.PutAdminLaunchContextsByUserIdIntentRequest() # PutAdminLaunchContextsByUserIdIntentRequest | 
+    set_intent_request = api_client.SetIntentRequest() # SetIntentRequest | 
 
     try:
         # Set Intent Context
-        api_response = api_instance.put_admin_launch_contexts_by_user_id_intent(user_id, put_admin_launch_contexts_by_user_id_intent_request)
+        api_response = api_instance.put_admin_launch_contexts_by_user_id_intent(user_id, set_intent_request)
         print("The response of LaunchContextsApi->put_admin_launch_contexts_by_user_id_intent:\n")
         pprint(api_response)
     except Exception as e:
@@ -1126,11 +1165,11 @@ with api_client.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **user_id** | **str**|  | 
- **put_admin_launch_contexts_by_user_id_intent_request** | [**PutAdminLaunchContextsByUserIdIntentRequest**](PutAdminLaunchContextsByUserIdIntentRequest.md)|  | 
+ **set_intent_request** | [**SetIntentRequest**](SetIntentRequest.md)|  | 
 
 ### Return type
 
-[**PutAdminRolesByRoleName200Response**](PutAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -1138,21 +1177,24 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_admin_launch_contexts_by_user_id_need_patient_banner**
-> PutAdminRolesByRoleName200Response put_admin_launch_contexts_by_user_id_need_patient_banner(user_id, put_admin_launch_contexts_by_user_id_need_patient_banner_request)
+> SuccessResponse put_admin_launch_contexts_by_user_id_need_patient_banner(user_id, set_need_patient_banner_request)
 
 Set Need Patient Banner Context
 
@@ -1164,8 +1206,8 @@ Set whether patient banner is required for a user
 
 ```python
 import api_client
-from api_client.models.put_admin_launch_contexts_by_user_id_need_patient_banner_request import PutAdminLaunchContextsByUserIdNeedPatientBannerRequest
-from api_client.models.put_admin_roles_by_role_name200_response import PutAdminRolesByRoleName200Response
+from api_client.models.set_need_patient_banner_request import SetNeedPatientBannerRequest
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -1190,11 +1232,11 @@ with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.LaunchContextsApi(api_client)
     user_id = 'user_id_example' # str | 
-    put_admin_launch_contexts_by_user_id_need_patient_banner_request = api_client.PutAdminLaunchContextsByUserIdNeedPatientBannerRequest() # PutAdminLaunchContextsByUserIdNeedPatientBannerRequest | 
+    set_need_patient_banner_request = api_client.SetNeedPatientBannerRequest() # SetNeedPatientBannerRequest | 
 
     try:
         # Set Need Patient Banner Context
-        api_response = api_instance.put_admin_launch_contexts_by_user_id_need_patient_banner(user_id, put_admin_launch_contexts_by_user_id_need_patient_banner_request)
+        api_response = api_instance.put_admin_launch_contexts_by_user_id_need_patient_banner(user_id, set_need_patient_banner_request)
         print("The response of LaunchContextsApi->put_admin_launch_contexts_by_user_id_need_patient_banner:\n")
         pprint(api_response)
     except Exception as e:
@@ -1209,11 +1251,11 @@ with api_client.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **user_id** | **str**|  | 
- **put_admin_launch_contexts_by_user_id_need_patient_banner_request** | [**PutAdminLaunchContextsByUserIdNeedPatientBannerRequest**](PutAdminLaunchContextsByUserIdNeedPatientBannerRequest.md)|  | 
+ **set_need_patient_banner_request** | [**SetNeedPatientBannerRequest**](SetNeedPatientBannerRequest.md)|  | 
 
 ### Return type
 
-[**PutAdminRolesByRoleName200Response**](PutAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -1221,21 +1263,24 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_admin_launch_contexts_by_user_id_smart_style_url**
-> PutAdminRolesByRoleName200Response put_admin_launch_contexts_by_user_id_smart_style_url(user_id, put_admin_launch_contexts_by_user_id_smart_style_url_request)
+> SuccessResponse put_admin_launch_contexts_by_user_id_smart_style_url(user_id, set_smart_style_url_request)
 
 Set Smart Style URL Context
 
@@ -1247,8 +1292,8 @@ Set the smart-style-url context for a user
 
 ```python
 import api_client
-from api_client.models.put_admin_launch_contexts_by_user_id_smart_style_url_request import PutAdminLaunchContextsByUserIdSmartStyleUrlRequest
-from api_client.models.put_admin_roles_by_role_name200_response import PutAdminRolesByRoleName200Response
+from api_client.models.set_smart_style_url_request import SetSmartStyleUrlRequest
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -1273,11 +1318,11 @@ with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.LaunchContextsApi(api_client)
     user_id = 'user_id_example' # str | 
-    put_admin_launch_contexts_by_user_id_smart_style_url_request = api_client.PutAdminLaunchContextsByUserIdSmartStyleUrlRequest() # PutAdminLaunchContextsByUserIdSmartStyleUrlRequest | 
+    set_smart_style_url_request = api_client.SetSmartStyleUrlRequest() # SetSmartStyleUrlRequest | 
 
     try:
         # Set Smart Style URL Context
-        api_response = api_instance.put_admin_launch_contexts_by_user_id_smart_style_url(user_id, put_admin_launch_contexts_by_user_id_smart_style_url_request)
+        api_response = api_instance.put_admin_launch_contexts_by_user_id_smart_style_url(user_id, set_smart_style_url_request)
         print("The response of LaunchContextsApi->put_admin_launch_contexts_by_user_id_smart_style_url:\n")
         pprint(api_response)
     except Exception as e:
@@ -1292,11 +1337,11 @@ with api_client.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **user_id** | **str**|  | 
- **put_admin_launch_contexts_by_user_id_smart_style_url_request** | [**PutAdminLaunchContextsByUserIdSmartStyleUrlRequest**](PutAdminLaunchContextsByUserIdSmartStyleUrlRequest.md)|  | 
+ **set_smart_style_url_request** | [**SetSmartStyleUrlRequest**](SetSmartStyleUrlRequest.md)|  | 
 
 ### Return type
 
-[**PutAdminRolesByRoleName200Response**](PutAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -1304,21 +1349,24 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_admin_launch_contexts_by_user_id_tenant**
-> PutAdminRolesByRoleName200Response put_admin_launch_contexts_by_user_id_tenant(user_id, put_admin_launch_contexts_by_user_id_tenant_request)
+> SuccessResponse put_admin_launch_contexts_by_user_id_tenant(user_id, set_tenant_request)
 
 Set Tenant Context
 
@@ -1330,8 +1378,8 @@ Set the tenant context for a user
 
 ```python
 import api_client
-from api_client.models.put_admin_launch_contexts_by_user_id_tenant_request import PutAdminLaunchContextsByUserIdTenantRequest
-from api_client.models.put_admin_roles_by_role_name200_response import PutAdminRolesByRoleName200Response
+from api_client.models.set_tenant_request import SetTenantRequest
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -1356,11 +1404,11 @@ with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.LaunchContextsApi(api_client)
     user_id = 'user_id_example' # str | 
-    put_admin_launch_contexts_by_user_id_tenant_request = api_client.PutAdminLaunchContextsByUserIdTenantRequest() # PutAdminLaunchContextsByUserIdTenantRequest | 
+    set_tenant_request = api_client.SetTenantRequest() # SetTenantRequest | 
 
     try:
         # Set Tenant Context
-        api_response = api_instance.put_admin_launch_contexts_by_user_id_tenant(user_id, put_admin_launch_contexts_by_user_id_tenant_request)
+        api_response = api_instance.put_admin_launch_contexts_by_user_id_tenant(user_id, set_tenant_request)
         print("The response of LaunchContextsApi->put_admin_launch_contexts_by_user_id_tenant:\n")
         pprint(api_response)
     except Exception as e:
@@ -1375,11 +1423,11 @@ with api_client.ApiClient(configuration) as api_client:
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **user_id** | **str**|  | 
- **put_admin_launch_contexts_by_user_id_tenant_request** | [**PutAdminLaunchContextsByUserIdTenantRequest**](PutAdminLaunchContextsByUserIdTenantRequest.md)|  | 
+ **set_tenant_request** | [**SetTenantRequest**](SetTenantRequest.md)|  | 
 
 ### Return type
 
-[**PutAdminRolesByRoleName200Response**](PutAdminRolesByRoleName200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -1387,16 +1435,19 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

@@ -18,8 +18,12 @@ class Settings(BaseSettings):
     # OpenAI Configuration
     openai_api_key: str = "your-openai-api-key-here"
     openai_model: str = "gpt-5-nano"
-    openai_max_tokens: int = 4000  # Increased for reasoning models that use tokens for thinking
+    openai_max_tokens: int = 16000  # Increased to allow comprehensive function listings and detailed responses
     openai_temperature: float = 1.0  # Default value (some models don't support custom values)
+    
+    # Reasoning Configuration (for gpt-5 models)
+    openai_reasoning_effort: str = "medium"  # low, medium, or high
+    openai_reasoning_summary: str = "auto"  # auto, concise, detailed, or none
     
     # Embedding Configuration
     openai_embedding_model: str = "text-embedding-3-small"  # Fast and cost-effective

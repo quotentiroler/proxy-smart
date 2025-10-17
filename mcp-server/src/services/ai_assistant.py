@@ -1,5 +1,6 @@
 """AI Assistant service with OpenAI integration and RAG capabilities."""
 
+import asyncio
 import json
 import logging
 import time
@@ -336,7 +337,7 @@ class AIAssistant:
         3. Second API call with function outputs → stream final response
         """
         # Build context from relevant documents and conversation history
-        context = self._build_rag_context(relevant_docs, conversation_id)
+        context = self._build_rag_context(relevant_docs, conversation_id, message)
         instructions = self._build_system_prompt(context)
 
         # Get backend MCP client and list available tools
@@ -378,6 +379,13 @@ class AIAssistant:
             "max_output_tokens": settings.openai_max_tokens,
             "stream": True,
         }
+        
+        # Add reasoning configuration for GPT-5 models
+        if "gpt-5" in settings.openai_model.lower() or "o1" in settings.openai_model.lower():
+            reasoning_config = {"effort": settings.openai_reasoning_effort}
+            if settings.openai_reasoning_summary != "none":
+                reasoning_config["summary"] = settings.openai_reasoning_summary
+            api_params["reasoning"] = reasoning_config
 
         if tools:
             api_params["tools"] = tools
@@ -386,7 +394,6 @@ class AIAssistant:
             api_params["temperature"] = settings.openai_temperature
 
         try:
-            logger.info(f"[TURN 1] Starting initial OpenAI streaming request")
             openai_start = time.time()
             stream = await self.openai_client.responses.create(**api_params)  # type: ignore
 
@@ -394,12 +401,16 @@ class AIAssistant:
             chunk_count = 0
             function_calls = {}  # Track function call details by item_id
             all_output_items = []  # Collect ALL output items including reasoning
+            stream_completed = False
 
-            async for event in stream:
-                chunk_count += 1
-
-                if hasattr(event, "type"):
-                    event_type = event.type
+            try:
+                async for event in stream:
+                    chunk_count += 1
+                    
+                    if hasattr(event, "type"):
+                        event_type = event.type
+                    else:
+                        continue
 
                     # Collect ALL output items for second turn (including reasoning)
                     if event_type == "response.output_item.added":
@@ -416,9 +427,20 @@ class AIAssistant:
                                     "complete_item": None,  # Will store complete item later
                                 }
                                 
-                                logger.info(f"[TURN 1] Function call detected: {function_calls[item_id]['name']}")
                                 # Notify user
                                 yield f"data: {json.dumps({'type': 'function_calling', 'name': function_calls[item_id]['name']})}\n\n"
+                    
+                    # Stream reasoning summaries as they arrive
+                    elif event_type == "response.reasoning.summary.delta":
+                        if hasattr(event, "delta"):
+                            reasoning_text = event.delta
+                            # Stream reasoning as "thinking" indicator
+                            yield f"data: {json.dumps({'type': 'reasoning', 'content': reasoning_text})}\n\n"
+                    
+                    elif event_type == "response.reasoning.summary.done":
+                        if hasattr(event, "summary"):
+                            # Mark reasoning as complete
+                            yield f"data: {json.dumps({'type': 'reasoning_done'})}\n\n"
                     
                     # Capture complete output items (including reasoning)
                     elif event_type == "response.output_item.done":
@@ -433,7 +455,6 @@ class AIAssistant:
                                 item_id = item.id
                                 if item_id in function_calls:
                                     function_calls[item_id]["complete_item"] = item_dict
-                                    logger.debug(f"[TURN 1] Stored complete function call item: {item_id}")
                     
                     # Accumulate function arguments
                     elif event_type == "response.function_call_arguments.delta":
@@ -448,23 +469,25 @@ class AIAssistant:
                             item_id = event.item_id
                             if item_id in function_calls:
                                 function_calls[item_id]["arguments"] = event.arguments
-                                logger.info(f"[TURN 1] Function call complete: {function_calls[item_id]['name']}")
                     
                     # Stream text from first turn
                     elif event_type == "response.output_text.delta":
                         if hasattr(event, "delta"):
-                            yield f"data: {json.dumps({'type': 'content', 'content': event.delta})}\n\n"
+                            delta_value = event.delta
+                            if delta_value:
+                                yield f"data: {json.dumps({'type': 'content', 'content': delta_value})}\n\n"
                     
                     # First turn complete
                     elif event_type == "response.completed":
-                        logger.info(f"[TURN 1] Complete. Events: {chunk_count}, Function calls: {len(function_calls)}")
+                        stream_completed = True
                         break
-
+            
+            except Exception as stream_error:
+                logger.error(f"[TURN 1] Error during stream iteration: {stream_error}", exc_info=True)
+                raise
+            
             # If no function calls, we're done
             if not function_calls:
-                logger.info("[TURN 1] No function calls, ending response")
-                openai_time = time.time() - openai_start
-                logger.info(f"OpenAI streaming completed in {openai_time:.2f}s")
                 yield f"data: {json.dumps({'type': 'done', 'mode': 'openai', 'confidence': 0.9})}\n\n"
                 return
 
@@ -524,10 +547,7 @@ class AIAssistant:
             
             # Add function outputs
             second_input.extend(function_outputs)
-
-            logger.info(f"[TURN 2] Making second API call with {len(function_outputs)} function result(s)")
-            logger.debug(f"[TURN 2] Second input has {len(second_input)} items: {len(input_list)} user + {len(all_output_items)} output + {len(function_outputs)} results")
-
+            
             # Second API call parameters
             second_params = {
                 "model": settings.openai_model,
@@ -537,6 +557,13 @@ class AIAssistant:
                 "stream": True,
             }
             
+            # Add reasoning configuration for GPT-5 models (second turn)
+            if "gpt-5" in settings.openai_model.lower() or "o1" in settings.openai_model.lower():
+                reasoning_config = {"effort": settings.openai_reasoning_effort}
+                if settings.openai_reasoning_summary != "none":
+                    reasoning_config["summary"] = settings.openai_reasoning_summary
+                second_params["reasoning"] = reasoning_config
+            
             if tools:
                 second_params["tools"] = tools
             
@@ -544,25 +571,153 @@ class AIAssistant:
                 second_params["temperature"] = settings.openai_temperature
 
             # Make second API call
+            logger.info(f"[TURN 2] About to create second stream...")
             second_stream = await self.openai_client.responses.create(**second_params)  # type: ignore
+            logger.info(f"[TURN 2] Second stream created: {type(second_stream)}")
 
             # Stream final response
-            async for event in second_stream:
-                if hasattr(event, "type"):
-                    event_type = event.type
+            chunk_count_turn2 = 0
+            has_content = False
+            last_10_event_types = []  # Track last 10 event types for debugging
+            stream_completed_turn2 = False
+            
+            try:
+                async for event in second_stream:
+                    chunk_count_turn2 += 1
                     
-                    # Stream final text
-                    if event_type == "response.output_text.delta":
+                    if hasattr(event, "type"):
+                        event_type = event.type
+                    
+                    # Track event types for debugging
+                    last_10_event_types.append(event_type)
+                    if len(last_10_event_types) > 10:
+                        last_10_event_types.pop(0)
+                    
+                    # Log first few events and every 50th event for debugging
+                    if chunk_count_turn2 <= 5 or chunk_count_turn2 % 50 == 0:
+                        logger.debug(f"[TURN 2] Event {chunk_count_turn2}: {event_type}")
+                    
+                    # Stream reasoning summaries (second turn)
+                    if event_type == "response.reasoning.summary.delta":
                         if hasattr(event, "delta"):
-                            yield f"data: {json.dumps({'type': 'content', 'content': event.delta})}\n\n"
+                            reasoning_text = event.delta
+                            logger.debug(f"[TURN 2] Reasoning summary delta: {reasoning_text[:50]}...")
+                            yield f"data: {json.dumps({'type': 'reasoning', 'content': reasoning_text})}\n\n"
+                    
+                    elif event_type == "response.reasoning.summary.done":
+                        logger.info(f"[TURN 2] Reasoning summary complete")
+                        yield f"data: {json.dumps({'type': 'reasoning_done'})}\n\n"
+                    
+                    # Stream final text - handle both output_text and content deltas
+                    elif event_type == "response.output_text.delta":
+                        if hasattr(event, "delta"):
+                            delta_value = event.delta
+                            if delta_value:
+                                has_content = True
+                                logger.debug(f"[TURN 2] Got output_text.delta: {delta_value[:50] if len(delta_value) > 50 else delta_value}")
+                                yield f"data: {json.dumps({'type': 'content', 'content': delta_value})}\n\n"
+                    
+                    # Handle output item added (may contain initial content)
+                    elif event_type == "response.output_item.added":
+                        logger.debug(f"[TURN 2] Output item added: {getattr(event, 'item', {})}")
+                    
+                    # Handle output item done (may contain complete content)
+                    elif event_type == "response.output_item.done":
+                        if hasattr(event, "item"):
+                            item = event.item
+                            # Check if this is a text/message item with content
+                            if hasattr(item, "type") and item.type in ["message", "text"]:
+                                if hasattr(item, "content"):
+                                    # Content might be a list or string
+                                    content = item.content
+                                    if isinstance(content, list):
+                                        for content_part in content:
+                                            if hasattr(content_part, "text"):
+                                                text = content_part.text
+                                                if text and not has_content:  # Only use if we haven't streamed yet
+                                                    logger.info(f"[TURN 2] Extracting text from output_item.done ({len(text)} chars)")
+                                                    yield f"data: {json.dumps({'type': 'content', 'content': text})}\n\n"
+                                                    has_content = True
+                                    elif isinstance(content, str):
+                                        if content and not has_content:
+                                            logger.info(f"[TURN 2] Extracting string content from output_item.done ({len(content)} chars)")
+                                            yield f"data: {json.dumps({'type': 'content', 'content': content})}\n\n"
+                                            has_content = True
+                                elif hasattr(item, "text"):
+                                    text = item.text
+                                    if text and not has_content:
+                                        logger.info(f"[TURN 2] Extracting text from output_item.done.text ({len(text)} chars)")
+                                        yield f"data: {json.dumps({'type': 'content', 'content': text})}\n\n"
+                                        has_content = True
                     
                     # Final response complete
                     elif event_type == "response.completed":
-                        logger.info(f"[TURN 2] Final response complete")
+                        logger.info(f"[TURN 2] Final response complete (has_content={has_content})")
+                        logger.info(f"[TURN 2] Last 10 event types: {last_10_event_types}")
                         openai_time = time.time() - openai_start
                         logger.info(f"Total OpenAI streaming completed in {openai_time:.2f}s")
+                        logger.info(f"[TURN 2] Total events processed: {chunk_count_turn2}")
+                        
+                        # If no content was streamed, check if there's content in the completed event
+                        if not has_content:
+                            logger.warning("[TURN 2] No content streamed, checking completed event for content")
+                            if hasattr(event, "response"):
+                                response_obj = event.response
+                                logger.debug(f"[TURN 2] Response object: {response_obj}")
+                                
+                                if hasattr(response_obj, "output"):
+                                    logger.debug(f"[TURN 2] Found output array with {len(response_obj.output)} items")
+                                    for idx, output_item in enumerate(response_obj.output):
+                                        logger.debug(f"[TURN 2] Output item {idx}: type={getattr(output_item, 'type', 'unknown')}")
+                                        
+                                        # Check for text in various possible locations
+                                        if hasattr(output_item, "content"):
+                                            content = output_item.content
+                                            if isinstance(content, list):
+                                                for content_part in content:
+                                                    if hasattr(content_part, "text"):
+                                                        text = content_part.text
+                                                        if text:
+                                                            logger.info(f"[TURN 2] Yielding complete response text from output[{idx}].content[].text ({len(text)} chars)")
+                                                            yield f"data: {json.dumps({'type': 'content', 'content': text})}\n\n"
+                                                            has_content = True
+                                            elif isinstance(content, str):
+                                                logger.info(f"[TURN 2] Yielding complete response text from output[{idx}].content ({len(content)} chars)")
+                                                yield f"data: {json.dumps({'type': 'content', 'content': content})}\n\n"
+                                                has_content = True
+                                        
+                                        # Also check for direct text property
+                                        if not has_content and hasattr(output_item, "text"):
+                                            text = output_item.text
+                                            if text:
+                                                logger.info(f"[TURN 2] Yielding complete response text from output[{idx}].text ({len(text)} chars)")
+                                                yield f"data: {json.dumps({'type': 'content', 'content': text})}\n\n"
+                                                has_content = True
+                                
+                                # Check for output_text property
+                                if not has_content and hasattr(response_obj, "output_text"):
+                                    text = response_obj.output_text
+                                    if text:
+                                        logger.info(f"[TURN 2] Yielding complete response from output_text ({len(text)} chars)")
+                                        yield f"data: {json.dumps({'type': 'content', 'content': text})}\n\n"
+                                        has_content = True
+                        
+                        if not has_content:
+                            logger.error("[TURN 2] ERROR: No content found in completed response!")
+                            yield f"data: {json.dumps({'type': 'error', 'error': 'No content received from AI after function execution'})}\n\n"
+                        
+                        stream_completed_turn2 = True
                         yield f"data: {json.dumps({'type': 'done', 'mode': 'openai-with-tools', 'confidence': 0.9})}\n\n"
                         break
+            
+            except Exception as stream_error:
+                logger.error(f"[TURN 2] Error during stream iteration: {stream_error}", exc_info=True)
+                raise
+            
+            if not stream_completed_turn2:
+                logger.warning(f"[TURN 2] Stream ended without response.completed event after {chunk_count_turn2} events")
+            
+            logger.info(f"[TURN 2] Finished iterating stream, processed {chunk_count_turn2} events total, has_content={has_content}")
 
         except Exception as e:
             logger.error(f"OpenAI streaming failed: {e}", exc_info=True)
@@ -584,7 +739,7 @@ class AIAssistant:
     ) -> ChatResponse:
         """Generate response using OpenAI Responses API with RAG context."""
         # Build context from relevant documents and conversation history
-        context = self._build_rag_context(relevant_docs, conversation_id)
+        context = self._build_rag_context(relevant_docs, conversation_id, message)
 
         instructions = self._build_system_prompt(context)
 
@@ -670,15 +825,24 @@ class AIAssistant:
         )
 
     def _build_rag_context(
-        self, relevant_docs: list[DocumentChunk], conversation_id: Optional[str] = None
+        self, 
+        relevant_docs: list[DocumentChunk], 
+        conversation_id: Optional[str] = None,
+        current_message: str = ""
     ) -> str:
         """Build context string from relevant documents and conversation history."""
         context_parts = []
 
         # Add conversation history if available
         if conversation_id:
+            # Check if conversation needs summarization based on context pressure
+            if self.conversation_store.check_needs_summarization(conversation_id, current_message):
+                logger.info(f"Conversation {conversation_id} has context pressure - triggering AI summary")
+                asyncio.create_task(self._summarize_conversation_async(conversation_id))
+            
             conversation_context = self.conversation_store.get_conversation_context(
-                conversation_id, max_pairs=3  # Include last 3 exchanges
+                conversation_id,
+                current_input=current_message
             )
             if conversation_context:
                 context_parts.append(conversation_context)
@@ -700,7 +864,26 @@ class AIAssistant:
         """Build system prompt with RAG context."""
         return f"""You are a helpful SMART on FHIR platform assistant with comprehensive knowledge of healthcare application management. Use the provided context to answer questions accurately and concisely.
 
-IMPORTANT: If the user's message includes [Current Page Context], use that information naturally when relevant to their question.
+IMPORTANT PAGE CONTEXT RULES:
+- Page context is provided automatically but should ONLY be used when the user's question is DIRECTLY ABOUT THE CURRENT PAGE
+- DO NOT describe or summarize the current page unless the user explicitly asks about it (e.g., "what's on this page?", "what can I do here?")
+- When the user asks general questions (like "what functions can you call?"), answer the question WITHOUT mentioning the page
+- Focus on answering the user's ACTUAL QUESTION, not describing what you see on their screen
+
+CONVERSATION MEMORY:
+- Remember the full conversation history - if the user says "again" or refers to a previous question, recall what they asked before
+- When a user asks for something "again", repeat your PREVIOUS ANSWER, don't give them a page summary
+- Long messages are automatically summarized in conversation history with [index] numbers
+- If you see a message like "[5] User asked: ...", the full content of message #5 can be retrieved if needed
+- You have access to get_full_message(conversation_id, message_index) to retrieve complete message content
+- Use this when you need more detail about a previous exchange that was summarized
+
+ACTION EXECUTION:
+When the user asks you to perform an action (create, update, delete, modify), DO IT IMMEDIATELY using the available tools. Don't ask for confirmation unless:
+- The action is destructive (deletion, disabling accounts)
+- The request is ambiguous or missing required information
+
+When the user says "yes" or confirms an action, execute it right away. Be proactive and helpful.
 
 Key platform sections:
 - Dashboard: System overview and health monitoring
@@ -991,6 +1174,70 @@ Ask me about any specific aspect you'd like to explore!"""
 • Real-time updates every 30 seconds
 
 🎨 *Fully responsive design optimized for desktop, tablet, and mobile usage.*"""
+
+    async def _summarize_conversation_async(self, conversation_id: str) -> None:
+        """
+        Generate AI summary of conversation history (background task).
+        
+        This runs asynchronously to avoid blocking the main response.
+        Summary is stored and will be used in future context windows.
+        """
+        try:
+            if not self.openai_client:
+                logger.warning("OpenAI not available - cannot generate conversation summary")
+                return
+            
+            # Get messages that need summarization
+            messages_to_summarize = self.conversation_store.get_messages_for_summarization(
+                conversation_id
+            )
+            
+            if not messages_to_summarize:
+                logger.debug(f"No messages to summarize for {conversation_id}")
+                return
+            
+            # Build conversation text
+            conversation_text = "\n\n".join([
+                f"[{msg.index}] {msg.role.title()}: {msg.content}"
+                for msg in messages_to_summarize
+            ])
+            
+            # Call OpenAI to generate summary
+            logger.info(f"Generating AI summary for {len(messages_to_summarize)} messages...")
+            
+            response = await self.openai_client.chat.completions.create(
+                model=settings.openai_model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """Summarize this conversation history concisely. 
+Extract key topics discussed, decisions made, and important context.
+Keep it under 500 words. Use bullet points for clarity."""
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Summarize this conversation:\n\n{conversation_text}"
+                    }
+                ],
+                max_tokens=800,
+                temperature=0.3  # Low temperature for consistent summaries
+            )
+            
+            summary = response.choices[0].message.content
+            if summary:
+                up_to_index = messages_to_summarize[-1].index or 0
+                self.conversation_store.store_summary(
+                    conversation_id, 
+                    summary, 
+                    up_to_index
+                )
+                logger.info(
+                    f"AI summary generated and stored for conversation {conversation_id} "
+                    f"(messages 1-{up_to_index})"
+                )
+            
+        except Exception as e:
+            logger.error(f"Failed to generate conversation summary: {e}", exc_info=True)
 
 
 # Singleton instance

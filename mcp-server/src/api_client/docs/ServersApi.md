@@ -14,7 +14,7 @@ Method | HTTP request | Description
 
 
 # **get_fhir_servers**
-> GetFhirServers200Response get_fhir_servers()
+> FhirServerList get_fhir_servers()
 
 List Available FHIR Servers
 
@@ -25,7 +25,7 @@ Get a list of all configured FHIR servers with their connection information and 
 
 ```python
 import api_client
-from api_client.models.get_fhir_servers200_response import GetFhirServers200Response
+from api_client.models.fhir_server_list import FhirServerList
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -58,7 +58,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetFhirServers200Response**](GetFhirServers200Response.md)
+[**FhirServerList**](FhirServerList.md)
 
 ### Authorization
 
@@ -67,19 +67,20 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_fhir_servers_by_server_id**
-> GetFhirServersByServerId200Response get_fhir_servers_by_server_id(server_id)
+> FhirServerDetails get_fhir_servers_by_server_id(server_id)
 
 Get Server Information
 
@@ -90,7 +91,7 @@ Get detailed information about a specific FHIR server
 
 ```python
 import api_client
-from api_client.models.get_fhir_servers_by_server_id200_response import GetFhirServersByServerId200Response
+from api_client.models.fhir_server_details import FhirServerDetails
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -105,7 +106,7 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.ServersApi(api_client)
-    server_id = 'server_id_example' # str | FHIR server identifier
+    server_id = 'server_id_example' # str | 
 
     try:
         # Get Server Information
@@ -123,11 +124,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **server_id** | **str**| FHIR server identifier | 
+ **server_id** | **str**|  | 
 
 ### Return type
 
-[**GetFhirServersByServerId200Response**](GetFhirServersByServerId200Response.md)
+[**FhirServerDetails**](FhirServerDetails.md)
 
 ### Authorization
 
@@ -136,20 +137,24 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**404** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_fhir_servers_by_server_id_mtls**
-> GetFhirServersByServerIdMtls200Response get_fhir_servers_by_server_id_mtls(server_id)
+> MtlsConfig get_fhir_servers_by_server_id_mtls(server_id)
 
 Get mTLS Configuration
 
@@ -161,7 +166,7 @@ Get the mutual TLS configuration for a specific FHIR server
 
 ```python
 import api_client
-from api_client.models.get_fhir_servers_by_server_id_mtls200_response import GetFhirServersByServerIdMtls200Response
+from api_client.models.mtls_config import MtlsConfig
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -185,7 +190,7 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.ServersApi(api_client)
-    server_id = 'server_id_example' # str | FHIR server identifier
+    server_id = 'server_id_example' # str | 
 
     try:
         # Get mTLS Configuration
@@ -203,11 +208,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **server_id** | **str**| FHIR server identifier | 
+ **server_id** | **str**|  | 
 
 ### Return type
 
-[**GetFhirServersByServerIdMtls200Response**](GetFhirServersByServerIdMtls200Response.md)
+[**MtlsConfig**](MtlsConfig.md)
 
 ### Authorization
 
@@ -216,20 +221,24 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_fhir_servers**
-> PostFhirServers200Response post_fhir_servers(post_fhir_servers_request)
+> AddFhirServerResponse post_fhir_servers(add_fhir_server_request)
 
 Add New FHIR Server
 
@@ -241,8 +250,8 @@ Add a new FHIR server to the system by providing its base URL
 
 ```python
 import api_client
-from api_client.models.post_fhir_servers200_response import PostFhirServers200Response
-from api_client.models.post_fhir_servers_request import PostFhirServersRequest
+from api_client.models.add_fhir_server_request import AddFhirServerRequest
+from api_client.models.add_fhir_server_response import AddFhirServerResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -266,11 +275,11 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.ServersApi(api_client)
-    post_fhir_servers_request = api_client.PostFhirServersRequest() # PostFhirServersRequest | 
+    add_fhir_server_request = api_client.AddFhirServerRequest() # AddFhirServerRequest | 
 
     try:
         # Add New FHIR Server
-        api_response = api_instance.post_fhir_servers(post_fhir_servers_request)
+        api_response = api_instance.post_fhir_servers(add_fhir_server_request)
         print("The response of ServersApi->post_fhir_servers:\n")
         pprint(api_response)
     except Exception as e:
@@ -284,11 +293,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **post_fhir_servers_request** | [**PostFhirServersRequest**](PostFhirServersRequest.md)|  | 
+ **add_fhir_server_request** | [**AddFhirServerRequest**](AddFhirServerRequest.md)|  | 
 
 ### Return type
 
-[**PostFhirServers200Response**](PostFhirServers200Response.md)
+[**AddFhirServerResponse**](AddFhirServerResponse.md)
 
 ### Authorization
 
@@ -296,21 +305,25 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_fhir_servers_by_server_id_mtls_certificates**
-> PostFhirServersByServerIdMtlsCertificates200Response post_fhir_servers_by_server_id_mtls_certificates(server_id, post_fhir_servers_by_server_id_mtls_certificates_request)
+> CertificateUpload post_fhir_servers_by_server_id_mtls_certificates(server_id, upload_certificate_request)
 
 Upload Certificate
 
@@ -322,8 +335,8 @@ Upload a certificate or private key for mTLS authentication
 
 ```python
 import api_client
-from api_client.models.post_fhir_servers_by_server_id_mtls_certificates200_response import PostFhirServersByServerIdMtlsCertificates200Response
-from api_client.models.post_fhir_servers_by_server_id_mtls_certificates_request import PostFhirServersByServerIdMtlsCertificatesRequest
+from api_client.models.certificate_upload import CertificateUpload
+from api_client.models.upload_certificate_request import UploadCertificateRequest
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -347,12 +360,12 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.ServersApi(api_client)
-    server_id = 'server_id_example' # str | FHIR server identifier
-    post_fhir_servers_by_server_id_mtls_certificates_request = api_client.PostFhirServersByServerIdMtlsCertificatesRequest() # PostFhirServersByServerIdMtlsCertificatesRequest | 
+    server_id = 'server_id_example' # str | 
+    upload_certificate_request = api_client.UploadCertificateRequest() # UploadCertificateRequest | 
 
     try:
         # Upload Certificate
-        api_response = api_instance.post_fhir_servers_by_server_id_mtls_certificates(server_id, post_fhir_servers_by_server_id_mtls_certificates_request)
+        api_response = api_instance.post_fhir_servers_by_server_id_mtls_certificates(server_id, upload_certificate_request)
         print("The response of ServersApi->post_fhir_servers_by_server_id_mtls_certificates:\n")
         pprint(api_response)
     except Exception as e:
@@ -366,12 +379,12 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **server_id** | **str**| FHIR server identifier | 
- **post_fhir_servers_by_server_id_mtls_certificates_request** | [**PostFhirServersByServerIdMtlsCertificatesRequest**](PostFhirServersByServerIdMtlsCertificatesRequest.md)|  | 
+ **server_id** | **str**|  | 
+ **upload_certificate_request** | [**UploadCertificateRequest**](UploadCertificateRequest.md)|  | 
 
 ### Return type
 
-[**PostFhirServersByServerIdMtlsCertificates200Response**](PostFhirServersByServerIdMtlsCertificates200Response.md)
+[**CertificateUpload**](CertificateUpload.md)
 
 ### Authorization
 
@@ -379,22 +392,25 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_fhir_servers_by_server_id**
-> PutFhirServersByServerId200Response put_fhir_servers_by_server_id(server_id, put_fhir_servers_by_server_id_request)
+> UpdateFhirServerResponse put_fhir_servers_by_server_id(server_id, update_fhir_server_request)
 
 Update FHIR Server
 
@@ -406,8 +422,8 @@ Update an existing FHIR server by providing its new base URL
 
 ```python
 import api_client
-from api_client.models.put_fhir_servers_by_server_id200_response import PutFhirServersByServerId200Response
-from api_client.models.put_fhir_servers_by_server_id_request import PutFhirServersByServerIdRequest
+from api_client.models.update_fhir_server_request import UpdateFhirServerRequest
+from api_client.models.update_fhir_server_response import UpdateFhirServerResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -431,12 +447,12 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.ServersApi(api_client)
-    server_id = 'server_id_example' # str | Server identifier to update
-    put_fhir_servers_by_server_id_request = api_client.PutFhirServersByServerIdRequest() # PutFhirServersByServerIdRequest | 
+    server_id = 'server_id_example' # str | 
+    update_fhir_server_request = api_client.UpdateFhirServerRequest() # UpdateFhirServerRequest | 
 
     try:
         # Update FHIR Server
-        api_response = api_instance.put_fhir_servers_by_server_id(server_id, put_fhir_servers_by_server_id_request)
+        api_response = api_instance.put_fhir_servers_by_server_id(server_id, update_fhir_server_request)
         print("The response of ServersApi->put_fhir_servers_by_server_id:\n")
         pprint(api_response)
     except Exception as e:
@@ -450,12 +466,12 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **server_id** | **str**| Server identifier to update | 
- **put_fhir_servers_by_server_id_request** | [**PutFhirServersByServerIdRequest**](PutFhirServersByServerIdRequest.md)|  | 
+ **server_id** | **str**|  | 
+ **update_fhir_server_request** | [**UpdateFhirServerRequest**](UpdateFhirServerRequest.md)|  | 
 
 ### Return type
 
-[**PutFhirServersByServerId200Response**](PutFhirServersByServerId200Response.md)
+[**UpdateFhirServerResponse**](UpdateFhirServerResponse.md)
 
 ### Authorization
 
@@ -463,22 +479,25 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_fhir_servers_by_server_id_mtls**
-> PutFhirServersByServerIdMtls200Response put_fhir_servers_by_server_id_mtls(server_id, put_fhir_servers_by_server_id_mtls_request)
+> UpdateMtlsConfigResponse put_fhir_servers_by_server_id_mtls(server_id, update_mtls_config_request)
 
 Update mTLS Configuration
 
@@ -490,8 +509,8 @@ Enable or disable mutual TLS for a specific FHIR server
 
 ```python
 import api_client
-from api_client.models.put_fhir_servers_by_server_id_mtls200_response import PutFhirServersByServerIdMtls200Response
-from api_client.models.put_fhir_servers_by_server_id_mtls_request import PutFhirServersByServerIdMtlsRequest
+from api_client.models.update_mtls_config_request import UpdateMtlsConfigRequest
+from api_client.models.update_mtls_config_response import UpdateMtlsConfigResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -515,12 +534,12 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.ServersApi(api_client)
-    server_id = 'server_id_example' # str | FHIR server identifier
-    put_fhir_servers_by_server_id_mtls_request = api_client.PutFhirServersByServerIdMtlsRequest() # PutFhirServersByServerIdMtlsRequest | 
+    server_id = 'server_id_example' # str | 
+    update_mtls_config_request = api_client.UpdateMtlsConfigRequest() # UpdateMtlsConfigRequest | 
 
     try:
         # Update mTLS Configuration
-        api_response = api_instance.put_fhir_servers_by_server_id_mtls(server_id, put_fhir_servers_by_server_id_mtls_request)
+        api_response = api_instance.put_fhir_servers_by_server_id_mtls(server_id, update_mtls_config_request)
         print("The response of ServersApi->put_fhir_servers_by_server_id_mtls:\n")
         pprint(api_response)
     except Exception as e:
@@ -534,12 +553,12 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **server_id** | **str**| FHIR server identifier | 
- **put_fhir_servers_by_server_id_mtls_request** | [**PutFhirServersByServerIdMtlsRequest**](PutFhirServersByServerIdMtlsRequest.md)|  | 
+ **server_id** | **str**|  | 
+ **update_mtls_config_request** | [**UpdateMtlsConfigRequest**](UpdateMtlsConfigRequest.md)|  | 
 
 ### Return type
 
-[**PutFhirServersByServerIdMtls200Response**](PutFhirServersByServerIdMtls200Response.md)
+[**UpdateMtlsConfigResponse**](UpdateMtlsConfigResponse.md)
 
 ### Authorization
 
@@ -547,16 +566,20 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

@@ -1,5 +1,6 @@
 import { config } from '@/config';
 import { getItem } from './storage';
+import { attemptTokenRefresh } from './tokenRefresh';
 import {
   AdminApi,
   AuthenticationApi,
@@ -73,15 +74,9 @@ export const handleApiError = async (error: unknown) => {
     isRefreshing = true;
     
     try {
-      const tokens = await getItem<{refresh_token?: string}>('openid_tokens');
+      const refreshed = await attemptTokenRefresh();
       
-      if (tokens?.refresh_token) {
-        // Use dynamic import to avoid circular dependency
-        const { useAuthStore } = await import('../stores/authStore');
-        const authStore = useAuthStore.getState();
-        
-        await authStore.refreshTokens();
-        
+      if (refreshed) {
         // Check if we now have a valid token
         const newToken = await getStoredToken();
         if (newToken) {

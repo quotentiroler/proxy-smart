@@ -10,8 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/stores/authStore';
 import type { 
-  CreateFhirServerRequest,
-  UpdateFhirServerRequest,
   FhirServerWithState
 } from '@/lib/types/api';
 
@@ -109,7 +107,7 @@ export function FhirServersManager() {
                          server.serverName?.includes('Unknown') ||
                          server.fhirVersion === 'Unknown') ? 'disconnected' : 'connected',
         loading: false,
-        error: null
+        error: undefined
       }));
       
       setServers(mappedServers);
@@ -147,9 +145,9 @@ export function FhirServersManager() {
       setUrlError(null);
       
       await clientApis.servers.postFhirServers({
-        postFhirServersRequest: {
+        addFhirServerRequest: {
           url: url
-        } as CreateFhirServerRequest
+        }
       });
 
       setShowAddDialog(false);
@@ -197,9 +195,9 @@ export function FhirServersManager() {
       
       await clientApis.servers.putFhirServersByServerId({
         serverId: server.id,
-        putFhirServersByServerIdRequest: {
+        updateFhirServerRequest: {
           url: newUrl
-        } as UpdateFhirServerRequest
+        }
       });
 
       setShowEditDialog(false);

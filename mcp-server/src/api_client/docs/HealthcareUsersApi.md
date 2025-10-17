@@ -12,7 +12,7 @@ Method | HTTP request | Description
 
 
 # **delete_admin_healthcare_users_by_user_id**
-> PutAdminSmartAppsByClientId200Response delete_admin_healthcare_users_by_user_id(user_id)
+> SuccessResponse delete_admin_healthcare_users_by_user_id(user_id)
 
 Delete Healthcare User
 
@@ -24,7 +24,7 @@ Delete a healthcare user by userId
 
 ```python
 import api_client
-from api_client.models.put_admin_smart_apps_by_client_id200_response import PutAdminSmartAppsByClientId200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -48,7 +48,7 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.HealthcareUsersApi(api_client)
-    user_id = 'user_id_example' # str | User ID
+    user_id = 'user_id_example' # str | 
 
     try:
         # Delete Healthcare User
@@ -66,11 +66,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **user_id** | **str**| User ID | 
+ **user_id** | **str**|  | 
 
 ### Return type
 
-[**PutAdminSmartAppsByClientId200Response**](PutAdminSmartAppsByClientId200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -79,22 +79,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**404** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_healthcare_users**
-> List[GetAdminHealthcareUsers200ResponseInner] get_admin_healthcare_users(limit=limit, offset=offset)
+> List[HealthcareUser] get_admin_healthcare_users(limit=limit, offset=offset)
 
 List Healthcare Users
 
@@ -106,7 +107,7 @@ Get all healthcare users with optional pagination
 
 ```python
 import api_client
-from api_client.models.get_admin_healthcare_users200_response_inner import GetAdminHealthcareUsers200ResponseInner
+from api_client.models.healthcare_user import HealthcareUser
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -130,8 +131,8 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.HealthcareUsersApi(api_client)
-    limit = api_client.GetAdminHealthcareUsersLimitParameter() # GetAdminHealthcareUsersLimitParameter | Maximum number of items to return (optional)
-    offset = api_client.GetAdminHealthcareUsersOffsetParameter() # GetAdminHealthcareUsersOffsetParameter | Number of items to skip (optional)
+    limit = api_client.GetAdminHealthcareUsersLimitParameter() # GetAdminHealthcareUsersLimitParameter |  (optional)
+    offset = api_client.GetAdminHealthcareUsersOffsetParameter() # GetAdminHealthcareUsersOffsetParameter |  (optional)
 
     try:
         # List Healthcare Users
@@ -149,12 +150,12 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **limit** | [**GetAdminHealthcareUsersLimitParameter**](.md)| Maximum number of items to return | [optional] 
- **offset** | [**GetAdminHealthcareUsersOffsetParameter**](.md)| Number of items to skip | [optional] 
+ **limit** | [**GetAdminHealthcareUsersLimitParameter**](.md)|  | [optional] 
+ **offset** | [**GetAdminHealthcareUsersOffsetParameter**](.md)|  | [optional] 
 
 ### Return type
 
-[**List[GetAdminHealthcareUsers200ResponseInner]**](GetAdminHealthcareUsers200ResponseInner.md)
+[**List[HealthcareUser]**](HealthcareUser.md)
 
 ### Authorization
 
@@ -163,21 +164,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_healthcare_users_by_user_id**
-> GetAdminHealthcareUsers200ResponseInner get_admin_healthcare_users_by_user_id(user_id)
+> HealthcareUser get_admin_healthcare_users_by_user_id(user_id)
 
 Get Healthcare User
 
@@ -189,7 +192,7 @@ Get a healthcare user by userId
 
 ```python
 import api_client
-from api_client.models.get_admin_healthcare_users200_response_inner import GetAdminHealthcareUsers200ResponseInner
+from api_client.models.healthcare_user import HealthcareUser
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -213,7 +216,7 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.HealthcareUsersApi(api_client)
-    user_id = 'user_id_example' # str | User ID
+    user_id = 'user_id_example' # str | 
 
     try:
         # Get Healthcare User
@@ -231,11 +234,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **user_id** | **str**| User ID | 
+ **user_id** | **str**|  | 
 
 ### Return type
 
-[**GetAdminHealthcareUsers200ResponseInner**](GetAdminHealthcareUsers200ResponseInner.md)
+[**HealthcareUser**](HealthcareUser.md)
 
 ### Authorization
 
@@ -244,22 +247,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**404** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_healthcare_users**
-> GetAdminHealthcareUsers200ResponseInner post_admin_healthcare_users(post_admin_healthcare_users_request)
+> HealthcareUser post_admin_healthcare_users(create_healthcare_user_request)
 
 Create Healthcare User
 
@@ -271,8 +275,8 @@ Create a new healthcare user
 
 ```python
 import api_client
-from api_client.models.get_admin_healthcare_users200_response_inner import GetAdminHealthcareUsers200ResponseInner
-from api_client.models.post_admin_healthcare_users_request import PostAdminHealthcareUsersRequest
+from api_client.models.create_healthcare_user_request import CreateHealthcareUserRequest
+from api_client.models.healthcare_user import HealthcareUser
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -296,11 +300,11 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.HealthcareUsersApi(api_client)
-    post_admin_healthcare_users_request = api_client.PostAdminHealthcareUsersRequest() # PostAdminHealthcareUsersRequest | 
+    create_healthcare_user_request = api_client.CreateHealthcareUserRequest() # CreateHealthcareUserRequest | 
 
     try:
         # Create Healthcare User
-        api_response = api_instance.post_admin_healthcare_users(post_admin_healthcare_users_request)
+        api_response = api_instance.post_admin_healthcare_users(create_healthcare_user_request)
         print("The response of HealthcareUsersApi->post_admin_healthcare_users:\n")
         pprint(api_response)
     except Exception as e:
@@ -314,11 +318,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **post_admin_healthcare_users_request** | [**PostAdminHealthcareUsersRequest**](PostAdminHealthcareUsersRequest.md)|  | 
+ **create_healthcare_user_request** | [**CreateHealthcareUserRequest**](CreateHealthcareUserRequest.md)|  | 
 
 ### Return type
 
-[**GetAdminHealthcareUsers200ResponseInner**](GetAdminHealthcareUsers200ResponseInner.md)
+[**HealthcareUser**](HealthcareUser.md)
 
 ### Authorization
 
@@ -326,23 +330,24 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_admin_healthcare_users_by_user_id**
-> GetAdminHealthcareUsers200ResponseInner put_admin_healthcare_users_by_user_id(user_id, put_admin_healthcare_users_by_user_id_request)
+> HealthcareUser put_admin_healthcare_users_by_user_id(user_id, update_healthcare_user_request)
 
 Update Healthcare User
 
@@ -354,8 +359,8 @@ Update a healthcare user by userId
 
 ```python
 import api_client
-from api_client.models.get_admin_healthcare_users200_response_inner import GetAdminHealthcareUsers200ResponseInner
-from api_client.models.put_admin_healthcare_users_by_user_id_request import PutAdminHealthcareUsersByUserIdRequest
+from api_client.models.healthcare_user import HealthcareUser
+from api_client.models.update_healthcare_user_request import UpdateHealthcareUserRequest
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -379,12 +384,12 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.HealthcareUsersApi(api_client)
-    user_id = 'user_id_example' # str | User ID
-    put_admin_healthcare_users_by_user_id_request = api_client.PutAdminHealthcareUsersByUserIdRequest() # PutAdminHealthcareUsersByUserIdRequest | 
+    user_id = 'user_id_example' # str | 
+    update_healthcare_user_request = api_client.UpdateHealthcareUserRequest() # UpdateHealthcareUserRequest | 
 
     try:
         # Update Healthcare User
-        api_response = api_instance.put_admin_healthcare_users_by_user_id(user_id, put_admin_healthcare_users_by_user_id_request)
+        api_response = api_instance.put_admin_healthcare_users_by_user_id(user_id, update_healthcare_user_request)
         print("The response of HealthcareUsersApi->put_admin_healthcare_users_by_user_id:\n")
         pprint(api_response)
     except Exception as e:
@@ -398,12 +403,12 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **user_id** | **str**| User ID | 
- **put_admin_healthcare_users_by_user_id_request** | [**PutAdminHealthcareUsersByUserIdRequest**](PutAdminHealthcareUsersByUserIdRequest.md)|  | 
+ **user_id** | **str**|  | 
+ **update_healthcare_user_request** | [**UpdateHealthcareUserRequest**](UpdateHealthcareUserRequest.md)|  | 
 
 ### Return type
 
-[**GetAdminHealthcareUsers200ResponseInner**](GetAdminHealthcareUsers200ResponseInner.md)
+[**HealthcareUser**](HealthcareUser.md)
 
 ### Authorization
 
@@ -411,19 +416,19 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**404** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

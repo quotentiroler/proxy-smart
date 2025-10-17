@@ -15,7 +15,7 @@ Method | HTTP request | Description
 
 
 # **get_monitoring_oauth_analytics**
-> GetMonitoringOauthAnalytics200Response get_monitoring_oauth_analytics(authorization=authorization)
+> OAuthAnalyticsResponse get_monitoring_oauth_analytics(authorization=authorization)
 
 Get OAuth Analytics
 
@@ -27,7 +27,7 @@ Get current OAuth analytics and metrics
 
 ```python
 import api_client
-from api_client.models.get_monitoring_oauth_analytics200_response import GetMonitoringOauthAnalytics200Response
+from api_client.models.o_auth_analytics_response import OAuthAnalyticsResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -51,7 +51,7 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.OauthMonitoringApi(api_client)
-    authorization = 'authorization_example' # str | Bearer token (optional)
+    authorization = 'authorization_example' # str |  (optional)
 
     try:
         # Get OAuth Analytics
@@ -69,11 +69,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **authorization** | **str**| Bearer token | [optional] 
+ **authorization** | **str**|  | [optional] 
 
 ### Return type
 
-[**GetMonitoringOauthAnalytics200Response**](GetMonitoringOauthAnalytics200Response.md)
+[**OAuthAnalyticsResponse**](OAuthAnalyticsResponse.md)
 
 ### Authorization
 
@@ -82,18 +82,21 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_monitoring_oauth_analytics_export**
-> get_monitoring_oauth_analytics_export(authorization)
+> ExportResponse get_monitoring_oauth_analytics_export(authorization)
 
 Export Analytics Data
 
@@ -105,6 +108,7 @@ Download current OAuth analytics data as JSON file
 
 ```python
 import api_client
+from api_client.models.export_response import ExportResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -128,11 +132,13 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.OauthMonitoringApi(api_client)
-    authorization = 'authorization_example' # str | Bearer token
+    authorization = 'authorization_example' # str | 
 
     try:
         # Export Analytics Data
-        api_instance.get_monitoring_oauth_analytics_export(authorization)
+        api_response = api_instance.get_monitoring_oauth_analytics_export(authorization)
+        print("The response of OauthMonitoringApi->get_monitoring_oauth_analytics_export:\n")
+        pprint(api_response)
     except Exception as e:
         print("Exception when calling OauthMonitoringApi->get_monitoring_oauth_analytics_export: %s\n" % e)
 ```
@@ -144,11 +150,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **authorization** | **str**| Bearer token | 
+ **authorization** | **str**|  | 
 
 ### Return type
 
-void (empty response body)
+[**ExportResponse**](ExportResponse.md)
 
 ### Authorization
 
@@ -157,18 +163,24 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_monitoring_oauth_analytics_stream**
-> get_monitoring_oauth_analytics_stream(authorization=authorization, token=token)
+> Dict[str, object] get_monitoring_oauth_analytics_stream(token=token, authorization=authorization)
 
 OAuth Analytics Stream
 
@@ -203,12 +215,14 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.OauthMonitoringApi(api_client)
-    authorization = 'authorization_example' # str | Bearer token (optional)
-    token = 'token_example' # str | Bearer token for authentication (since EventSource cannot send custom headers) (optional)
+    token = 'token_example' # str |  (optional)
+    authorization = 'authorization_example' # str |  (optional)
 
     try:
         # OAuth Analytics Stream
-        api_instance.get_monitoring_oauth_analytics_stream(authorization=authorization, token=token)
+        api_response = api_instance.get_monitoring_oauth_analytics_stream(token=token, authorization=authorization)
+        print("The response of OauthMonitoringApi->get_monitoring_oauth_analytics_stream:\n")
+        pprint(api_response)
     except Exception as e:
         print("Exception when calling OauthMonitoringApi->get_monitoring_oauth_analytics_stream: %s\n" % e)
 ```
@@ -220,12 +234,12 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **authorization** | **str**| Bearer token | [optional] 
- **token** | **str**| Bearer token for authentication (since EventSource cannot send custom headers) | [optional] 
+ **token** | **str**|  | [optional] 
+ **authorization** | **str**|  | [optional] 
 
 ### Return type
 
-void (empty response body)
+**Dict[str, object]**
 
 ### Authorization
 
@@ -234,18 +248,22 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_monitoring_oauth_events**
-> GetMonitoringOauthEvents200Response get_monitoring_oauth_events(authorization=authorization, limit=limit, type=type, status=status, client_id=client_id, since=since)
+> OAuthEventsResponse get_monitoring_oauth_events(limit=limit, type=type, status=status, client_id=client_id, since=since, authorization=authorization)
 
 Get OAuth Events
 
@@ -257,7 +275,7 @@ Retrieve recent OAuth events with optional filtering
 
 ```python
 import api_client
-from api_client.models.get_monitoring_oauth_events200_response import GetMonitoringOauthEvents200Response
+from api_client.models.o_auth_events_response import OAuthEventsResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -281,16 +299,16 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.OauthMonitoringApi(api_client)
-    authorization = 'authorization_example' # str | Bearer token (optional)
-    limit = 'limit_example' # str | Maximum number of events to return (optional)
-    type = 'type_example' # str | Filter by event type (optional)
-    status = 'status_example' # str | Filter by event status (optional)
-    client_id = 'client_id_example' # str | Filter by client ID (optional)
-    since = 'since_example' # str | Filter events since this timestamp (optional)
+    limit = 'limit_example' # str |  (optional)
+    type = 'type_example' # str |  (optional)
+    status = 'status_example' # str |  (optional)
+    client_id = 'client_id_example' # str |  (optional)
+    since = 'since_example' # str |  (optional)
+    authorization = 'authorization_example' # str |  (optional)
 
     try:
         # Get OAuth Events
-        api_response = api_instance.get_monitoring_oauth_events(authorization=authorization, limit=limit, type=type, status=status, client_id=client_id, since=since)
+        api_response = api_instance.get_monitoring_oauth_events(limit=limit, type=type, status=status, client_id=client_id, since=since, authorization=authorization)
         print("The response of OauthMonitoringApi->get_monitoring_oauth_events:\n")
         pprint(api_response)
     except Exception as e:
@@ -304,16 +322,16 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **authorization** | **str**| Bearer token | [optional] 
- **limit** | **str**| Maximum number of events to return | [optional] 
- **type** | **str**| Filter by event type | [optional] 
- **status** | **str**| Filter by event status | [optional] 
- **client_id** | **str**| Filter by client ID | [optional] 
- **since** | **str**| Filter events since this timestamp | [optional] 
+ **limit** | **str**|  | [optional] 
+ **type** | **str**|  | [optional] 
+ **status** | **str**|  | [optional] 
+ **client_id** | **str**|  | [optional] 
+ **since** | **str**|  | [optional] 
+ **authorization** | **str**|  | [optional] 
 
 ### Return type
 
-[**GetMonitoringOauthEvents200Response**](GetMonitoringOauthEvents200Response.md)
+[**OAuthEventsResponse**](OAuthEventsResponse.md)
 
 ### Authorization
 
@@ -322,18 +340,22 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_monitoring_oauth_events_export**
-> get_monitoring_oauth_events_export(authorization)
+> str get_monitoring_oauth_events_export(authorization)
 
 Export Events Data
 
@@ -368,11 +390,13 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.OauthMonitoringApi(api_client)
-    authorization = 'authorization_example' # str | Bearer token
+    authorization = 'authorization_example' # str | 
 
     try:
         # Export Events Data
-        api_instance.get_monitoring_oauth_events_export(authorization)
+        api_response = api_instance.get_monitoring_oauth_events_export(authorization)
+        print("The response of OauthMonitoringApi->get_monitoring_oauth_events_export:\n")
+        pprint(api_response)
     except Exception as e:
         print("Exception when calling OauthMonitoringApi->get_monitoring_oauth_events_export: %s\n" % e)
 ```
@@ -384,11 +408,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **authorization** | **str**| Bearer token | 
+ **authorization** | **str**|  | 
 
 ### Return type
 
-void (empty response body)
+**str**
 
 ### Authorization
 
@@ -397,18 +421,24 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: text/plain, application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_monitoring_oauth_events_stream**
-> get_monitoring_oauth_events_stream(authorization=authorization, token=token)
+> Dict[str, object] get_monitoring_oauth_events_stream(token=token, authorization=authorization)
 
 OAuth Events Stream
 
@@ -443,12 +473,14 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.OauthMonitoringApi(api_client)
-    authorization = 'authorization_example' # str | Bearer token (optional)
-    token = 'token_example' # str | Bearer token for authentication (since EventSource cannot send custom headers) (optional)
+    token = 'token_example' # str |  (optional)
+    authorization = 'authorization_example' # str |  (optional)
 
     try:
         # OAuth Events Stream
-        api_instance.get_monitoring_oauth_events_stream(authorization=authorization, token=token)
+        api_response = api_instance.get_monitoring_oauth_events_stream(token=token, authorization=authorization)
+        print("The response of OauthMonitoringApi->get_monitoring_oauth_events_stream:\n")
+        pprint(api_response)
     except Exception as e:
         print("Exception when calling OauthMonitoringApi->get_monitoring_oauth_events_stream: %s\n" % e)
 ```
@@ -460,12 +492,12 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **authorization** | **str**| Bearer token | [optional] 
- **token** | **str**| Bearer token for authentication (since EventSource cannot send custom headers) | [optional] 
+ **token** | **str**|  | [optional] 
+ **authorization** | **str**|  | [optional] 
 
 ### Return type
 
-void (empty response body)
+**Dict[str, object]**
 
 ### Authorization
 
@@ -474,18 +506,22 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_monitoring_oauth_health**
-> get_monitoring_oauth_health(authorization=authorization)
+> MonitoringHealthResponse get_monitoring_oauth_health(authorization=authorization)
 
 Get System Health
 
@@ -497,6 +533,7 @@ Get OAuth system health metrics and alerts
 
 ```python
 import api_client
+from api_client.models.monitoring_health_response import MonitoringHealthResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -520,11 +557,13 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.OauthMonitoringApi(api_client)
-    authorization = 'authorization_example' # str | Bearer token (optional)
+    authorization = 'authorization_example' # str |  (optional)
 
     try:
         # Get System Health
-        api_instance.get_monitoring_oauth_health(authorization=authorization)
+        api_response = api_instance.get_monitoring_oauth_health(authorization=authorization)
+        print("The response of OauthMonitoringApi->get_monitoring_oauth_health:\n")
+        pprint(api_response)
     except Exception as e:
         print("Exception when calling OauthMonitoringApi->get_monitoring_oauth_health: %s\n" % e)
 ```
@@ -536,11 +575,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **authorization** | **str**| Bearer token | [optional] 
+ **authorization** | **str**|  | [optional] 
 
 ### Return type
 
-void (empty response body)
+[**MonitoringHealthResponse**](MonitoringHealthResponse.md)
 
 ### Authorization
 
@@ -549,28 +588,35 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_oauth_monitoring_websocket_info**
-> get_oauth_monitoring_websocket_info()
+> WebSocketInfoResponse get_oauth_monitoring_websocket_info()
 
 WebSocket Connection Info
 
-Information about the OAuth monitoring WebSocket endpoint
+Get information about WebSocket endpoints and supported subscriptions
 
 ### Example
 
 
 ```python
 import api_client
+from api_client.models.web_socket_info_response import WebSocketInfoResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -588,7 +634,9 @@ with api_client.ApiClient(configuration) as api_client:
 
     try:
         # WebSocket Connection Info
-        api_instance.get_oauth_monitoring_websocket_info()
+        api_response = api_instance.get_oauth_monitoring_websocket_info()
+        print("The response of OauthMonitoringApi->get_oauth_monitoring_websocket_info:\n")
+        pprint(api_response)
     except Exception as e:
         print("Exception when calling OauthMonitoringApi->get_oauth_monitoring_websocket_info: %s\n" % e)
 ```
@@ -601,7 +649,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-void (empty response body)
+[**WebSocketInfoResponse**](WebSocketInfoResponse.md)
 
 ### Authorization
 
@@ -610,13 +658,14 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**422** | Response for status 422 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

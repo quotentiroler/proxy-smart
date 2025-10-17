@@ -1,0 +1,24 @@
+# Bun Configuration
+# https://bun.sh/docs/runtime/configuration
+
+[install]
+# Use isolated installs for better monorepo dependency isolation
+linker = "isolated"
+
+# Require packages to be published for at least 7 days before installation
+# This helps protect against supply chain attacks
+minimumReleaseAge = 604800 # 7 days in seconds
+
+# Security scanner (Socket.dev)
+# [install.security]
+# scanner = "@socketsecurity/bun-security-scanner"
+
+[console]
+# Control console.log() depth
+depth = 5
+
+[test]
+# Enable concurrent testing for I/O-bound tests
+concurrentTestGlob = "**/integration/**/*.test.ts"
+concurrent = true
+maxConcurrency = 20

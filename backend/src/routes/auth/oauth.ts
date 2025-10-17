@@ -1,10 +1,23 @@
-import { Elysia, t } from 'elysia'
+import { Elysia } from 'elysia'
 import fetch from 'cross-fetch'
 import { config } from '../../config'
 import { validateToken } from '../../lib/auth'
 import { getAllServers, ensureServersInitialized } from '../../lib/fhir-server-store'
 import { logger } from '../../lib/logger'
 import { oauthMetricsLogger } from '../../lib/oauth-metrics-logger'
+import {
+  TokenRequest,
+  IntrospectRequest,
+  IntrospectResponse,
+  AuthorizationQuery,
+  LoginQuery,
+  LogoutQuery,
+  PublicIdentityProvidersResponse,
+  TokenResponse,
+  UserInfoHeader,
+  UserInfoResponse,
+  UserInfoErrorResponse
+} from '../../schemas'
 
 interface TokenPayload {
   sub?: string
@@ -100,22 +113,11 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
 
     return redirect(url.href)
   }, {
-    query: t.Object({
-      response_type: t.Optional(t.String({ description: 'OAuth response type' })),
-      client_id: t.Optional(t.String({ description: 'OAuth client ID' })),
-      redirect_uri: t.Optional(t.String({ description: 'OAuth redirect URI' })),
-      scope: t.Optional(t.String({ description: 'OAuth scope' })),
-      state: t.Optional(t.String({ description: 'OAuth state parameter' })),
-      code_challenge: t.Optional(t.String({ description: 'PKCE code challenge' })),
-      code_challenge_method: t.Optional(t.String({ description: 'PKCE code challenge method' })),
-      authorization_details: t.Optional(t.String({ description: 'Authorization details JSON string for multiple FHIR servers' })),
-      kc_idp_hint: t.Optional(t.String({ description: 'Keycloak Identity Provider hint to skip provider selection' }))
-    }),
+    query: AuthorizationQuery,
     detail: {
       summary: 'OAuth Authorization Endpoint',
       description: 'Redirects to Keycloak authorization endpoint for OAuth flow with support for authorization details',
-      tags: ['authentication'],
-      response: { 200: { description: 'Redirects to authorization server.' } }
+      tags: ['authentication']
     }
   })
 
@@ -145,20 +147,11 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
 
     return redirect(url.href)
   }, {
-    query: t.Object({
-      client_id: t.Optional(t.String({ description: 'OAuth client ID (defaults to admin-ui)' })),
-      redirect_uri: t.Optional(t.String({ description: 'OAuth redirect URI (defaults to base URL)' })),
-      scope: t.Optional(t.String({ description: 'OAuth scope (defaults to openid profile email)' })),
-      state: t.Optional(t.String({ description: 'OAuth state parameter (auto-generated if not provided)' })),
-      code_challenge: t.Optional(t.String({ description: 'PKCE code challenge' })),
-      code_challenge_method: t.Optional(t.String({ description: 'PKCE code challenge method' })),
-      authorization_details: t.Optional(t.String({ description: 'Authorization details JSON string for multiple FHIR servers' }))
-    }),
+    query: LoginQuery,
     detail: {
       summary: 'Login Page Redirect',
       description: 'Simplified login endpoint that redirects to Keycloak with sensible defaults for UI applications',
-      tags: ['authentication'],
-      response: { 200: { description: 'Redirects to Keycloak login page.' } }
+      tags: ['authentication']
     }
   })
 
@@ -204,16 +197,11 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
     logger.auth.debug('Redirecting to Keycloak logout URL', { url: url.href })
     return redirect(url.href)
   }, {
-    query: t.Object({
-      post_logout_redirect_uri: t.Optional(t.String({ description: 'Post-logout redirect URI (defaults to base URL)' })),
-      id_token_hint: t.Optional(t.String({ description: 'ID token hint for logout' })),
-      client_id: t.Optional(t.String({ description: 'OAuth client ID' }))
-    }),
+    query: LogoutQuery,
     detail: {
       summary: 'Logout Endpoint',
       description: 'Proxies logout requests to Keycloak with sensible defaults',
-      tags: ['authentication'],
-      response: { 200: { description: 'Redirects to Keycloak logout page.' } }
+      tags: ['authentication']
     }
   })
 
@@ -255,18 +243,12 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
     }
   }, {
     response: {
-      200: t.Array(t.Object({
-        alias: t.String({ description: 'Provider alias' }),
-        providerId: t.String({ description: 'Provider type' }),
-        displayName: t.String({ description: 'Display name' }),
-        enabled: t.Boolean({ description: 'Whether provider is enabled' })
-      }))
+      200: PublicIdentityProvidersResponse
     },
     detail: {
       summary: 'Get Public Identity Providers',
       description: 'Get list of enabled identity providers for login page (public endpoint)',
-      tags: ['authentication'],
-      response: { 200: { description: 'List of enabled identity providers.' } }
+      tags: ['authentication']
     }
   })
 
@@ -434,72 +416,14 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
     }
   },
     {
-      body: t.Object({
-        grant_type: t.String({ description: 'OAuth grant type (e.g., authorization_code, client_credentials, password)' }),
-        code: t.Optional(t.String({ description: 'Authorization code for exchange' })),
-        redirect_uri: t.Optional(t.String({ description: 'Redirect URI for authorization code flow' })),
-        client_id: t.Optional(t.String({ description: 'OAuth client ID' })),
-        client_secret: t.Optional(t.String({ description: 'OAuth client secret' })),
-        code_verifier: t.Optional(t.String({ description: 'PKCE code verifier for security' })),
-        refresh_token: t.Optional(t.String({ description: 'Refresh token for refresh_token grant' })),
-        scope: t.Optional(t.String({ description: 'Requested scopes' })),
-        audience: t.Optional(t.String({ description: 'Audience for the token request' })),
-        // Password grant fields
-        username: t.Optional(t.String({ description: 'Username for password grant' })),
-        password: t.Optional(t.String({ description: 'Password for password grant' })),
-        // Backend Services (SMART on FHIR) fields
-        client_assertion_type: t.Optional(t.String({ description: 'Client assertion type for JWT authentication' })),
-        client_assertion: t.Optional(t.String({ description: 'Client assertion JWT for Backend Services authentication' }))
-      }),
-      response: t.Object({
-        access_token: t.Optional(t.String({ description: 'JWT access token' })),
-        token_type: t.Optional(t.String({ description: 'Token type (Bearer)' })),
-        expires_in: t.Optional(t.Number({ description: 'Token expiration time in seconds' })),
-        refresh_token: t.Optional(t.String({ description: 'Refresh token' })),
-        refresh_expires_in: t.Optional(t.Number({ description: 'Refresh token expiration time in seconds' })),
-        id_token: t.Optional(t.String({ description: 'OpenID Connect ID token' })),
-        scope: t.Optional(t.String({ description: 'Granted scopes' })),
-        session_state: t.Optional(t.String({ description: 'Keycloak session state' })),
-        'not-before-policy': t.Optional(t.Number({ description: 'Not before policy timestamp' })),
-        // SMART on FHIR launch context parameters (per SMART App Launch 2.2.0)
-        patient: t.Optional(t.String({ description: 'Patient in context (e.g., Patient/123)' })),
-        encounter: t.Optional(t.String({ description: 'Encounter in context (e.g., Encounter/456)' })),
-        fhirUser: t.Optional(t.String({ description: 'FHIR user resource (e.g., Practitioner/789)' })),
-        fhirContext: t.Optional(t.Array(t.Object({
-          reference: t.Optional(t.String({ description: 'FHIR resource reference' })),
-          canonical: t.Optional(t.String({ description: 'Canonical URL' })),
-          identifier: t.Optional(t.Object({}, { description: 'FHIR Identifier' })),
-          type: t.Optional(t.String({ description: 'FHIR resource type' })),
-          role: t.Optional(t.String({ description: 'Role URI' }))
-        }), { description: 'Additional FHIR resources in context' })),
-        intent: t.Optional(t.String({ description: 'Launch intent (e.g., reconcile-medications)' })),
-        smart_style_url: t.Optional(t.String({ description: 'URL to CSS stylesheet for styling' })),
-        tenant: t.Optional(t.String({ description: 'Tenant identifier' })),
-        need_patient_banner: t.Optional(t.Boolean({ description: 'Whether patient banner is required' })),
-        // Authorization details for multiple FHIR servers (RFC 9396)
-        authorization_details: t.Optional(t.Array(t.Object({
-          type: t.String({ description: 'Authorization details type (smart_on_fhir)' }),
-          locations: t.Array(t.String({ description: 'Array of FHIR base URLs where token can be used' })),
-          fhirVersions: t.Array(t.String({ description: 'Array of FHIR version codes (e.g., 4.0.1, 1.0.2)' })),
-          scope: t.Optional(t.String({ description: 'Space-separated SMART scopes for these locations' })),
-          patient: t.Optional(t.String({ description: 'Patient context for these locations' })),
-          encounter: t.Optional(t.String({ description: 'Encounter context for these locations' })),
-          fhirContext: t.Optional(t.Array(t.Object({
-            reference: t.Optional(t.String({ description: 'FHIR resource reference' })),
-            canonical: t.Optional(t.String({ description: 'Canonical URL' })),
-            identifier: t.Optional(t.Object({}, { description: 'FHIR Identifier' })),
-            type: t.Optional(t.String({ description: 'FHIR resource type' })),
-            role: t.Optional(t.String({ description: 'Role URI' }))
-          }), { description: 'FHIR context for these locations' }))
-        }), { description: 'Authorization details for multiple FHIR servers' })),
-        error: t.Optional(t.String({ description: 'Error code if request failed' })),
-        error_description: t.Optional(t.String({ description: 'Error description if request failed' }))
-      }),
+      body: TokenRequest,
+      response: {
+        200: TokenResponse
+      },
       detail: {
         summary: 'OAuth Token Exchange',
         description: 'Exchange authorization code for access token with SMART launch context and authorization details for multiple FHIR servers',
-        tags: ['authentication'],
-        response: { 200: { description: 'OAuth token response with access token, SMART launch context parameters, and authorization details for multiple FHIR servers.' } }
+        tags: ['authentication']
       }
     })
 
@@ -513,24 +437,14 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
     })
     return resp.json()
   }, {
-    body: t.Object({
-      token: t.String({ description: 'The token to introspect' }),
-      token_type_hint: t.Optional(t.String({ description: 'Hint about the token type (access_token, refresh_token)' })),
-      client_id: t.Optional(t.String({ description: 'OAuth client ID' })),
-      client_secret: t.Optional(t.String({ description: 'OAuth client secret' }))
-    }),
-    response: t.Object({
-      active: t.Boolean({ description: 'Whether token is active' }),
-      sub: t.Optional(t.String({ description: 'Subject (user ID)' })),
-      aud: t.Optional(t.String({ description: 'Audience' })),
-      exp: t.Optional(t.Number({ description: 'Expiration timestamp' })),
-      scope: t.Optional(t.String({ description: 'Token scopes' }))
-    }),
+    body: IntrospectRequest,
+    response: {
+      200: IntrospectResponse
+    },
     detail: {
       summary: 'Token Introspection',
       description: 'Validate and get information about an access token',
-      tags: ['authentication'],
-      response: { 200: { description: 'Token introspection response.' } }
+      tags: ['authentication']
     }
   })
 
@@ -574,31 +488,15 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       return { error: 'Invalid token' }
     }
   }, {
-    headers: t.Object({
-      authorization: t.String({ description: 'Bearer token' })
-    }),
+    headers: UserInfoHeader,
     response: {
-      200: t.Object({
-        id: t.String({ description: 'User ID' }),
-        fhirUser: t.Optional(t.String({ description: 'FHIR user resource reference (e.g., Practitioner/123)' })),
-        name: t.Array(t.Object({
-          text: t.String({ description: 'Display name' })
-        })),
-        username: t.String({ description: 'Username' }),
-        email: t.Optional(t.String({ description: 'Email address' })),
-        firstName: t.Optional(t.String({ description: 'First name' })),
-        lastName: t.Optional(t.String({ description: 'Last name' })),
-        roles: t.Array(t.String({ description: 'User roles' }))
-      }),
-      401: t.Object({
-        error: t.String({ description: 'Error message' })
-      })
+      200: UserInfoResponse,
+      401: UserInfoErrorResponse
     },
     detail: {
       summary: 'Get Current User Profile',
       description: 'Get authenticated user profile information from JWT token',
       tags: ['authentication'],
-      security: [{ BearerAuth: [] }],
-      response: { 200: { description: 'User profile information.' } }
+      security: [{ BearerAuth: [] }]
     }
   })

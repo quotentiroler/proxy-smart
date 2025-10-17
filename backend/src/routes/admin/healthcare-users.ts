@@ -1,7 +1,18 @@
 import { Elysia, t } from 'elysia'
 import { keycloakPlugin } from '../../lib/keycloak-plugin'
-import { UserProfile, ErrorResponse, SuccessResponse, PaginationQuery } from '../../schemas/common'
-import { extractBearerToken, UNAUTHORIZED_RESPONSE, getValidatedAdmin, mapUserProfile, AuthenticationError } from '../../lib/admin-utils'
+import { 
+  SuccessResponse,
+  CommonErrorResponses,
+  PaginationQuery,
+  HealthcareUser, 
+  CreateHealthcareUserRequest,
+  UpdateHealthcareUserRequest,
+  UserIdParam,
+  HealthcareUserType,
+  SuccessResponseType,
+  ErrorResponseType
+} from '../../schemas'
+import { extractBearerToken, UNAUTHORIZED_RESPONSE, getValidatedAdmin, mapHealthcareUser, AuthenticationError } from '../../lib/admin-utils'
 import { logger } from '../../lib/logger'
 
 /**
@@ -10,7 +21,7 @@ import { logger } from '../../lib/logger'
 export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
   .use(keycloakPlugin)
   
-  .get('/', async ({ getAdmin, query, set, headers }) => {
+  .get('/', async ({ getAdmin, query, set, headers }): Promise<HealthcareUserType[] | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = extractBearerToken(headers)
@@ -56,7 +67,7 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
       
       // Filter for healthcare users and map them with role information
       const healthcareUsers = await Promise.all(completeUsers.map(async (user) => {
-        const profile = mapUserProfile(user)
+        const profile = mapHealthcareUser(user)
         
         // Try to get user sessions for last login info
         let lastLogin: number | null = null
@@ -148,26 +159,18 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
   }, {
     query: PaginationQuery,
     response: {
-      200: t.Array(UserProfile),
-      401: ErrorResponse,
-      403: ErrorResponse,
-      500: ErrorResponse
+      200: t.Array(HealthcareUser),
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'List Healthcare Users',
       description: 'Get all healthcare users with optional pagination',
       tags: ['healthcare-users'],
-      security: [{ BearerAuth: [] }],
-      response: { 
-        200: { description: 'A list of all healthcare users.' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Insufficient permissions' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
   
-  .post('/', async ({ getAdmin, body, set, headers }) => {
+  .post('/', async ({ getAdmin, body, set, headers }): Promise<HealthcareUserType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = extractBearerToken(headers)
@@ -244,7 +247,7 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
       
       // Return the created user object (fetch by id)
       const created = result.id ? await admin.users.findOne({ id: result.id }) : undefined
-      return created ? mapUserProfile(created) : { error: 'Failed to retrieve created user' }
+      return created ? mapHealthcareUser(created) : { error: 'Failed to retrieve created user' }
     } catch (error) {
       logger.admin.error('Error creating healthcare user', { error })
       
@@ -277,41 +280,20 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
       return { error: 'Failed to create healthcare user', details: error }
     }
   }, {
-    body: t.Object({
-      username: t.String({ description: 'Unique username' }),
-      email: t.String({ description: 'Email address', format: 'email' }),
-      firstName: t.String({ description: 'First name' }),
-      lastName: t.String({ description: 'Last name' }),
-      organization: t.Optional(t.String({ description: 'Organization' })),
-      fhirUser: t.Optional(t.String({ description: 'FHIR User identifiers in format "server1:Person/123,server2:Person/456"' })),
-      password: t.Optional(t.String({ description: 'Initial password' })),
-      temporaryPassword: t.Optional(t.Boolean({ description: 'Whether password is temporary' })),
-      realmRoles: t.Optional(t.Array(t.String({ description: 'Realm roles to assign' }))),
-      clientRoles: t.Optional(t.Record(t.String(), t.Array(t.String()), { description: 'Client roles to assign' }))
-    }),
+    body: CreateHealthcareUserRequest,
     response: {
-      200: UserProfile,
-      400: ErrorResponse,
-      401: ErrorResponse,
-      403: ErrorResponse,
-      500: ErrorResponse
+      200: HealthcareUser,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Create Healthcare User',
       description: 'Create a new healthcare user',
       tags: ['healthcare-users'],
-      security: [{ BearerAuth: [] }],
-      response: { 
-        200: { description: 'Healthcare user created.' },
-        400: { description: 'Invalid request data' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Insufficient permissions' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
   
-  .get('/:userId', async ({ getAdmin, params, set, headers }) => {
+  .get('/:userId', async ({ getAdmin, params, set, headers }): Promise<HealthcareUserType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = extractBearerToken(headers)
@@ -326,7 +308,7 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
         set.status = 404
         return { error: 'Healthcare user not found' }
       }
-      return mapUserProfile(user)
+      return mapHealthcareUser(user)
     } catch (error) {
       // Extract actual HTTP status from Keycloak response if available
       const errorObj = error as Record<string, unknown>;
@@ -352,32 +334,20 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
       return { error: 'Failed to fetch healthcare user', details: error }
     }
   }, {
-    params: t.Object({
-      userId: t.String({ description: 'User ID' })
-    }),
+    params: UserIdParam,
     response: {
-      200: UserProfile,
-      401: ErrorResponse,
-      403: ErrorResponse,
-      404: ErrorResponse,
-      500: ErrorResponse
+      200: HealthcareUser,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Get Healthcare User',
       description: 'Get a healthcare user by userId',
       tags: ['healthcare-users'],
-      security: [{ BearerAuth: [] }],
-      response: { 
-        200: { description: 'Healthcare user details.' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Insufficient permissions' },
-        404: { description: 'User not found' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
   
-  .put('/:userId', async ({ getAdmin, params, body, set, headers }) => {
+  .put('/:userId', async ({ getAdmin, params, body, set, headers }): Promise<HealthcareUserType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = extractBearerToken(headers)
@@ -481,7 +451,7 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
         set.status = 404
         return { error: 'Healthcare user not found' }
       }
-      return mapUserProfile(updated)
+      return mapHealthcareUser(updated)
     } catch (error) {
       // Extract actual HTTP status from Keycloak response if available
       const errorObj = error as Record<string, unknown>;
@@ -507,44 +477,21 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
       return { error: 'Failed to update healthcare user', details: error }
     }
   }, {
-    params: t.Object({
-      userId: t.String({ description: 'User ID' })
-    }),
-    body: t.Object({
-      firstName: t.Optional(t.String({ description: 'First name' })),
-      lastName: t.Optional(t.String({ description: 'Last name' })),
-      email: t.Optional(t.String({ description: 'Email address', format: 'email' })),
-      enabled: t.Optional(t.Boolean({ description: 'Whether user is enabled' })),
-      organization: t.Optional(t.String({ description: 'Organization' })),
-      fhirUser: t.Optional(t.String({ description: 'FHIR User identifiers in format "server1:Person/123,server2:Person/456"' })),
-      realmRoles: t.Optional(t.Array(t.String({ description: 'Realm roles to assign' }))),
-      clientRoles: t.Optional(t.Record(t.String(), t.Array(t.String()), { description: 'Client roles to assign' }))
-    }),
+    params: UserIdParam,
+    body: UpdateHealthcareUserRequest,
     response: {
-      200: UserProfile,
-      400: ErrorResponse,
-      401: ErrorResponse,
-      403: ErrorResponse,
-      404: ErrorResponse,
-      500: ErrorResponse
+      200: HealthcareUser,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Update Healthcare User',
       description: 'Update a healthcare user by userId',
       tags: ['healthcare-users'],
-      security: [{ BearerAuth: [] }],
-      response: { 
-        200: { description: 'Healthcare user updated.' },
-        400: { description: 'Invalid request data' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Insufficient permissions' },
-        404: { description: 'User not found' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })
   
-  .delete('/:userId', async ({ getAdmin, params, set, headers }) => {
+  .delete('/:userId', async ({ getAdmin, params, set, headers }): Promise<SuccessResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = extractBearerToken(headers)
@@ -581,27 +528,15 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
       return { error: 'Healthcare user not found or could not be deleted', details: error }
     }
   }, {
-    params: t.Object({
-      userId: t.String({ description: 'User ID' })
-    }),
+    params: UserIdParam,
     response: {
       200: SuccessResponse,
-      401: ErrorResponse,
-      403: ErrorResponse,
-      404: ErrorResponse,
-      500: ErrorResponse
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Delete Healthcare User',
       description: 'Delete a healthcare user by userId',
       tags: ['healthcare-users'],
-      security: [{ BearerAuth: [] }],
-      response: { 
-        200: { description: 'Healthcare user deleted.' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        403: { description: 'Forbidden - Insufficient permissions' },
-        404: { description: 'User not found' },
-        500: { description: 'Internal server error' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })

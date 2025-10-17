@@ -96,6 +96,49 @@
       "attributes": {
         "access.token.lifespan": "3600"
       }
+    },
+    {
+      "clientId": "ai-assistant-agent",
+      "name": "AI Assistant Agent",
+      "description": "Hybrid administrative and clinical AI agent: manages identities, links Keycloak users to FHIR resources (Patient/Practitioner/Person), administers SMART apps, and orchestrates healthcare workflows across identity and clinical domains",
+      "enabled": true,
+      "clientAuthenticatorType": "client-jwt",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "attributes": {
+        "smart_app": "true",
+        "smart_version": "2.0.0",
+        "fhir_version": "R4",
+        "client_type": "agent",
+        "agent_behavior": "non-deterministic",
+        "agent_capability": "autonomous-decision-making",
+        "agent_scope": "identity-management,fhir-resource-linking,smart-app-administration,clinical-workflow-orchestration",
+        "access_pattern": "hybrid-admin-clinical",
+        "use.jwks.string": "true",
+        "jwks.string": "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS384\",\"kid\":\"ai-assistant-key-1\",\"n\":\"6DDWa6c-jE5aL2a_I5udMB7O4M7T-OI9VIl1qDh9OhSIejv8dgnVYQ3oY6Pgg9e_049E5W6P40ZSwN3Zi2UngqZIo0-TvSTVvti1QVYaiKS1JfE7OcW7iM3aOCMJYO1XL6xiOXkvCdsPE8I9YfaCxH2RerClEHNpGF0rJ5cgIaHmkBTO9gxNWkjfrdwUODqtzgRaZbwz3zHYq-zuV07ipWzPEQa_2Zb8RQEDf3rUx9aglQH-xCr9Kmc6itY0-frchGAdtthvv3YlXffIQqkNf3DAJZkg1ikOU2llUVpmHitNJZF1HjQUWm-Lfwk3JxRp-SpdU-jbdpiSa3pkmE2s0w\",\"e\":\"AQAB\"}]}",
+        "token.endpoint.auth.signing.alg": "RS384",
+        "access.token.lifespan": "3600"
+      }
     }
   ],
   "users": [
@@ -168,6 +211,20 @@
           "view-clients",
           "create-client",
           "manage-realm"
+        ]
+      }
+    },
+    {
+      "username": "service-account-ai-assistant-agent",
+      "enabled": true,
+      "serviceAccountClientId": "ai-assistant-agent",
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "query-users",
+          "manage-users",
+          "view-clients",
+          "query-clients"
         ]
       }
     }

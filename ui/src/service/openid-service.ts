@@ -1,6 +1,6 @@
 import { config } from '@/config';
 import { AuthenticationApi, Configuration } from '../lib/api-client';
-import type { PostAuthTokenRequest } from '../lib/api-client';
+import type { TokenRequest } from '../lib/api-client';
 
 interface OpenIDConfig {
   baseUrl: string;
@@ -92,7 +92,7 @@ class OpenIDService {
       hasClientSecret: !!this.config.clientSecret
     });
     
-    const tokenRequest: PostAuthTokenRequest = {
+    const tokenRequest: TokenRequest = {
       grantType: 'authorization_code',
       code,
       clientId: this.config.clientId,
@@ -103,7 +103,7 @@ class OpenIDService {
 
     try {
       const response = await this.authApi.postAuthToken({
-        postAuthTokenRequest: tokenRequest,
+        tokenRequest: tokenRequest,
       });
 
       console.debug('Token response received:', {
@@ -185,7 +185,7 @@ class OpenIDService {
     
     try {
       const response = await this.authApi.postAuthToken({
-        postAuthTokenRequest: {
+        tokenRequest: {
           grantType: 'refresh_token',
           refreshToken,
           clientId: this.config.clientId,

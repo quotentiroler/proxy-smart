@@ -43,7 +43,7 @@ export function KeycloakConfigForm({ onSuccess, onCancel }: KeycloakConfigFormPr
 
     try {
       const result = await clientApis.admin.postAdminKeycloakConfigTest({
-        postAdminKeycloakConfigTestRequest: {
+        testKeycloakConnectionRequest: {
           baseUrl: baseUrl.trim(),
           realm: realm.trim()
         }
@@ -75,7 +75,7 @@ export function KeycloakConfigForm({ onSuccess, onCancel }: KeycloakConfigFormPr
 
     try {
       const result = await clientApis.admin.postAdminKeycloakConfigConfigure({
-        postAdminKeycloakConfigConfigureRequest: {
+        saveKeycloakConfigRequest: {
           baseUrl: baseUrl.trim(),
           realm: realm.trim(),
           adminClientId: adminClientId.trim() || undefined,

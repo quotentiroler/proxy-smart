@@ -1,6 +1,6 @@
-import { Elysia, t } from 'elysia'
+import { Elysia } from 'elysia'
 import { logger } from '../../lib/logger'
-import { ErrorResponse } from '../../schemas/common'
+import { ErrorResponse, ServerOperationResponse } from '../../schemas'
 import { smartAppsRoutes } from './smart-apps'
 import { healthcareUsersRoutes } from './healthcare-users'
 import { rolesRoutes } from './roles'
@@ -34,11 +34,7 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean(),
-        message: t.String(),
-        timestamp: t.String()
-      }),
+      200: ServerOperationResponse,
       500: ErrorResponse
     },
     detail: {
@@ -62,11 +58,7 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean(),
-        message: t.String(),
-        timestamp: t.String()
-      }),
+      200: ServerOperationResponse,
       500: ErrorResponse
     },
     detail: {

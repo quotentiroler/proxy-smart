@@ -210,28 +210,45 @@ export function SmartAppsManager() {
     fetchApps();
   }, [clientApis.smartApps]);
 
-  const handleAddApp = (appData: SmartAppFormData) => {
-    // Convert form data to SmartApp format for UI display
-    const app: SmartApp = {
-      id: Date.now().toString(),
-      name: appData.name,
-      clientId: appData.clientId,
-      redirectUris: appData.redirectUris , // Take first redirect URI for UI display
-      defaultClientScopes: appData.defaultScopes,
-      optionalClientScopes: appData.optionalScopes,
-      scopeSetId: appData.scopeSetId,
-      status: 'active',
-      lastUsed: new Date().toISOString().split('T')[0],
-      description: appData.description || '',
-      appType: appData.appType || 'standalone-app',
-      authenticationType: appData.authenticationType || 'symmetric',
-      serverAccessType: appData.serverAccessType || 'all-servers',
-      allowedServerIds: appData.allowedServerIds,
-    };
-    // Note: When showing mock apps (no real apps from backend), this only updates the UI
-    // To persist new apps, they need to be created via the backend API
-    setApps([...apps, app]);
-    setShowAddForm(false);
+  const handleAddApp = async (appData: SmartAppFormData) => {
+    try {
+      // Call backend API to create the SMART app
+      await clientApis.smartApps.postAdminSmartApps({
+        createSmartAppRequest: {
+          clientId: appData.clientId || '',
+          name: appData.name,
+          description: appData.description,
+          publicClient: appData.publicClient,
+          redirectUris: appData.redirectUris,
+          webOrigins: appData.webOrigins,
+          defaultScopes: appData.defaultScopes,
+          optionalScopes: appData.optionalScopes,
+          smartVersion: appData.smartVersion,
+          fhirVersion: appData.fhirVersion,
+          appType: appData.appType,
+          clientType: appData.clientType as 'public' | 'confidential' | 'backend-service' | undefined,
+          publicKey: appData.publicKey,
+          jwksUri: appData.jwksUri,
+          systemScopes: appData.systemScopes
+        }
+      });
+
+      // Refresh the apps list from the backend to get the newly created app
+      const response = await clientApis.smartApps.getAdminSmartApps();
+      if (Array.isArray(response)) {
+        setBackendApps(response);
+        // Merge backend apps with mock apps for display
+        const backendAppIds = new Set(response.map(a => a.id));
+        const remainingMockApps = mockApps.filter(app => !backendAppIds.has(app.id));
+        setApps([...response, ...remainingMockApps]);
+      }
+
+      setShowAddForm(false);
+    } catch (error) {
+      console.error('Failed to create SMART app:', error);
+      // Show error notification to user
+      alert('Failed to create SMART app. Please check the console for details.');
+    }
   };
 
   // Helper to determine if we're showing mock data

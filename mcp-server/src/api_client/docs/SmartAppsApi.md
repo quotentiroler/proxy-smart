@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 
 # **delete_admin_smart_apps_by_client_id**
-> PutAdminSmartAppsByClientId200Response delete_admin_smart_apps_by_client_id(client_id)
+> SuccessResponse delete_admin_smart_apps_by_client_id(client_id)
 
 Delete SMART on FHIR Application
 
@@ -25,7 +25,7 @@ Delete a SMART on FHIR application by clientId
 
 ```python
 import api_client
-from api_client.models.put_admin_smart_apps_by_client_id200_response import PutAdminSmartAppsByClientId200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -49,7 +49,7 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.SmartAppsApi(api_client)
-    client_id = 'client_id_example' # str | SMART application client ID
+    client_id = 'client_id_example' # str | 
 
     try:
         # Delete SMART on FHIR Application
@@ -67,11 +67,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **client_id** | **str**| SMART application client ID | 
+ **client_id** | **str**|  | 
 
 ### Return type
 
-[**PutAdminSmartAppsByClientId200Response**](PutAdminSmartAppsByClientId200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -80,22 +80,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**404** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_smart_apps**
-> List[GetAdminSmartApps200ResponseInner] get_admin_smart_apps()
+> List[SmartApp] get_admin_smart_apps()
 
 List SMART on FHIR Applications
 
@@ -107,7 +108,7 @@ Get all registered SMART on FHIR applications
 
 ```python
 import api_client
-from api_client.models.get_admin_smart_apps200_response_inner import GetAdminSmartApps200ResponseInner
+from api_client.models.smart_app import SmartApp
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -149,7 +150,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**List[GetAdminSmartApps200ResponseInner]**](GetAdminSmartApps200ResponseInner.md)
+[**List[SmartApp]**](SmartApp.md)
 
 ### Authorization
 
@@ -158,21 +159,23 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_smart_apps_by_client_id**
-> GetAdminSmartApps200ResponseInner get_admin_smart_apps_by_client_id(client_id)
+> SmartApp get_admin_smart_apps_by_client_id(client_id)
 
 Get SMART on FHIR Application
 
@@ -184,7 +187,7 @@ Get a single SMART on FHIR application by clientId
 
 ```python
 import api_client
-from api_client.models.get_admin_smart_apps200_response_inner import GetAdminSmartApps200ResponseInner
+from api_client.models.smart_app import SmartApp
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -208,7 +211,7 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.SmartAppsApi(api_client)
-    client_id = 'client_id_example' # str | SMART application client ID
+    client_id = 'client_id_example' # str | 
 
     try:
         # Get SMART on FHIR Application
@@ -226,11 +229,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **client_id** | **str**| SMART application client ID | 
+ **client_id** | **str**|  | 
 
 ### Return type
 
-[**GetAdminSmartApps200ResponseInner**](GetAdminSmartApps200ResponseInner.md)
+[**SmartApp**](SmartApp.md)
 
 ### Authorization
 
@@ -239,22 +242,23 @@ Name | Type | Description  | Notes
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**404** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_smart_apps**
-> GetAdminSmartApps200ResponseInner post_admin_smart_apps(post_admin_smart_apps_request)
+> SmartApp post_admin_smart_apps(create_smart_app_request)
 
 Create SMART on FHIR Application
 
@@ -266,8 +270,8 @@ Create a new SMART on FHIR application
 
 ```python
 import api_client
-from api_client.models.get_admin_smart_apps200_response_inner import GetAdminSmartApps200ResponseInner
-from api_client.models.post_admin_smart_apps_request import PostAdminSmartAppsRequest
+from api_client.models.create_smart_app_request import CreateSmartAppRequest
+from api_client.models.smart_app import SmartApp
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -291,11 +295,11 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.SmartAppsApi(api_client)
-    post_admin_smart_apps_request = api_client.PostAdminSmartAppsRequest() # PostAdminSmartAppsRequest | 
+    create_smart_app_request = api_client.CreateSmartAppRequest() # CreateSmartAppRequest | 
 
     try:
         # Create SMART on FHIR Application
-        api_response = api_instance.post_admin_smart_apps(post_admin_smart_apps_request)
+        api_response = api_instance.post_admin_smart_apps(create_smart_app_request)
         print("The response of SmartAppsApi->post_admin_smart_apps:\n")
         pprint(api_response)
     except Exception as e:
@@ -309,11 +313,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **post_admin_smart_apps_request** | [**PostAdminSmartAppsRequest**](PostAdminSmartAppsRequest.md)|  | 
+ **create_smart_app_request** | [**CreateSmartAppRequest**](CreateSmartAppRequest.md)|  | 
 
 ### Return type
 
-[**GetAdminSmartApps200ResponseInner**](GetAdminSmartApps200ResponseInner.md)
+[**SmartApp**](SmartApp.md)
 
 ### Authorization
 
@@ -321,24 +325,24 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**404** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_smart_config_refresh**
-> post_admin_smart_config_refresh()
+> SmartConfigRefreshResponse post_admin_smart_config_refresh()
 
 Refresh SMART Configuration Cache
 
@@ -350,6 +354,7 @@ Manually refresh the cached SMART configuration from Keycloak
 
 ```python
 import api_client
+from api_client.models.smart_config_refresh_response import SmartConfigRefreshResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -376,7 +381,9 @@ with api_client.ApiClient(configuration) as api_client:
 
     try:
         # Refresh SMART Configuration Cache
-        api_instance.post_admin_smart_config_refresh()
+        api_response = api_instance.post_admin_smart_config_refresh()
+        print("The response of SmartAppsApi->post_admin_smart_config_refresh:\n")
+        pprint(api_response)
     except Exception as e:
         print("Exception when calling SmartAppsApi->post_admin_smart_config_refresh: %s\n" % e)
 ```
@@ -389,7 +396,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-void (empty response body)
+[**SmartConfigRefreshResponse**](SmartConfigRefreshResponse.md)
 
 ### Authorization
 
@@ -398,18 +405,24 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_admin_smart_apps_by_client_id**
-> PutAdminSmartAppsByClientId200Response put_admin_smart_apps_by_client_id(client_id, put_admin_smart_apps_by_client_id_request)
+> SuccessResponse put_admin_smart_apps_by_client_id(client_id, update_smart_app_request)
 
 Update SMART on FHIR Application
 
@@ -421,8 +434,8 @@ Update an existing SMART on FHIR application
 
 ```python
 import api_client
-from api_client.models.put_admin_smart_apps_by_client_id200_response import PutAdminSmartAppsByClientId200Response
-from api_client.models.put_admin_smart_apps_by_client_id_request import PutAdminSmartAppsByClientIdRequest
+from api_client.models.success_response import SuccessResponse
+from api_client.models.update_smart_app_request import UpdateSmartAppRequest
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -446,12 +459,12 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.SmartAppsApi(api_client)
-    client_id = 'client_id_example' # str | SMART application client ID
-    put_admin_smart_apps_by_client_id_request = api_client.PutAdminSmartAppsByClientIdRequest() # PutAdminSmartAppsByClientIdRequest | 
+    client_id = 'client_id_example' # str | 
+    update_smart_app_request = api_client.UpdateSmartAppRequest() # UpdateSmartAppRequest | 
 
     try:
         # Update SMART on FHIR Application
-        api_response = api_instance.put_admin_smart_apps_by_client_id(client_id, put_admin_smart_apps_by_client_id_request)
+        api_response = api_instance.put_admin_smart_apps_by_client_id(client_id, update_smart_app_request)
         print("The response of SmartAppsApi->put_admin_smart_apps_by_client_id:\n")
         pprint(api_response)
     except Exception as e:
@@ -465,12 +478,12 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **client_id** | **str**| SMART application client ID | 
- **put_admin_smart_apps_by_client_id_request** | [**PutAdminSmartAppsByClientIdRequest**](PutAdminSmartAppsByClientIdRequest.md)|  | 
+ **client_id** | **str**|  | 
+ **update_smart_app_request** | [**UpdateSmartAppRequest**](UpdateSmartAppRequest.md)|  | 
 
 ### Return type
 
-[**PutAdminSmartAppsByClientId200Response**](PutAdminSmartAppsByClientId200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -478,19 +491,19 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**404** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

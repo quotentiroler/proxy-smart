@@ -33,8 +33,8 @@ import { KeycloakConfigForm } from './KeycloakConfigForm';
 import type { 
     DashboardData,
     FhirServersListResponse,
-    KeycloakConfigurationStatus,
-    SystemStatus
+    KeycloakConfigResponse,
+    SystemStatusResponse
 } from '../lib/types/api';
 import { config } from '../config';
 
@@ -69,11 +69,23 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
         serversCount: 0,
         identityProvidersCount: 0,
         loading: true,
-        error: null
+        error: null,
+        stats: {
+            totalApps: 0,
+            activeUsers: 0,
+            connectedServers: 0,
+            todayRequests: 0
+        },
+        serverStatus: {
+            keycloak: 'unknown',
+            fhir: 'unknown',
+            database: 'unknown'
+        },
+        recentActivity: []
     });
 
     // Keycloak configuration state - using meaningful types from api.ts
-    const [keycloakConfig, setKeycloakConfig] = useState<KeycloakConfigurationStatus & {
+    const [keycloakConfig, setKeycloakConfig] = useState<KeycloakConfigResponse & {
         loading: boolean;
         error: string | null;
     }>({
@@ -182,13 +194,30 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                 ]);
 
                 // Update dashboard data with proper type checking
+                const appsCount = smartApps.status === 'fulfilled' ? Array.isArray(smartApps.value) ? smartApps.value.length : 0 : 0;
+                const usersCount = users.status === 'fulfilled' ? Array.isArray(users.value) ? users.value.length : 0 : 0;
+                const serversCount = servers.status === 'fulfilled' ? (servers.value as { servers?: unknown[] }).servers?.length || 0 : 0;
+                const idpCount = identityProvidersCount.status === 'fulfilled' ? (identityProvidersCount.value as { count?: number }).count || 0 : 0;
+                
                 setDashboardData({
-                    smartAppsCount: smartApps.status === 'fulfilled' ? Array.isArray(smartApps.value) ? smartApps.value.length : 0 : 0,
-                    usersCount: users.status === 'fulfilled' ? Array.isArray(users.value) ? users.value.length : 0 : 0,
-                    serversCount: servers.status === 'fulfilled' ? (servers.value as { servers?: unknown[] }).servers?.length || 0 : 0,
-                    identityProvidersCount: identityProvidersCount.status === 'fulfilled' ? (identityProvidersCount.value as { count?: number }).count || 0 : 0,
+                    smartAppsCount: appsCount,
+                    usersCount: usersCount,
+                    serversCount: serversCount,
+                    identityProvidersCount: idpCount,
                     loading: false,
-                    error: null
+                    error: null,
+                    stats: {
+                        totalApps: appsCount,
+                        activeUsers: usersCount,
+                        connectedServers: serversCount,
+                        todayRequests: 0
+                    },
+                    serverStatus: {
+                        keycloak: systemStatus.status === 'fulfilled' ? 'healthy' : 'unknown',
+                        fhir: 'unknown',
+                        database: 'unknown'
+                    },
+                    recentActivity: []
                 });
 
                 // Update OAuth analytics
@@ -217,15 +246,15 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
 
                 // Update system health with real data
                 if (systemStatus.status === 'fulfilled') {
-                    const statusData = systemStatus.value as SystemStatus;
+                    const statusData = systemStatus.value as SystemStatusResponse;
 
                     // Format uptime
                     const uptimeSeconds = statusData.uptime || 0;
                     const uptimeHours = Math.floor(uptimeSeconds / 3600);
                     const uptimeFormatted = uptimeHours > 0 ? `${uptimeHours}h` : `${Math.floor(uptimeSeconds / 60)}m`;
 
-                    // Check AI Agent status
-                    const isOpenAIConnected = aiAssistant.isOpenAIAvailableSync();
+                    // Check AI Agent status - use await since it's async
+                    const isOpenAIConnected = await aiAssistant.isOpenAIAvailable();
                     const aiAgentStatus = isOpenAIConnected ? 'connected' : 'fallback';
                     const aiAgentSearchType = isOpenAIConnected ? 'openai_powered' : 'semantic_search';
 
@@ -270,8 +299,8 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                         aiAgentSearchType
                     }));
                 } else {
-                    // Check AI Agent status even when system status fails
-                    const isOpenAIConnected = aiAssistant.isOpenAIAvailableSync();
+                    // Check AI Agent status even when system status fails - use await since it's async
+                    const isOpenAIConnected = await aiAssistant.isOpenAIAvailable();
                     const aiAgentStatus = isOpenAIConnected ? 'connected' : 'fallback';
                     const aiAgentSearchType = isOpenAIConnected ? 'openai_powered' : 'semantic_search';
 
@@ -287,7 +316,7 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
 
                 // Update Keycloak configuration status
                 if (keycloakStatus.status === 'fulfilled') {
-                    const kcData = keycloakStatus.value as KeycloakConfigurationStatus;
+                    const kcData = keycloakStatus.value as KeycloakConfigResponse;
                     setKeycloakConfig({
                         baseUrl: kcData.baseUrl,
                         realm: kcData.realm,
@@ -297,7 +326,7 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                         error: null
                     });
                 } else {
-                    setKeycloakConfig((prev: KeycloakConfigurationStatus & { loading: boolean; error: string | null }) => ({
+                    setKeycloakConfig((prev: KeycloakConfigResponse & { loading: boolean; error: string | null }) => ({
                         ...prev,
                         loading: false,
                         error: 'Failed to load Keycloak configuration'

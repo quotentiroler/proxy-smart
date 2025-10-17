@@ -1,6 +1,17 @@
 import { Elysia, t } from 'elysia'
 import { keycloakPlugin } from '../../lib/keycloak-plugin'
-import { ErrorResponse } from '../../schemas/common'
+import { 
+  CommonErrorResponses,
+  CreateIdentityProviderRequest, 
+  UpdateIdentityProviderRequest,
+  IdentityProviderResponse,
+  CountResponse,
+  SuccessResponse,
+  type CountResponseType,
+  type IdentityProviderResponseType,
+  type SuccessResponseType,
+  type ErrorResponseType
+} from '../../schemas'
 import { handleAdminError } from '../../lib/admin-error-handler'
 import type { IdentityProvider } from '../../types'
 
@@ -10,7 +21,7 @@ import type { IdentityProvider } from '../../types'
 export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
   .use(keycloakPlugin)
 
-  .get('/count', async ({ getAdmin, headers, set }) => {
+  .get('/count', async ({ getAdmin, headers, set }): Promise<CountResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -29,22 +40,17 @@ export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
     }
   }, {
     response: {
-      200: t.Object({
-        count: t.Number({ description: 'Number of enabled identity providers' }),
-        total: t.Number({ description: 'Total number of identity providers' })
-      }),
-      401: ErrorResponse,
-      500: ErrorResponse
+      200: CountResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Get Identity Providers Count',
       description: 'Get the count of enabled and total identity providers',
-      tags: ['identity-providers'],
-      response: { 200: { description: 'Identity providers count.' } }
+      tags: ['identity-providers']
     }
   })
 
-  .get('/', async ({ getAdmin, headers, set }) => {
+  .get('/', async ({ getAdmin, headers, set }): Promise<IdentityProviderResponseType[] | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -68,25 +74,17 @@ export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
     }
   }, {
     response: {
-      200: t.Array(t.Object({
-        alias: t.String({ description: 'Provider alias' }),
-        providerId: t.String({ description: 'Provider type' }),
-        displayName: t.Optional(t.String({ description: 'Display name' })),
-        enabled: t.Optional(t.Boolean({ description: 'Whether provider is enabled' })),
-        config: t.Optional(t.Object({}))
-      })),
-      401: ErrorResponse,
-      500: ErrorResponse
+      200: t.Array(IdentityProviderResponse),
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'List Identity Providers',
       description: 'Get all configured identity providers',
-      tags: ['identity-providers'],
-      response: { 200: { description: 'A list of all configured identity providers.' } }
+      tags: ['identity-providers']
     }
   })
 
-  .post('/', async ({ getAdmin, body, headers, set }) => {
+  .post('/', async ({ getAdmin, body, headers, set }): Promise<IdentityProviderResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -110,59 +108,19 @@ export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
       return { error: 'Failed to create identity provider', details: error }
     }
   }, {
-    body: t.Object({
-      alias: t.String(),
-      providerId: t.String(),
-      displayName: t.Optional(t.String()),
-      enabled: t.Optional(t.Boolean()),
-      config: t.Object({
-        // Common fields
-        displayName: t.Optional(t.String()),
-        entityId: t.Optional(t.String()),
-        singleSignOnServiceUrl: t.Optional(t.String()),
-        singleLogoutServiceUrl: t.Optional(t.String()),
-        metadataDescriptorUrl: t.Optional(t.String()),
-        enabled: t.Optional(t.Boolean()),
-        
-        // OIDC/OAuth2 specific fields
-        clientSecret: t.Optional(t.String()),
-        tokenUrl: t.Optional(t.String()),
-        userInfoUrl: t.Optional(t.String()),
-        issuer: t.Optional(t.String()),
-        defaultScopes: t.Optional(t.String()),
-        logoutUrl: t.Optional(t.String()),
-        
-        // SAML specific fields
-        signatureAlgorithm: t.Optional(t.String()),
-        nameIdPolicyFormat: t.Optional(t.String()),
-        signingCertificate: t.Optional(t.String()),
-        validateSignature: t.Optional(t.Boolean()),
-        wantAuthnRequestsSigned: t.Optional(t.Boolean()),
-        
-        // Allow additional configuration
-        additionalConfig: t.Optional(t.Record(t.String(), t.Any()))
-      })
-    }),
+    body: CreateIdentityProviderRequest,
     response: {
-      200: t.Object({
-        alias: t.String({ description: 'Provider alias' }),
-        providerId: t.String({ description: 'Provider type' }),
-        displayName: t.Optional(t.String({ description: 'Display name' })),
-        enabled: t.Optional(t.Boolean({ description: 'Whether provider is enabled' })),
-        config: t.Optional(t.Object({}))
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: IdentityProviderResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Create Identity Provider',
       description: 'Create a new identity provider',
-      tags: ['identity-providers'],
-      response: { 200: { description: 'Identity provider created successfully.' } }
+      tags: ['identity-providers']
     }
   })
 
-  .get('/:alias', async ({ getAdmin, params, headers, set }) => {
+  .get('/:alias', async ({ getAdmin, params, headers, set }): Promise<IdentityProviderResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -190,26 +148,17 @@ export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
     }
   }, {
     response: {
-      200: t.Object({
-        alias: t.String({ description: 'Provider alias' }),
-        providerId: t.String({ description: 'Provider type' }),
-        displayName: t.Optional(t.String({ description: 'Display name' })),
-        enabled: t.Optional(t.Boolean({ description: 'Whether provider is enabled' })),
-        config: t.Optional(t.Object({}))
-      }),
-      401: ErrorResponse,
-      404: ErrorResponse,
-      500: ErrorResponse
+      200: IdentityProviderResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Get Identity Provider',
       description: 'Get an identity provider by alias',
-      tags: ['identity-providers'],
-      response: { 200: { description: 'Identity provider details.' } }
+      tags: ['identity-providers']
     }
   })
 
-  .put('/:alias', async ({ getAdmin, params, body, headers, set }) => {
+  .put('/:alias', async ({ getAdmin, params, body, headers, set }): Promise<SuccessResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -226,53 +175,19 @@ export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
       return { error: 'Failed to update identity provider', details: error }
     }
   }, {
-    body: t.Object({
-      displayName: t.Optional(t.String()),
-      enabled: t.Optional(t.Boolean()),
-      config: t.Optional(t.Object({
-        // Common fields
-        displayName: t.Optional(t.String()),
-        entityId: t.Optional(t.String()),
-        singleSignOnServiceUrl: t.Optional(t.String()),
-        singleLogoutServiceUrl: t.Optional(t.String()),
-        metadataDescriptorUrl: t.Optional(t.String()),
-        enabled: t.Optional(t.Boolean()),
-        
-        // OIDC/OAuth2 specific fields
-        clientSecret: t.Optional(t.String()),
-        tokenUrl: t.Optional(t.String()),
-        userInfoUrl: t.Optional(t.String()),
-        issuer: t.Optional(t.String()),
-        defaultScopes: t.Optional(t.String()),
-        logoutUrl: t.Optional(t.String()),
-        
-        // SAML specific fields
-        signatureAlgorithm: t.Optional(t.String()),
-        nameIdPolicyFormat: t.Optional(t.String()),
-        signingCertificate: t.Optional(t.String()),
-        validateSignature: t.Optional(t.Boolean()),
-        wantAuthnRequestsSigned: t.Optional(t.Boolean()),
-        
-        // Allow additional configuration
-        additionalConfig: t.Optional(t.Record(t.String(), t.Any()))
-      }))
-    }),
+    body: UpdateIdentityProviderRequest,
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the update was successful' })
-      }),
-      400: ErrorResponse,
-      401: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Update Identity Provider',
       description: 'Update an identity provider by alias',
-      tags: ['identity-providers'],
-      response: { 200: { description: 'Identity provider updated successfully.' } }
+      tags: ['identity-providers']
     }
   })
 
-  .delete('/:alias', async ({ getAdmin, params, headers, set }) => {
+  .delete('/:alias', async ({ getAdmin, params, headers, set }): Promise<SuccessResponseType | ErrorResponseType> => {
     try {
       // Extract user's token from Authorization header
       const token = headers.authorization?.replace('Bearer ', '')
@@ -290,16 +205,12 @@ export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
     }
   }, {
     response: {
-      200: t.Object({
-        success: t.Boolean({ description: 'Whether the delete was successful' })
-      }),
-      401: ErrorResponse,
-      404: ErrorResponse
+      200: SuccessResponse,
+      ...CommonErrorResponses
     },
     detail: {
       summary: 'Delete Identity Provider',
       description: 'Delete an identity provider by alias',
-      tags: ['identity-providers'],
-      response: { 200: { description: 'Identity provider deleted successfully.' } }
+      tags: ['identity-providers']
     }
   })

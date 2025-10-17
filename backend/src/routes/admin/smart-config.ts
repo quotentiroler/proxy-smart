@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia'
 import { smartConfigService } from '../../lib/smart-config'
 import { validateToken } from '../../lib/auth'
+import { CommonErrorResponses, SmartConfigRefreshResponse } from '../../schemas'
 
 /**
  * SMART Configuration Admin endpoints
@@ -31,15 +32,14 @@ export const smartConfigAdminRoutes = new Elysia({ prefix: '/smart-config', tags
       return { error: 'Failed to refresh SMART configuration cache', details: error }
     }
   }, {
+    response: {
+      200: SmartConfigRefreshResponse,
+      ...CommonErrorResponses
+    },
     detail: {
       summary: 'Refresh SMART Configuration Cache',
       description: 'Manually refresh the cached SMART configuration from Keycloak',
       tags: ['admin', 'smart-apps'],
-      security: [{ BearerAuth: [] }],
-      response: { 
-        200: { description: 'Cache refreshed successfully' },
-        401: { description: 'Unauthorized - Bearer token required' },
-        500: { description: 'Failed to refresh cache' }
-      }
+      security: [{ BearerAuth: [] }]
     }
   })

@@ -110,42 +110,109 @@ uv run python test_mcp_integration.py
 - ⚠️  Tool calls fail with 401 (expected without auth)
 - ✅ AI assistant handles errors gracefully
 
-### 2. Service Account Authentication (Priority: MEDIUM)
+### 2. Service Account Authentication (Priority: HIGH)
 
-#### Backend Changes Needed
-1. Add authentication middleware to FastMCP server
-2. Create service account in Keycloak:
-   ```json
-   {
-     "username": "mcp-server-agent",
-     "enabled": true,
-     "serviceAccountsEnabled": true,
-     "clientRoles": {
-       "realm-management": ["view-users", "manage-users"]
-     }
-   }
-   ```
+#### ✅ Already Implemented:
+- JWT-based authentication (`KeycloakBackendServicesAuth`)
+- SMART Backend Services specification
+- Private/public key pair generated
+- Token caching (5 min default)
+- Auto-fetch on server startup
 
-#### MCP Client Changes Needed
-1. Add token retrieval on connection:
-   ```python
-   async def _authenticate(self):
-       """Get access token for service account."""
-       # TODO: Implement OAuth2 client credentials flow
-       pass
-   ```
+#### ❌ Missing Step: Register the Client in Keycloak
 
-2. Pass token in tool calls (via environment or MCP metadata)
+**Quick Setup (Automated):**
+```powershell
+# 1. Start Keycloak
+cd backend
+docker-compose up keycloak
 
-#### Configuration
-- Store credentials in `.env`:
-  ```
-  MCP_SERVICE_ACCOUNT_USERNAME=mcp-server-agent
-  MCP_SERVICE_ACCOUNT_PASSWORD=<secret>
-  KEYCLOAK_URL=http://localhost:8080
-  ```
+# 2. Run registration script
+cd mcp-server
+uv run python scripts/register_keycloak_client.py
+```
+
+The script will:
+- Create realm `proxy-smart` if needed
+- Register client `ai-assistant-agent`
+- Upload public key for JWT validation
+- Configure service account roles
+
+**Manual Setup (via Keycloak Admin UI):**
+
+See `AUTH_SETUP.md` for detailed steps.
+
+**Test Authentication:**
+```powershell
+# Terminal 1: Backend
+cd backend
+npm run dev
+
+# Terminal 2: MCP Server
+cd mcp-server
+uv run uvicorn src.main:app --reload --port 8081
+
+# Terminal 3: Test
+cd mcp-server
+uv run python test_mcp_integration.py
+```
+
+Expected: ✅ Tools execute successfully (no 401 errors)
 
 ### 3. Claude Desktop Integration (Priority: LOW)
+
+#### Setup Instructions
+
+**1. Test MCP Server:**
+```powershell
+cd mcp-server
+uv run python test_claude_integration.py
+```
+
+**2. Configure Claude Desktop:**
+
+Create/edit `%APPDATA%\Claude\claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "smart-fhir-backend": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "C:\\Users\\MaximilianNussbaumer\\Workspace\\smart-on-fhir-proxy\\mcp-server\\src\\backend_mcp_server.py"
+      ],
+      "env": {
+        "BACKEND_API_URL": "http://localhost:8445",
+        "KEYCLOAK_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
+```
+
+**Note:** Update the path to match your actual workspace location.
+
+**3. Start Backend Server:**
+```powershell
+cd backend
+npm run dev
+```
+
+**4. Restart Claude Desktop**
+
+**5. Test Integration:**
+
+In Claude Desktop, ask:
+- "List all healthcare users"
+- "Show me the SMART apps"
+- "What FHIR servers are configured?"
+
+#### Authentication Setup (Optional)
+
+For production, add service account authentication:
+
 ```powershell
 # Install MCP server for Claude Desktop
 cd mcp-server

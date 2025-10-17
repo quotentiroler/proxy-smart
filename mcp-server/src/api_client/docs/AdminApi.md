@@ -16,7 +16,7 @@ Method | HTTP request | Description
 
 
 # **get_admin_client_registration_settings**
-> GetAdminClientRegistrationSettings200Response get_admin_client_registration_settings()
+> ClientRegistrationSettings get_admin_client_registration_settings()
 
 Get Dynamic Client Registration Settings
 
@@ -28,7 +28,7 @@ Get current settings for dynamic client registration
 
 ```python
 import api_client
-from api_client.models.get_admin_client_registration_settings200_response import GetAdminClientRegistrationSettings200Response
+from api_client.models.client_registration_settings import ClientRegistrationSettings
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -70,7 +70,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetAdminClientRegistrationSettings200Response**](GetAdminClientRegistrationSettings200Response.md)
+[**ClientRegistrationSettings**](ClientRegistrationSettings.md)
 
 ### Authorization
 
@@ -79,21 +79,21 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_admin_keycloak_config_status**
-> GetAdminKeycloakConfigStatus200Response get_admin_keycloak_config_status()
+> KeycloakConfigResponse get_admin_keycloak_config_status()
 
 Get Keycloak Admin Configuration
 
@@ -105,7 +105,7 @@ Get current Keycloak settings for administrative purposes. Use /auth/config for 
 
 ```python
 import api_client
-from api_client.models.get_admin_keycloak_config_status200_response import GetAdminKeycloakConfigStatus200Response
+from api_client.models.keycloak_config_response import KeycloakConfigResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -147,7 +147,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetAdminKeycloakConfigStatus200Response**](GetAdminKeycloakConfigStatus200Response.md)
+[**KeycloakConfigResponse**](KeycloakConfigResponse.md)
 
 ### Authorization
 
@@ -156,18 +156,19 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**422** | Response for status 422 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_client_registration_reset_defaults**
-> PutAdminSmartAppsByClientId200Response post_admin_client_registration_reset_defaults()
+> SuccessResponse post_admin_client_registration_reset_defaults()
 
 Reset Client Registration Settings to Defaults
 
@@ -179,7 +180,7 @@ Reset all client registration settings to their default values
 
 ```python
 import api_client
-from api_client.models.put_admin_smart_apps_by_client_id200_response import PutAdminSmartAppsByClientId200Response
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -221,7 +222,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**PutAdminSmartAppsByClientId200Response**](PutAdminSmartAppsByClientId200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -230,21 +231,21 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_keycloak_config_configure**
-> PostAdminKeycloakConfigConfigure200Response post_admin_keycloak_config_configure(post_admin_keycloak_config_configure_request)
+> SaveKeycloakConfigResponse post_admin_keycloak_config_configure(save_keycloak_config_request)
 
 Configure Keycloak Connection
 
@@ -256,8 +257,8 @@ Save Keycloak configuration to environment and restart connection
 
 ```python
 import api_client
-from api_client.models.post_admin_keycloak_config_configure200_response import PostAdminKeycloakConfigConfigure200Response
-from api_client.models.post_admin_keycloak_config_configure_request import PostAdminKeycloakConfigConfigureRequest
+from api_client.models.save_keycloak_config_request import SaveKeycloakConfigRequest
+from api_client.models.save_keycloak_config_response import SaveKeycloakConfigResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -281,11 +282,11 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.AdminApi(api_client)
-    post_admin_keycloak_config_configure_request = api_client.PostAdminKeycloakConfigConfigureRequest() # PostAdminKeycloakConfigConfigureRequest | 
+    save_keycloak_config_request = api_client.SaveKeycloakConfigRequest() # SaveKeycloakConfigRequest | 
 
     try:
         # Configure Keycloak Connection
-        api_response = api_instance.post_admin_keycloak_config_configure(post_admin_keycloak_config_configure_request)
+        api_response = api_instance.post_admin_keycloak_config_configure(save_keycloak_config_request)
         print("The response of AdminApi->post_admin_keycloak_config_configure:\n")
         pprint(api_response)
     except Exception as e:
@@ -299,11 +300,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **post_admin_keycloak_config_configure_request** | [**PostAdminKeycloakConfigConfigureRequest**](PostAdminKeycloakConfigConfigureRequest.md)|  | 
+ **save_keycloak_config_request** | [**SaveKeycloakConfigRequest**](SaveKeycloakConfigRequest.md)|  | 
 
 ### Return type
 
-[**PostAdminKeycloakConfigConfigure200Response**](PostAdminKeycloakConfigConfigure200Response.md)
+[**SaveKeycloakConfigResponse**](SaveKeycloakConfigResponse.md)
 
 ### Authorization
 
@@ -311,19 +312,19 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_keycloak_config_test**
-> PostAdminKeycloakConfigTest200Response post_admin_keycloak_config_test(post_admin_keycloak_config_test_request)
+> TestKeycloakConnectionResponse post_admin_keycloak_config_test(test_keycloak_connection_request)
 
 Test Keycloak Connection
 
@@ -335,8 +336,8 @@ Test connection to Keycloak without saving configuration
 
 ```python
 import api_client
-from api_client.models.post_admin_keycloak_config_test200_response import PostAdminKeycloakConfigTest200Response
-from api_client.models.post_admin_keycloak_config_test_request import PostAdminKeycloakConfigTestRequest
+from api_client.models.test_keycloak_connection_request import TestKeycloakConnectionRequest
+from api_client.models.test_keycloak_connection_response import TestKeycloakConnectionResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -360,11 +361,11 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.AdminApi(api_client)
-    post_admin_keycloak_config_test_request = api_client.PostAdminKeycloakConfigTestRequest() # PostAdminKeycloakConfigTestRequest | 
+    test_keycloak_connection_request = api_client.TestKeycloakConnectionRequest() # TestKeycloakConnectionRequest | 
 
     try:
         # Test Keycloak Connection
-        api_response = api_instance.post_admin_keycloak_config_test(post_admin_keycloak_config_test_request)
+        api_response = api_instance.post_admin_keycloak_config_test(test_keycloak_connection_request)
         print("The response of AdminApi->post_admin_keycloak_config_test:\n")
         pprint(api_response)
     except Exception as e:
@@ -378,11 +379,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **post_admin_keycloak_config_test_request** | [**PostAdminKeycloakConfigTestRequest**](PostAdminKeycloakConfigTestRequest.md)|  | 
+ **test_keycloak_connection_request** | [**TestKeycloakConnectionRequest**](TestKeycloakConnectionRequest.md)|  | 
 
 ### Return type
 
-[**PostAdminKeycloakConfigTest200Response**](PostAdminKeycloakConfigTest200Response.md)
+[**TestKeycloakConnectionResponse**](TestKeycloakConnectionResponse.md)
 
 ### Authorization
 
@@ -390,19 +391,19 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_restart**
-> PostAdminShutdown200Response post_admin_restart()
+> ServerOperationResponse post_admin_restart()
 
 Restart Server
 
@@ -414,7 +415,7 @@ Restart the SMART on FHIR server (admin only)
 
 ```python
 import api_client
-from api_client.models.post_admin_shutdown200_response import PostAdminShutdown200Response
+from api_client.models.server_operation_response import ServerOperationResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -456,7 +457,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**PostAdminShutdown200Response**](PostAdminShutdown200Response.md)
+[**ServerOperationResponse**](ServerOperationResponse.md)
 
 ### Authorization
 
@@ -465,19 +466,20 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_shutdown**
-> PostAdminShutdown200Response post_admin_shutdown()
+> ServerOperationResponse post_admin_shutdown()
 
 Shutdown Server
 
@@ -489,7 +491,7 @@ Gracefully shutdown the SMART on FHIR server (admin only)
 
 ```python
 import api_client
-from api_client.models.post_admin_shutdown200_response import PostAdminShutdown200Response
+from api_client.models.server_operation_response import ServerOperationResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -531,7 +533,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**PostAdminShutdown200Response**](PostAdminShutdown200Response.md)
+[**ServerOperationResponse**](ServerOperationResponse.md)
 
 ### Authorization
 
@@ -540,19 +542,20 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **post_admin_smart_config_refresh**
-> post_admin_smart_config_refresh()
+> SmartConfigRefreshResponse post_admin_smart_config_refresh()
 
 Refresh SMART Configuration Cache
 
@@ -564,6 +567,7 @@ Manually refresh the cached SMART configuration from Keycloak
 
 ```python
 import api_client
+from api_client.models.smart_config_refresh_response import SmartConfigRefreshResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -590,7 +594,9 @@ with api_client.ApiClient(configuration) as api_client:
 
     try:
         # Refresh SMART Configuration Cache
-        api_instance.post_admin_smart_config_refresh()
+        api_response = api_instance.post_admin_smart_config_refresh()
+        print("The response of AdminApi->post_admin_smart_config_refresh:\n")
+        pprint(api_response)
     except Exception as e:
         print("Exception when calling AdminApi->post_admin_smart_config_refresh: %s\n" % e)
 ```
@@ -603,7 +609,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-void (empty response body)
+[**SmartConfigRefreshResponse**](SmartConfigRefreshResponse.md)
 
 ### Authorization
 
@@ -612,18 +618,24 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**404** | Response for status 404 |  -  |
+**422** | Response for status 422 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **put_admin_client_registration_settings**
-> PutAdminSmartAppsByClientId200Response put_admin_client_registration_settings(get_admin_client_registration_settings200_response)
+> SuccessResponse put_admin_client_registration_settings(client_registration_settings)
 
 Update Dynamic Client Registration Settings
 
@@ -635,8 +647,8 @@ Update settings for dynamic client registration
 
 ```python
 import api_client
-from api_client.models.get_admin_client_registration_settings200_response import GetAdminClientRegistrationSettings200Response
-from api_client.models.put_admin_smart_apps_by_client_id200_response import PutAdminSmartAppsByClientId200Response
+from api_client.models.client_registration_settings import ClientRegistrationSettings
+from api_client.models.success_response import SuccessResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -660,11 +672,11 @@ configuration = api_client.Configuration(
 with api_client.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = api_client.AdminApi(api_client)
-    get_admin_client_registration_settings200_response = api_client.GetAdminClientRegistrationSettings200Response() # GetAdminClientRegistrationSettings200Response | 
+    client_registration_settings = api_client.ClientRegistrationSettings() # ClientRegistrationSettings | 
 
     try:
         # Update Dynamic Client Registration Settings
-        api_response = api_instance.put_admin_client_registration_settings(get_admin_client_registration_settings200_response)
+        api_response = api_instance.put_admin_client_registration_settings(client_registration_settings)
         print("The response of AdminApi->put_admin_client_registration_settings:\n")
         pprint(api_response)
     except Exception as e:
@@ -678,11 +690,11 @@ with api_client.ApiClient(configuration) as api_client:
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **get_admin_client_registration_settings200_response** | [**GetAdminClientRegistrationSettings200Response**](GetAdminClientRegistrationSettings200Response.md)|  | 
+ **client_registration_settings** | [**ClientRegistrationSettings**](ClientRegistrationSettings.md)|  | 
 
 ### Return type
 
-[**PutAdminSmartAppsByClientId200Response**](PutAdminSmartAppsByClientId200Response.md)
+[**SuccessResponse**](SuccessResponse.md)
 
 ### Authorization
 
@@ -690,18 +702,18 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: application/json, multipart/form-data, text/plain
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**400** |  |  -  |
-**401** |  |  -  |
-**403** |  |  -  |
-**500** |  |  -  |
+**200** | Response for status 200 |  -  |
+**400** | Response for status 400 |  -  |
+**401** | Response for status 401 |  -  |
+**403** | Response for status 403 |  -  |
+**500** | Response for status 500 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

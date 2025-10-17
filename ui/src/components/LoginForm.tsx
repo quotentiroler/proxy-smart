@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { openidService } from '../service/openid-service';
 import { getSessionItem, removeSessionItem } from '@/lib/storage';
-import type { GetAuthIdentityProviders200ResponseInner } from '../lib/api-client/models';
+import type { PublicIdentityProvider } from '../lib/api-client/models';
 import { KeycloakConfigForm } from './KeycloakConfigForm';
 import { AuthDebugPanel } from './AuthDebugPanel';
 import { 
@@ -26,7 +26,7 @@ import {
 export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableIdps, setAvailableIdps] = useState<GetAuthIdentityProviders200ResponseInner[]>([]);
+  const [availableIdps, setAvailableIdps] = useState<PublicIdentityProvider[]>([]);
   const [loadingIdps, setLoadingIdps] = useState(true);
   const [authAvailable, setAuthAvailable] = useState<boolean | null>(null);
   const [showConfigForm, setShowConfigForm] = useState(false);
@@ -42,12 +42,8 @@ export function LoginForm() {
       const idps = await clientApis.auth.getAuthIdentityProviders();
       
       // Filter to only show enabled identity providers
-      const enabledIdps = idps.filter((idp: GetAuthIdentityProviders200ResponseInner) => idp.enabled !== false);
+      const enabledIdps = idps.filter((idp: PublicIdentityProvider) => idp.enabled !== false);
       setAvailableIdps(enabledIdps);
-      
-      if (enabledIdps.length > 0) {
-        console.log(`Found ${enabledIdps.length} available identity providers:`, enabledIdps.map((idp: GetAuthIdentityProviders200ResponseInner) => idp.displayName || idp.alias));
-      }
     } catch (error) {
       console.warn('Could not fetch identity providers (this is normal for public access):', error);
       // Don't show this as an error to users - it's expected when not authenticated
@@ -101,7 +97,6 @@ export function LoginForm() {
   const handleCodeExchange = useCallback(async (code: string, state: string) => {
     // Prevent multiple simultaneous token exchange attempts
     if (isProcessingCodeExchange.current) {
-      console.log('🔒 Code exchange already in progress, skipping...');
       return;
     }
 
@@ -146,24 +141,17 @@ export function LoginForm() {
     
     // Prevent processing the same URL multiple times
     if (processedUrl.current === currentUrl) {
-      console.log('🔒 URL already processed, skipping:', currentUrl);
       return;
     }
 
-    console.log('LoginForm mounted, checking for OAuth callback...');
-    console.log('Current URL:', currentUrl);
-    
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
     const error = urlParams.get('error');
     const errorDescription = urlParams.get('error_description');
     
-    console.log('URL params:', { code: code ? `${code.substring(0, 10)}...` : null, state, error, errorDescription });
-    
     // Clear URL parameters immediately after extraction to prevent reuse
     if (code || error) {
-      console.log('🧹 Clearing URL parameters to prevent code reuse...');
       window.history.replaceState({}, document.title, window.location.pathname);
       processedUrl.current = currentUrl;
     }
@@ -175,8 +163,6 @@ export function LoginForm() {
     }
 
     if (code && state) {
-      console.log('Authorization code received, exchanging for tokens...');
-      
       // Exchange code for token
       handleCodeExchange(code, state);
     }
@@ -193,11 +179,6 @@ export function LoginForm() {
     setError(null);
     
     try {
-      const loginMessage = idpAlias 
-        ? `Initiating login with Identity Provider: ${idpAlias}`
-        : 'Initiating login with default provider';
-      console.log(loginMessage);
-      
       // Pass the IdP alias as a hint to the authentication service
       await initiateLogin(idpAlias);
     } catch (err) {

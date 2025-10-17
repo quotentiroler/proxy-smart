@@ -22,6 +22,7 @@ Name | Type | Description | Notes
 **direct_access_grants_enabled** | **bool** | Whether password grants are enabled | [optional] 
 **default_client_scopes** | **List[str]** | Default OAuth scopes | [optional] 
 **optional_client_scopes** | **List[str]** | Optional OAuth scopes | [optional] 
+**app_type** | **str** |  | [optional] 
 **access** | **object** | Access permissions | [optional] 
 
 ## Example

@@ -58,6 +58,14 @@ export default defineConfig({
     }
   },
   build: {
+    // Use esbuild for faster minification (3-4x faster than terser)
+    minify: 'esbuild',
+    // Disable source maps for faster builds
+    sourcemap: false,
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
+    // Don't report compressed size (saves ~1-2s on large projects)
+    reportCompressedSize: false,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -92,7 +100,9 @@ export default defineConfig({
             '@mantine/hooks',
             '@mantine/notifications',
             'recharts'
-          ]
+          ],
+          // Split out lucide icons (large icon library)
+          'vendor-icons': ['lucide-react']
         }
       },
       // Suppress specific warnings we can't fix (third-party library issues)
@@ -103,12 +113,6 @@ export default defineConfig({
         }
         warn(warning);
       }
-    },
-    // Increase chunk size warning limit to 1MB (from default 500KB)
-    chunkSizeWarningLimit: 1000,
-    // Enable source maps for better debugging in production
-    sourcemap: false,
-    // Optimize for smaller builds
-    minify: true
+    }
   }
 })

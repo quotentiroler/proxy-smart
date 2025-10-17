@@ -5,6 +5,9 @@
 **/__pycache__
 .vscode
 
+# OpenAPI Generator Cache
+.openapi-generator/
+
 # AI Tools Cache
 .ai_tools_cache/
 

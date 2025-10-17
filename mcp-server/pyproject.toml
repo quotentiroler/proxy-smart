@@ -24,6 +24,8 @@ dependencies = [
     "urllib3>=2.1.0,<3.0.0",
     "typing-extensions>=4.7.1",
     "mcp[cli]>=1.17.0",
+    "pyjwt>=2.10.0",
+    "cryptography>=46.0.0",
 ]
 
 [project.optional-dependencies]

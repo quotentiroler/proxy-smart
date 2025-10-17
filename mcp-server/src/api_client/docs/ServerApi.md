@@ -9,7 +9,7 @@ Method | HTTP request | Description
 
 
 # **get_health**
-> GetHealth200Response get_health(force=force)
+> HealthResponse get_health(force=force)
 
 Health Check (lean)
 
@@ -20,7 +20,7 @@ Fast liveness/readiness probe. Use /status for detailed system information.
 
 ```python
 import api_client
-from api_client.models.get_health200_response import GetHealth200Response
+from api_client.models.health_response import HealthResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -57,7 +57,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetHealth200Response**](GetHealth200Response.md)
+[**HealthResponse**](HealthResponse.md)
 
 ### Authorization
 
@@ -66,19 +66,20 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
-**503** |  |  -  |
+**200** | Response for status 200 |  -  |
+**422** | Response for status 422 |  -  |
+**503** | Response for status 503 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **get_status**
-> GetStatus200Response get_status()
+> SystemStatusResponse get_status()
 
 System Status
 
@@ -89,7 +90,7 @@ Comprehensive system status (cached components)
 
 ```python
 import api_client
-from api_client.models.get_status200_response import GetStatus200Response
+from api_client.models.system_status_response import SystemStatusResponse
 from api_client.rest import ApiException
 from pprint import pprint
 
@@ -122,7 +123,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetStatus200Response**](GetStatus200Response.md)
+[**SystemStatusResponse**](SystemStatusResponse.md)
 
 ### Authorization
 
@@ -131,13 +132,15 @@ No authorization required
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: application/json, multipart/form-data, text/plain
+ - **Accept**: application/json
 
 ### HTTP response details
 
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-**200** |  |  -  |
+**200** | Response for status 200 |  -  |
+**422** | Response for status 422 |  -  |
+**503** | Response for status 503 |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

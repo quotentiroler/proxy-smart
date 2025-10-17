@@ -1,0 +1,11 @@
+{
+  "name": "proxy-smart-scripts",
+  "version": "0.0.1",
+  "description": "CI/CD and development scripts for Proxy Smart",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@octokit/rest": "^22.0.0",
+    "openai": "^5.12.2"
+  }
+}

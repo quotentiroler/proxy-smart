@@ -131,7 +131,7 @@ export function DynamicClientRegistrationSettings() {
       setMessage(null);
       
       await clientApis.admin.putAdminClientRegistrationSettings({
-        getAdminClientRegistrationSettings200Response: settings as ClientRegistrationSettings
+        clientRegistrationSettings: settings as ClientRegistrationSettings
       });
       
       setMessage({ type: 'success', text: 'Settings saved successfully' });

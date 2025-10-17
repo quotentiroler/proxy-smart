@@ -5,14 +5,14 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**id** | **str** | Server identifier used in URLs | 
-**name** | **str** | Human-readable server name | 
-**url** | **str** | Original server URL | 
-**fhir_version** | **str** | FHIR version supported by server | 
-**server_version** | **str** | Server software version | [optional] 
-**server_name** | **str** | Server software name | [optional] 
-**supported** | **bool** | Whether this server is supported | 
-**endpoints** | [**GetFhirServers200ResponseServersInnerEndpoints**](GetFhirServers200ResponseServersInnerEndpoints.md) |  | 
+**id** | **str** | Server ID | 
+**name** | **str** | Server identifier/name | 
+**url** | **str** | Base URL of the FHIR server | 
+**fhir_version** | **str** | FHIR version (e.g., R4, R5) | 
+**server_version** | **str** | FHIR server software version | [optional] 
+**server_name** | **str** | FHIR server software name | [optional] 
+**supported** | **bool** | Whether the server is supported by this proxy | 
+**endpoints** | [**FhirServerListServersInnerEndpoints**](FhirServerListServersInnerEndpoints.md) |  | 
 
 ## Example
 

@@ -225,7 +225,7 @@ export function IdPManager() {
         config.enabled = formData.enabled;
 
         const response = await clientApis.identityProviders.postAdminIdps({
-          postAdminIdpsRequest: {
+          createIdentityProviderRequest: {
             alias: formData.name.toLowerCase().replace(/\s+/g, '-'),
             providerId: formData.type.toLowerCase(),
             config,
@@ -302,7 +302,7 @@ export function IdPManager() {
         // Try to update via backend API
         await clientApis.identityProviders.putAdminIdpsByAlias({
           alias: updatedIdp.id,
-          putAdminIdpsByAliasRequest: {
+          updateIdentityProviderRequest: {
             displayName: updatedIdp.name,
             enabled: updatedIdp.status === 'active',
             config: {

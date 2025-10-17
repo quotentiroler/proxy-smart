@@ -32,6 +32,7 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
   const [newApp, setNewApp] = useState<SmartAppFormData>({
     name: '',
     clientId: '',
+    launchUrl: '',
     redirectUris: [], // Changed to array for API compatibility
     description: '',
     defaultScopes: [],
@@ -130,6 +131,7 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
     onAddApp({
       name: newApp.name,
       clientId: newApp.clientId,
+      launchUrl: newApp.launchUrl,
       redirectUris: newApp.redirectUris || [],
       description: newApp.description,
       defaultScopes: finalDefaultScopes,
@@ -145,6 +147,7 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
     setNewApp({ 
       name: '', 
       clientId: '', 
+      launchUrl: '',
       redirectUris: [], 
       description: '', 
       defaultScopes: [], 
@@ -162,6 +165,7 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
     setNewApp({ 
       name: '', 
       clientId: '', 
+      launchUrl: '',
       redirectUris: [], 
       description: '', 
       defaultScopes: [], 

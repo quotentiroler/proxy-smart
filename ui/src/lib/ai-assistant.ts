@@ -1,5 +1,5 @@
 import { AiApi, Configuration } from './api-client';
-import type { PostAiChatRequest, PostAiChat200Response } from './api-client';
+import type { ChatRequest, ChatResponse } from './api-client';
 import { extractPageContext, summarizePageContext } from './page-context-extractor';
 
 // Types for the AI assistant
@@ -25,15 +25,17 @@ export interface ChatMessage {
   timestamp: Date;
   sources?: DocumentChunk[];
   streaming?: boolean; // Indicates if message is still being streamed
+  functionCalls?: string[]; // List of function names that were called
 }
 
 export interface StreamChunk {
-  type: 'sources' | 'content' | 'done' | 'error';
+  type: 'sources' | 'content' | 'done' | 'error' | 'function_calling' | 'reasoning' | 'reasoning_done';
   sources?: DocumentChunk[];
   content?: string;
   mode?: string;
   confidence?: number;
   error?: string;
+  name?: string; // Function name being called
 }
 
 class SmartOnFHIRAIAssistant {
@@ -75,15 +77,15 @@ class SmartOnFHIRAIAssistant {
   /**
    * Call backend AI API using generated client
    */
-  private async callBackendAI(message: string, conversationId?: string, pageContext?: string): Promise<PostAiChat200Response> {
-    const request: PostAiChatRequest = {
+  private async callBackendAI(message: string, conversationId?: string, pageContext?: string): Promise<ChatResponse> {
+    const request: ChatRequest = {
       message,
       conversationId,
       pageContext
     };
 
     try {
-      const response = await this.aiApi.postAiChat({ postAiChatRequest: request });
+      const response = await this.aiApi.postAiChat({ chatRequest: request });
       return response;
     } catch (error) {
       // Re-throw with more context
@@ -97,6 +99,27 @@ class SmartOnFHIRAIAssistant {
    */
   async isOpenAIAvailable(): Promise<boolean> {
     return await this.checkBackendAvailability();
+  }
+
+  /**
+   * Check if backend API is authenticated
+   */
+  async isBackendAuthenticated(): Promise<boolean> {
+    try {
+      const response = await fetch('/ai/health', {
+        signal: AbortSignal.timeout(2000)
+      });
+      
+      if (!response.ok) {
+        return false;
+      }
+      
+      const data = await response.json();
+      return data.backend_authenticated === true;
+    } catch (error) {
+      console.warn('Failed to check backend authentication status:', error);
+      return false;
+    }
   }
 
   /**

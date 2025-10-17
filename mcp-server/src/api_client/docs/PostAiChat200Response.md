@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **answer** | **str** | AI generated answer | 
 **sources** | [**List[PostAiChat200ResponseSourcesInner]**](PostAiChat200ResponseSourcesInner.md) | Knowledge base documents referenced in the response | 
 **confidence** | **float** | Confidence score from 0-1 | 
-**mode** | [**PostAiChat200ResponseMode**](PostAiChat200ResponseMode.md) |  | 
+**mode** | **str** |  | 
 **timestamp** | **str** | Timestamp (ISO 8601) when the response was generated | 
 
 ## Example

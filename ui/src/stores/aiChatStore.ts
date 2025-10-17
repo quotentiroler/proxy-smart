@@ -58,6 +58,19 @@ export const useAIChatStore = create<AIChatState>()(
 
       updateMessage: (id, updates) => {
         const { messages } = get();
+        
+        // Defensive logging: warn if updating a message with empty content
+        if (updates.content !== undefined) {
+          const contentLength = updates.content?.trim().length || 0;
+          if (contentLength === 0) {
+            console.error('[AIChatStore] WARNING: Updating message with empty content!', {
+              messageId: id,
+              updates,
+              currentMessage: messages.find(m => m.id === id)
+            });
+          }
+        }
+        
         set({
           messages: messages.map((msg) =>
             msg.id === id ? { ...msg, ...updates } : msg

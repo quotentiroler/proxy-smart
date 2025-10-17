@@ -1,5 +1,6 @@
 # GetAdminHealthcareUsersOffsetParameter
 
+Number of items to skip
 
 ## Properties
 
