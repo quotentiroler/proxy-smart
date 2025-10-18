@@ -40,7 +40,7 @@ import { useAuth } from '@/stores/authStore';
 import { useAppStore } from '@/stores/appStore';
 import { getItem } from '@/lib/storage';
 import { createAuthenticatedClientApis } from '@/lib/apiClient';
-import type { SmartApp, ScopeSet, SmartAppFormData } from '@/lib/types/api';
+import type { SmartApp, ScopeSet, SmartAppFormData, SmartAppClientTypeEnum } from '@/lib/types/api';
 
 // Mock data for SMART on FHIR applications
 const mockApps: SmartApp[] = [
@@ -56,7 +56,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-28',
     description: 'AI-powered clinical decision support tool',
     appType: 'ehr-launch',
-    authenticationType: 'asymmetric',
+    clientAuthenticatorType: 'client-jwt',
     serverAccessType: 'user-person-servers',
   },
   {
@@ -70,7 +70,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-27',
     description: 'Patient self-service portal',
     appType: 'standalone-app',
-    authenticationType: 'symmetric',
+    clientAuthenticatorType: 'client-secret',
     serverAccessType: 'all-servers',
   },
   {
@@ -85,7 +85,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-20',
     description: 'Clinical research data analytics platform',
     appType: 'backend-service',
-    authenticationType: 'asymmetric',
+    clientAuthenticatorType: 'client-jwt',
     serverAccessType: 'selected-servers',
     allowedServerIds: ['hapi-fhir-org', 'test-server-1'],
   },
@@ -100,7 +100,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-26',
     description: 'Mobile application for patient health monitoring',
     appType: 'standalone-app',
-    authenticationType: 'asymmetric',
+    clientAuthenticatorType: 'client-jwt',
     serverAccessType: 'user-person-servers',
   },
   {
@@ -114,7 +114,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-25',
     description: 'Laboratory results visualization tool',
     appType: 'ehr-launch',
-    authenticationType: 'symmetric',
+    clientAuthenticatorType: 'client-secret',
     serverAccessType: 'selected-servers',
     allowedServerIds: ['lab-server-main'],
   },
@@ -129,7 +129,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-28',
     description: 'Autonomous AI agent that independently analyzes patient data and creates clinical assessments.',
     appType: 'agent',
-    authenticationType: 'asymmetric',
+    clientAuthenticatorType: 'client-jwt',
     serverAccessType: 'all-servers',
   },
   {
@@ -143,7 +143,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-29',
     description: 'Autonomous robotic lawnmower with emergency medical response capabilities.',
     appType: 'agent',
-    authenticationType: 'asymmetric',
+    clientAuthenticatorType: 'client-jwt',
     serverAccessType: 'all-servers',
   },
 ];
@@ -198,14 +198,13 @@ export function SmartAppsManager() {
         } else {
           // Convert backend apps to our format
           const convertedApps: SmartApp[] = fetchedApps.map((backendApp: SmartApp) => ({
-            ...backendApp, // Inherit all API model fields
+            ...backendApp, // Inherit all API model fields (includes clientAuthenticatorType)
             // UI-specific computed/helper fields
             scopeSetId: undefined,
             status: backendApp.enabled ? 'active' : 'inactive',
             lastUsed: new Date().toISOString().split('T')[0], // Default to today
             // Use appType from backend if available, otherwise infer from serviceAccountsEnabled
             appType: backendApp.appType || (backendApp.serviceAccountsEnabled ? 'backend-service' : 'standalone-app'),
-            authenticationType: backendApp.clientAuthenticatorType === 'client-jwt' ? 'asymmetric' : 'symmetric',
             serverAccessType: 'all-servers', // Default for now
             allowedServerIds: undefined,
           }));
@@ -234,12 +233,12 @@ export function SmartAppsManager() {
           publicClient: appData.publicClient,
           redirectUris: appData.redirectUris,
           webOrigins: appData.webOrigins,
-          defaultScopes: appData.defaultScopes,
-          optionalScopes: appData.optionalScopes,
+          defaultClientScopes: appData.defaultClientScopes,
+          optionalClientScopes: appData.optionalClientScopes,
           smartVersion: appData.smartVersion,
           fhirVersion: appData.fhirVersion,
           appType: appData.appType,
-          clientType: appData.clientType as 'public' | 'confidential' | 'backend-service' | undefined,
+          clientType: appData.clientType as SmartAppClientTypeEnum,
           publicKey: appData.publicKey,
           jwksUri: appData.jwksUri,
           systemScopes: appData.systemScopes
@@ -727,7 +726,7 @@ export function SmartAppsManager() {
                     <div className="font-medium text-muted-foreground">Type:</div>
                     <div>{editingApp.appType}</div>
                     <div className="font-medium text-muted-foreground">Authentication:</div>
-                    <div>{editingApp.authenticationType}</div>
+                    <div>{editingApp.clientAuthenticatorType || 'client-secret'}</div>
                   </div>
                 </CardContent>
               </Card>

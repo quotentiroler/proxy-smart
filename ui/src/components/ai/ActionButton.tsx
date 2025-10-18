@@ -12,7 +12,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../../stores/appStore';
+import { useAppStore } from '@/stores/appStore';
 
 // Action types that the AI can suggest
 export type ActionType = 'navigate' | 'refresh' | 'api-call' | 'form' | 'external-link';

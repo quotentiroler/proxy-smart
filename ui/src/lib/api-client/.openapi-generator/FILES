@@ -1,4 +1,3 @@
-.openapi-generator-ignore
 apis/AdminApi.ts
 apis/AiApi.ts
 apis/AuthenticationApi.ts
@@ -36,6 +35,7 @@ models/DocumentChunk.ts
 models/ErrorResponse.ts
 models/ExportResponse.ts
 models/FhirContextItem.ts
+models/FhirPersonAssociation.ts
 models/FhirServer.ts
 models/FhirServerDetails.ts
 models/FhirServerHealthInfo.ts

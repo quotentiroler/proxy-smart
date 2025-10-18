@@ -24,6 +24,7 @@ import {
   Loader2
 } from 'lucide-react';
 import type { FhirPersonAssociation } from '@/lib/types/api';
+import { createPersonResource, searchPersonResources, getPersonResource } from '@/services/fhirService';
 
 // TODO: dont use custom interfaces for backend models, use or inherit the existing generated API models instead
 interface HealthcareUser {
@@ -32,8 +33,8 @@ interface HealthcareUser {
   lastName: string;
   email: string;
   username: string;
-  organization: string;
-  fhirPersons: FhirPersonAssociation[];
+  organization?: string;
+  fhirPersons?: FhirPersonAssociation[];
 }
 
 interface AddFhirPersonModalProps {
@@ -42,9 +43,11 @@ interface AddFhirPersonModalProps {
   user: HealthcareUser;
   onPersonAdded: (association: FhirPersonAssociation) => void;
   availableServers: Array<{
+    id: string;
     name: string;
     baseUrl: string;
     status: string;
+    fhirVersion?: string;
   }>;
 }
 
@@ -65,7 +68,7 @@ export function AddFhirPersonModal({
 
   // Get servers that don't already have a Person resource for this user
   const availableServersForUser = availableServers.filter(server => 
-    !user.fhirPersons.some(person => person.serverName === server.name)
+    !(user.fhirPersons || []).some(person => person.serverId === server.id)
   );
 
   // Debug logging
@@ -87,19 +90,32 @@ export function AddFhirPersonModal({
     setError(null);
 
     try {
-      // TODO: Implement actual FHIR search
-      // For now, simulate the search
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Find the server to get its FHIR version
+      const server = availableServers.find(s => s.id === selectedServer);
+      if (!server) {
+        throw new Error(`Server not found: ${selectedServer}`);
+      }
       
-      // Mock search results
-      const mockResults = [
-        { id: personId, display: `${user.firstName} ${user.lastName} (${personId})` }
-      ];
+      // Search for Person by ID
+      const results = await searchPersonResources(selectedServer, server.fhirVersion || 'R4', {
+        _id: personId.startsWith('Person/') ? personId.substring(7) : personId
+      });
       
-      setSearchResults(mockResults);
+      if (results.length === 0) {
+        // Try to get the specific Person by ID
+        try {
+          const person = await getPersonResource(selectedServer, server.fhirVersion || 'R4', personId);
+          setSearchResults([person]);
+        } catch {
+          setError(`Person resource not found with ID: ${personId}`);
+          setSearchResults([]);
+        }
+      } else {
+        setSearchResults(results);
+      }
     } catch (error) {
       console.error('Search failed:', error);
-      setError('Failed to search for Person resource. Please check the ID and try again.');
+      setError(`Failed to search for Person resource: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -116,15 +132,23 @@ export function AddFhirPersonModal({
     setError(null);
 
     try {
-      // TODO: Implement actual FHIR Person creation
-      // For now, simulate the creation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Find the server to get its FHIR version
+      const server = availableServers.find(s => s.id === selectedServer);
+      if (!server) {
+        throw new Error(`Server not found: ${selectedServer}`);
+      }
       
-      const newPersonId = `Person/${Date.now()}`;
+      // Create the Person resource on the FHIR server
+      const result = await createPersonResource(selectedServer, server.fhirVersion || 'R4', {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      });
+      
       const association: FhirPersonAssociation = {
-        serverName: selectedServer,
-        personId: newPersonId,
-        display: `${user.firstName} ${user.lastName} (${newPersonId})`,
+        serverId: selectedServer,
+        personId: result.id,
+        display: result.display,
         created: new Date().toISOString()
       };
 
@@ -132,7 +156,7 @@ export function AddFhirPersonModal({
       handleClose();
     } catch (error) {
       console.error('Person creation failed:', error);
-      setError('Failed to create Person resource. Please try again.');
+      setError(`Failed to create Person resource: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsCreating(false);
     }
@@ -140,7 +164,7 @@ export function AddFhirPersonModal({
 
   const handleAddExisting = (result: { id: string; display: string }) => {
     const association: FhirPersonAssociation = {
-      serverName: selectedServer,
+      serverId: selectedServer,
       personId: result.id,
       display: result.display,
       created: new Date().toISOString()
@@ -180,13 +204,16 @@ export function AddFhirPersonModal({
               {user.firstName} {user.lastName} already has Person resources on all available FHIR servers:
             </p>
             <div className="space-y-2">
-              {user.fhirPersons.map((person, index) => (
-                <div key={index} className="flex items-center space-x-2 text-sm">
-                  <Server className="w-4 h-4 text-amber-600" />
-                  <span className="font-medium">{person.serverName}:</span>
-                  <span className="font-mono">{person.personId}</span>
-                </div>
-              ))}
+              {(user.fhirPersons || []).map((person, index) => {
+                const serverName = availableServers.find(s => s.id === person.serverId)?.name || person.serverId;
+                return (
+                  <div key={index} className="flex items-center space-x-2 text-sm">
+                    <Server className="w-4 h-4 text-amber-600" />
+                    <span className="font-medium">{serverName}:</span>
+                    <span className="font-mono">{person.personId}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div className="flex justify-end">

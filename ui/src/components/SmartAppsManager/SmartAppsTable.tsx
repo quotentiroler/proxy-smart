@@ -28,7 +28,10 @@ import {
   Globe,
   AlertCircle,
 } from 'lucide-react';
-import type { SmartApp, ScopeSet, SmartAppType, AuthenticationType } from '@/lib/types/api';
+import type { SmartApp, ScopeSet, SmartAppType } from '@/lib/types/api';
+
+// UI-only type for display purposes
+type AuthenticationType = 'asymmetric' | 'symmetric' | 'none';
 
 interface SmartAppsTableProps {
   apps: SmartApp[];
@@ -160,7 +163,11 @@ export function SmartAppsTable({
             </TableHeader>
             <TableBody>
               {apps.map((app) => {
-                const appTypeBadge = getAppTypeBadge(app.appType || 'standalone-app', app.authenticationType || 'symmetric');
+                // Derive authentication type from clientAuthenticatorType
+                const authType: AuthenticationType = 
+                  app.clientAuthenticatorType === 'client-jwt' ? 'asymmetric' :
+                  app.clientAuthenticatorType === 'client-secret' ? 'symmetric' : 'none';
+                const appTypeBadge = getAppTypeBadge(app.appType || 'standalone-app', authType);
                 return (
                   <TableRow key={app.id} className="border-border/50 hover:bg-muted/50 transition-colors duration-200">
                     <TableCell>

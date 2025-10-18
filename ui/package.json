@@ -11,8 +11,8 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate": "bunx --bun @openapitools/openapi-generator-cli generate -i ../backend/dist/openapi.json -g typescript-fetch -o ./src/lib/api-client --skip-validate-spec",
-    "validate-api": "bunx @openapitools/openapi-generator-cli validate -i http://localhost:8445/swagger/json",
+    "generate": "openapi-generator-cli generate -i ../backend/dist/openapi.json -g typescript-fetch -o ./src/lib/api-client --skip-validate-spec",
+    "validate-api": "openapi-generator-cli validate -i http://localhost:8445/swagger/json",
     "test": "vitest",
     "test:coverage": "vitest --coverage"
   },

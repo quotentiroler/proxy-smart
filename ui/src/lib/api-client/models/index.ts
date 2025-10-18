@@ -23,6 +23,7 @@ export * from './DocumentChunk';
 export * from './ErrorResponse';
 export * from './ExportResponse';
 export * from './FhirContextItem';
+export * from './FhirPersonAssociation';
 export * from './FhirServer';
 export * from './FhirServerDetails';
 export * from './FhirServerHealthInfo';
