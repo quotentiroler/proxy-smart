@@ -5,7 +5,7 @@ from g4f.client import Client
 import g4f.Provider
 import concurrent.futures
 
-# Initialize the GPT-4 client
+# Initialize the GPT-5 client
 client = Client()
 
 # Build initial provider list
@@ -248,7 +248,7 @@ if __name__ == "__main__":
             shutil.rmtree(temp_path)
             print(f"Removed leftover directory: {temp_path}")
 
-    # ─── CLOSE GPT-4 CLIENT SESSION ─────────────────────────────────────────
+    # ─── CLOSE GPT-5 CLIENT SESSION ─────────────────────────────────────────
     try:
         # g4f.Client often stores its aiohttp.ClientSession in ._session or .session
         session = getattr(client, "_session", None) or getattr(client, "session", None)

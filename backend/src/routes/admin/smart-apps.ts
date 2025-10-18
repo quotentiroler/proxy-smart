@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { keycloakPlugin } from '../../lib/keycloak-plugin'
+import { keycloakPlugin } from '@/lib/keycloak-plugin'
 import { 
   SuccessResponse,
   CommonErrorResponses,
@@ -10,9 +10,9 @@ import {
   SmartAppType,
   SuccessResponseType,
   ErrorResponseType
-} from '../../schemas'
-import { logger } from '../../lib/logger'
-import { handleAdminError } from '../../lib/admin-error-handler'
+} from '@/schemas'
+import { logger } from '@/lib/logger'
+import { handleAdminError } from '@/lib/admin-error-handler'
 import * as crypto from 'crypto'
 import type KcAdminClient from '@keycloak/keycloak-admin-client'
 
@@ -137,34 +137,44 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
             const clientType = fullClient.attributes?.['client_type']
             const appType = Array.isArray(clientType) ? clientType[0] : clientType
 
+            // Check if offline_access is in optional scopes
+            const hasOfflineAccess = optionalScopeNames.includes('offline_access')
+
             // Return enriched client with scope names instead of IDs and appType
             return {
               ...fullClient,
               defaultClientScopes: defaultScopeNames,
               optionalClientScopes: optionalScopeNames,
-              appType: appType || (fullClient.serviceAccountsEnabled ? 'backend-service' : 'standalone-app')
-            }
+              appType: appType || (fullClient.serviceAccountsEnabled ? 'backend-service' : 'standalone-app'),
+              clientType: (fullClient.serviceAccountsEnabled ? 'backend-service' : (fullClient.publicClient ? 'public' : 'confidential')) as 'backend-service' | 'public' | 'confidential',
+              
+              // Client secret (only included for confidential clients with client-secret auth)
+              ...(fullClient.secret && { secret: fullClient.secret }),
+              
+              // Extract metadata fields from attributes
+              launchUrl: fullClient.attributes?.['launch_url']?.[0],
+              logoUri: fullClient.attributes?.['logo_uri']?.[0],
+              tosUri: fullClient.attributes?.['tos_uri']?.[0],
+              policyUri: fullClient.attributes?.['policy_uri']?.[0],
+              contacts: fullClient.attributes?.['contacts']?.[0]?.split(',').filter(Boolean),
+              
+              // Server access control
+              serverAccessType: fullClient.attributes?.['server_access_type']?.[0] as 'all-servers' | 'selected-servers' | 'user-person-servers' | undefined,
+              allowedServerIds: fullClient.attributes?.['allowed_server_ids']?.[0]?.split(',').filter(Boolean),
+              
+              // Scope set reference
+              scopeSetId: fullClient.attributes?.['scope_set_id']?.[0],
+              
+              // PKCE and offline access
+              requirePkce: fullClient.attributes?.['pkce.code.challenge.method']?.includes('S256'),
+              allowOfflineAccess: hasOfflineAccess
+            } as SmartAppType
           } catch (error) {
             logger.admin.warn('Failed to enrich client with scope details', { clientId: client.clientId, error })
             return client
           }
         })
       )
-
-      // Debug: Log what scope fields are available in the first client
-      if (enrichedClients.length > 0) {
-        logger.admin.debug('Sample Enriched Client Fields', {
-          clientId: enrichedClients[0].clientId,
-          availableFields: Object.keys(enrichedClients[0]),
-          defaultClientScopes: enrichedClients[0].defaultClientScopes,
-          optionalClientScopes: enrichedClients[0].optionalClientScopes,
-          hasDefaultScopes: !!enrichedClients[0].defaultClientScopes,
-          hasOptionalScopes: !!enrichedClients[0].optionalClientScopes,
-          defaultScopesLength: enrichedClients[0].defaultClientScopes?.length || 0,
-          optionalScopesLength: enrichedClients[0].optionalClientScopes?.length || 0
-        })
-      }
-
       return enrichedClients;
     } catch (error) {
       return handleAdminError(error, set)
@@ -207,6 +217,22 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
       const isBackendService = effectiveClientType === 'backend-service'
       const isPublicClient = body.publicClient || effectiveClientType === 'public'
 
+      // Determine authentication method
+      let clientAuthenticatorType = 'none'
+      
+      if (isBackendService) {
+        // Backend services always use JWT authentication
+        clientAuthenticatorType = 'client-jwt'
+      } else if (!isPublicClient) {
+        // Confidential client - determine based on whether JWKS/publicKey is provided
+        if (body.jwksUri || body.publicKey) {
+          clientAuthenticatorType = 'client-jwt'
+        } else {
+          // Default to client-secret for confidential clients without JWT config
+          clientAuthenticatorType = 'client-secret'
+        }
+      }
+
       // Validate Backend Services requirements
       if (isBackendService) {
         if (!body.publicKey && !body.jwksUri) {
@@ -231,15 +257,34 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
           ...(body.appType && { 'client_type': body.appType }),
           // If no appType, fallback to clientType
           ...(!body.appType && isBackendService && { 'client_type': 'backend-service' }),
-          ...(isBackendService && {
-            ...(body.jwksUri && {
-              'use.jwks.url': 'true',
-              'jwks.url': body.jwksUri
-            })
-          })
+          
+          // Store JWKS info for JWT authentication (backend services or confidential JWT clients)
+          ...(body.jwksUri && clientAuthenticatorType === 'client-jwt' && {
+            'use.jwks.url': 'true',
+            'jwks.url': body.jwksUri
+          }),
+          
+          // Metadata fields
+          ...(body.launchUrl && { 'launch_url': body.launchUrl }),
+          ...(body.logoUri && { 'logo_uri': body.logoUri }),
+          ...(body.tosUri && { 'tos_uri': body.tosUri }),
+          ...(body.policyUri && { 'policy_uri': body.policyUri }),
+          ...(body.contacts && body.contacts.length > 0 && { 'contacts': body.contacts.join(',') }),
+          
+          // Server access control
+          ...(body.serverAccessType && { 'server_access_type': body.serverAccessType }),
+          ...(body.allowedServerIds && body.allowedServerIds.length > 0 && { 
+            'allowed_server_ids': body.allowedServerIds.join(',') 
+          }),
+          
+          // Scope set reference
+          ...(body.scopeSetId && { 'scope_set_id': body.scopeSetId }),
+          
+          // PKCE configuration
+          ...(body.requirePkce && { 'pkce.code.challenge.method': 'S256' })
         },
         // Configure client authentication method
-        clientAuthenticatorType: isBackendService ? 'client-jwt' : (isPublicClient ? 'none' : 'client-secret'),
+        clientAuthenticatorType,
 
         // Configure OAuth2 settings for Backend Services
         standardFlowEnabled: !isBackendService, // Authorization code flow
@@ -271,23 +316,23 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
 
       // Assign scopes to the client
       try {
-        const defaultScopesToAssign = body.defaultScopes || (isBackendService
+        const defaultScopesToAssign = body.defaultClientScopes || (isBackendService
           ? ['openid', 'profile'] // Keep it simple for Backend Services
           : ['openid', 'profile', 'email'])
 
-        const optionalScopesToAssign = body.optionalScopes || []
+        const optionalScopesToAssign = body.optionalClientScopes || []
 
         // Get all available client scopes to find matching ones by name
         const allClientScopes = await admin.clientScopes.find()
 
         // Find scope IDs for default scopes
         const defaultScopeIds = defaultScopesToAssign
-          .map(scopeName => allClientScopes.find(scope => scope.name === scopeName)?.id)
+          .map((scopeName: string) => allClientScopes.find(scope => scope.name === scopeName)?.id)
           .filter(Boolean) as string[]
 
         // Find scope IDs for optional scopes  
         const optionalScopeIds = optionalScopesToAssign
-          .map(scopeName => allClientScopes.find(scope => scope.name === scopeName)?.id)
+          .map((scopeName: string) => allClientScopes.find(scope => scope.name === scopeName)?.id)
           .filter(Boolean) as string[]
 
         // Assign default scopes to client
@@ -317,6 +362,23 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
         })
       } catch (error) {
         logger.admin.warn('Failed to assign scopes to client', { clientId: fullClient.clientId, error })
+      }
+
+      // Handle offline access (refresh tokens)
+      if (body.allowOfflineAccess) {
+        try {
+          const allClientScopes = await admin.clientScopes.find()
+          const offlineScope = allClientScopes.find(s => s.name === 'offline_access')
+          if (offlineScope && fullClient.id) {
+            await admin.clients.addOptionalClientScope({
+              id: fullClient.id,
+              clientScopeId: offlineScope.id!
+            })
+            logger.admin.debug('Offline access enabled for client', { clientId: fullClient.clientId })
+          }
+        } catch (error) {
+          logger.admin.warn('Failed to enable offline access', { clientId: fullClient.clientId, error })
+        }
       }
 
       // Re-fetch client details to get updated scope assignments
@@ -448,12 +510,42 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
             }
           }
 
+          // Extract appType from client_type attribute
+          const clientType = fullClient.attributes?.['client_type']
+          const appType = Array.isArray(clientType) ? clientType[0] : clientType
+
+          // Check if offline_access is in optional scopes
+          const hasOfflineAccess = optionalScopeNames.includes('offline_access')
+
           // Use enriched client with scope names instead of IDs
           enrichedClient = {
             ...fullClient,
             defaultClientScopes: defaultScopeNames,
-            optionalClientScopes: optionalScopeNames
-          }
+            optionalClientScopes: optionalScopeNames,
+            appType: appType || (fullClient.serviceAccountsEnabled ? 'backend-service' : 'standalone-app'),
+            clientType: (fullClient.serviceAccountsEnabled ? 'backend-service' : (fullClient.publicClient ? 'public' : 'confidential')) as 'backend-service' | 'public' | 'confidential',
+            
+            // Client secret (only included for confidential clients with client-secret auth)
+            ...(fullClient.secret && { secret: fullClient.secret }),
+            
+            // Extract metadata fields from attributes
+            launchUrl: fullClient.attributes?.['launch_url']?.[0],
+            logoUri: fullClient.attributes?.['logo_uri']?.[0],
+            tosUri: fullClient.attributes?.['tos_uri']?.[0],
+            policyUri: fullClient.attributes?.['policy_uri']?.[0],
+            contacts: fullClient.attributes?.['contacts']?.[0]?.split(',').filter(Boolean),
+            
+            // Server access control
+            serverAccessType: fullClient.attributes?.['server_access_type']?.[0] as 'all-servers' | 'selected-servers' | 'user-person-servers' | undefined,
+            allowedServerIds: fullClient.attributes?.['allowed_server_ids']?.[0]?.split(',').filter(Boolean),
+            
+            // Scope set reference
+            scopeSetId: fullClient.attributes?.['scope_set_id']?.[0],
+            
+            // PKCE and offline access
+            requirePkce: fullClient.attributes?.['pkce.code.challenge.method']?.includes('S256'),
+            allowOfflineAccess: hasOfflineAccess
+          } as SmartAppType
         }
       } catch (error) {
         logger.admin.warn('Failed to enrich individual client with scope details', { clientId: clients[0].clientId, error })
@@ -521,12 +613,12 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
       await admin.clients.update({ id: clients[0].id! }, updateData)
 
       // Handle scope updates if provided
-      if (body.defaultScopes || body.optionalScopes) {
+      if (body.defaultClientScopes || body.optionalClientScopes) {
         try {
           // Get all available client scopes to find matching ones by name
           const allClientScopes = await admin.clientScopes.find()
 
-          if (body.defaultScopes) {
+          if (body.defaultClientScopes) {
             // Remove all existing default client scopes
             const existingClient = await admin.clients.findOne({ id: clients[0].id! })
             if (existingClient?.defaultClientScopes) {
@@ -540,8 +632,8 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
             }
 
             // Add new default scopes
-            const defaultScopeIds = body.defaultScopes
-              .map(scopeName => allClientScopes.find(scope => scope.name === scopeName)?.id)
+            const defaultScopeIds = body.defaultClientScopes
+              .map((scopeName: string) => allClientScopes.find(scope => scope.name === scopeName)?.id)
               .filter(Boolean) as string[]
 
             for (const scopeId of defaultScopeIds) {
@@ -553,7 +645,7 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
             }
           }
 
-          if (body.optionalScopes) {
+          if (body.optionalClientScopes) {
             // Remove all existing optional client scopes
             const existingClient = await admin.clients.findOne({ id: clients[0].id! })
             if (existingClient?.optionalClientScopes) {
@@ -567,8 +659,8 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
             }
 
             // Add new optional scopes
-            const optionalScopeIds = body.optionalScopes
-              .map(scopeName => allClientScopes.find(scope => scope.name === scopeName)?.id)
+            const optionalScopeIds = body.optionalClientScopes
+              .map((scopeName: string) => allClientScopes.find(scope => scope.name === scopeName)?.id)
               .filter(Boolean) as string[]
 
             for (const scopeId of optionalScopeIds) {
@@ -582,8 +674,8 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
 
           logger.admin.debug('Scopes updated for client', {
             clientId: clients[0].clientId,
-            defaultScopes: body.defaultScopes,
-            optionalScopes: body.optionalScopes
+            defaultScopes: body.defaultClientScopes,
+            optionalScopes: body.optionalClientScopes
           })
         } catch (error) {
           logger.admin.warn('Failed to update scopes for client', { clientId: clients[0].clientId, error })
@@ -617,6 +709,12 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
       if (!token) {
         set.status = 401
         return { error: 'Authorization header required' }
+      }
+
+      // Prevent deleting the AI Assistant Agent - it's a system application
+      if (params.clientId === 'ai-assistant-agent') {
+        set.status = 403
+        return { error: 'Cannot delete AI Assistant Agent - it is a protected system application' }
       }
 
       const admin = await getAdmin(token)

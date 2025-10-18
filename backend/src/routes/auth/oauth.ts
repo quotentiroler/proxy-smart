@@ -1,10 +1,10 @@
 import { Elysia } from 'elysia'
 import fetch from 'cross-fetch'
-import { config } from '../../config'
-import { validateToken } from '../../lib/auth'
-import { getAllServers, ensureServersInitialized } from '../../lib/fhir-server-store'
-import { logger } from '../../lib/logger'
-import { oauthMetricsLogger } from '../../lib/oauth-metrics-logger'
+import { config } from '@/config'
+import { validateToken } from '@/lib/auth'
+import { getAllServers, ensureServersInitialized } from '@/lib/fhir-server-store'
+import { logger } from '@/lib/logger'
+import { oauthMetricsLogger } from '@/lib/oauth-metrics-logger'
 import {
   TokenRequest,
   IntrospectRequest,
@@ -17,7 +17,7 @@ import {
   UserInfoHeader,
   UserInfoResponse,
   UserInfoErrorResponse
-} from '../../schemas'
+} from '@/schemas'
 
 interface TokenPayload {
   sub?: string

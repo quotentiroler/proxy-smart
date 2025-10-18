@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { keycloakPlugin } from '../../lib/keycloak-plugin'
+import { keycloakPlugin } from '@/lib/keycloak-plugin'
 import { 
   CommonErrorResponses,
   SetFhirContextRequest,
@@ -9,9 +9,9 @@ import {
   SetTenantRequest,
   LaunchContextUser,
   SuccessResponse
-} from '../../schemas'
-import { extractBearerToken, UNAUTHORIZED_RESPONSE, getValidatedAdmin, getUserAttribute, getUserAttributeBoolean, setUserAttribute } from '../../lib/admin-utils'
-import { logger } from '../../lib/logger'
+} from '@/schemas'
+import { extractBearerToken, UNAUTHORIZED_RESPONSE, getValidatedAdmin, getUserAttribute, getUserAttributeBoolean, setUserAttribute } from '@/lib/admin-utils'
+import { logger } from '@/lib/logger'
 
 /**
  * SMART Launch Context Management - handles patient/encounter/user contexts per SMART App Launch spec

@@ -10,9 +10,12 @@ Name | Type | Description | Notes
 **email** | **str** | Email address | [optional] 
 **enabled** | **bool** | Whether the user is enabled | [optional] 
 **organization** | **str** | Organization identifier | [optional] 
-**fhir_user** | **str** | FHIR user reference | [optional] 
+**fhir_persons** | [**List[FhirPersonAssociation]**](FhirPersonAssociation.md) | FHIR Person associations to update | [optional] 
 **realm_roles** | **List[str]** | Realm-level roles | [optional] 
 **client_roles** | **object** |  | [optional] 
+**email_verified** | **bool** | Whether the email is verified | [optional] 
+**npi** | **str** | National Provider Identifier (NPI) | [optional] 
+**practitioner_id** | **str** | FHIR Practitioner resource ID | [optional] 
 
 ## Example
 

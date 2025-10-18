@@ -48,14 +48,14 @@ A Python-based **Model Context Protocol (MCP)** server that provides AI-powered 
                     │                     │
                     ↓                     ↓
         ┌─────────────────────┐  ┌──────────────────┐
-        │  OpenAI GPT-4       │  │  Backend APIs    │
+        │  OpenAI GPT-5       │  │  Backend APIs    │
         │  (LLM Generation)   │  │  (Live Data)     │
         └─────────────────────┘  └──────────────────┘
 ```
 
 ### Key Components
 
-- **OpenAI Integration**: Uses GPT-4 for intelligent responses with function calling
+- **OpenAI Integration**: Uses GPT-5 for intelligent responses with function calling
 - **RAG Knowledge Base**: Pre-loaded documentation chunks with vector embeddings
 - **Semantic Search**: Cosine similarity-based retrieval for relevant context
 - **Function Calling**: Dynamic backend API invocation for live data
@@ -319,7 +319,7 @@ The MCP server can call these backend API functions dynamically based on user qu
 ### How Function Calling Works
 
 1. **User Query**: "Show me all healthcare users"
-2. **AI Analysis**: GPT-4 determines `list_healthcare_users` should be called
+2. **AI Analysis**: GPT-5 determines `list_healthcare_users` should be called
 3. **Stream Event**: `{"type":"function_calling","name":"list_healthcare_users"}`
 4. **API Call**: MCP server calls `GET /api/healthcare-users` with Keycloak token
 5. **Response Integration**: AI incorporates live data into response
@@ -350,7 +350,7 @@ Semantic Search (cosine similarity)
     ↓
 Top K Documents (k=3, threshold=0.7)
     ↓
-Context Injection into GPT-4 Prompt
+Context Injection into GPT-5 Prompt
     ↓
 Response Generation
 ```
@@ -359,8 +359,8 @@ Response Generation
 1. User query is embedded using OpenAI embeddings
 2. Cosine similarity computed against all knowledge base chunks
 3. Top 3 most relevant chunks retrieved (if similarity > 0.7)
-4. Chunks injected as context in GPT-4 system prompt
-5. GPT-4 generates response grounded in documentation
+4. Chunks injected as context in GPT-5 system prompt
+5. GPT-5 generates response grounded in documentation
 6. Sources cited in response for transparency
 
 ## 🧪 Testing

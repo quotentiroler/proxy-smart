@@ -154,15 +154,39 @@ export const useAuthStore = create<AuthState>()(
               }
             } catch (refreshError) {
               console.warn('❌ Token refresh failed during initialization:', refreshError);
-              // Clear invalid tokens and reset state
-              await clearTokens();
-              set({ 
-                isAuthenticated: false, 
-                profile: null,
-                isInitializing: false,
-                loading: false,
-                clientApis: createClientApis()
-              });
+              
+              // Check if this is an invalid_grant error (tokens are completely invalid)
+              const isInvalidGrant = refreshError instanceof Error && 
+                (refreshError.message.includes('invalid_grant') || 
+                 refreshError.message.includes('Token is not active'));
+              
+              if (isInvalidGrant) {
+                console.warn('🗑️ Tokens are invalid, forcing logout');
+                // Clear everything and redirect to login
+                await clearAllAuthData();
+                set({ 
+                  isAuthenticated: false, 
+                  profile: null,
+                  isInitializing: false,
+                  loading: false,
+                  clientApis: createClientApis()
+                });
+                // Force redirect to login after a brief delay
+                setTimeout(async () => {
+                  const authData = await openidService.getAuthorizationUrl();
+                  window.location.href = authData.url;
+                }, 100);
+              } else {
+                // Other error, just clear tokens and stay on page
+                await clearTokens();
+                set({ 
+                  isAuthenticated: false, 
+                  profile: null,
+                  isInitializing: false,
+                  loading: false,
+                  clientApis: createClientApis()
+                });
+              }
             }
           } else {
             // No refresh token, clear everything

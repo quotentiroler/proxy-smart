@@ -10,11 +10,15 @@ Name | Type | Description | Notes
 **first_name** | **str** | First name | 
 **last_name** | **str** | Last name | 
 **organization** | **str** | Organization identifier | [optional] 
-**fhir_user** | **str** | FHIR user reference | [optional] 
+**fhir_persons** | [**List[FhirPersonAssociation]**](FhirPersonAssociation.md) | FHIR Person associations to create | [optional] 
 **password** | **str** | User password | [optional] 
 **temporary_password** | **bool** | Whether password is temporary and must be changed | [optional] 
 **realm_roles** | **List[str]** | Realm-level roles to assign | [optional] 
 **client_roles** | **object** |  | [optional] 
+**enabled** | **bool** | Whether the user is enabled | [optional] [default to True]
+**email_verified** | **bool** | Whether the email is verified | [optional] 
+**npi** | **str** | National Provider Identifier (NPI) for healthcare providers | [optional] 
+**practitioner_id** | **str** | FHIR Practitioner resource ID | [optional] 
 
 ## Example
 

@@ -10,14 +10,9 @@ import {
   ChatResponse,
   type AiHealthResponseType,
   type AiHealthErrorResponseType,
-  type ChatResponseType
-} from '../../schemas/ai-assistant'
-
-type ChatRequestPayload = {
-  message: string
-  conversationId?: string
-  pageContext?: string
-}
+  type ChatResponseType,
+  type ChatRequestType
+} from '@/schemas/ai-assistant'
 
 type McpChatRequest = {
   message: string
@@ -25,24 +20,7 @@ type McpChatRequest = {
   page_context?: string
 }
 
-type McpDocumentChunk = {
-  id: string
-  content: string
-  source: string
-  title: string
-  category: string
-  relevance_score?: number
-}
-
-type McpChatResponse = {
-  answer: string
-  sources: McpDocumentChunk[]
-  confidence: number
-  mode: 'openai' | 'rule-based'
-  timestamp: string
-}
-
-async function callMcpChatApi(payload: ChatRequestPayload): Promise<McpChatResponse> {
+async function callMcpChatApi(payload: ChatRequestType): Promise<ChatResponseType> {
   const mcpRequest: McpChatRequest = {
     message: payload.message,
     conversation_id: payload.conversationId,
@@ -64,15 +42,16 @@ async function callMcpChatApi(payload: ChatRequestPayload): Promise<McpChatRespo
     throw new Error(`MCP server responded with ${response.status}: ${errorBody}`)
   }
 
-  return await response.json() as McpChatResponse
+  return await response.json() as ChatResponseType
 }
 
 type ChatRouteContext = {
-  body: ChatRequestPayload
+  body: ChatRequestType
   set: { status?: number | string }
 }
 
-export const aiRoutes = new Elysia({ prefix: '/ai', tags: ['ai'] })
+// Public AI health check routes (no authentication required)
+export const aiPublicRoutes = new Elysia({ prefix: '/ai', tags: ['ai'] })
   .get('/health', async ({ set }): Promise<AiHealthResponseType | AiHealthErrorResponseType> => {
     try {
       if (!config.ai.baseUrl) {
@@ -158,6 +137,9 @@ export const aiRoutes = new Elysia({ prefix: '/ai', tags: ['ai'] })
       description: 'Returns 200 when the AI assistant backend is reachable.'
     }
   })
+
+// Protected AI routes (authentication required)
+export const aiRoutes = new Elysia({ prefix: '/ai', tags: ['ai'] })
   .post('/chat', async ({ body, set }: ChatRouteContext): Promise<ChatResponseType | { error: string }> => {
     if (!config.ai.baseUrl) {
       set.status = 503

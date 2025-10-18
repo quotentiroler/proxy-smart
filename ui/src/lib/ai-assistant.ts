@@ -1,17 +1,11 @@
-import { AiApi, Configuration } from './api-client';
+import { AiApi, Configuration, type DocumentChunk } from './api-client';
 import type { ChatRequest, ChatResponse } from './api-client';
 import { extractPageContext, summarizePageContext } from './page-context-extractor';
 
-// Types for the AI assistant
-export interface DocumentChunk {
-  id: string;
-  content: string;
-  source: string;
-  title: string;
-  category: string;
-  relevanceScore?: number;
-}
+// Re-export DocumentChunk from generated client
+export type { DocumentChunk } from './api-client';
 
+// Types for the AI assistant UI
 export interface RAGResponse {
   answer: string;
   sources: DocumentChunk[];
@@ -45,13 +39,13 @@ class SmartOnFHIRAIAssistant {
   constructor() {
     // Initialize the AI API client with empty base path (uses relative URLs that Vite proxies to backend)
     const apiConfig = new Configuration({
-      basePath: '', // Empty base path means relative URLs (e.g., /ai/chat)
+      basePath: '', // Empty base path means relative URLs
     });
     this.aiApi = new AiApi(apiConfig);
   }
 
   /**
-   * Check if backend AI API is available
+   * Check if backend AI API is available using HEAD request
    */
   private async checkBackendAvailability(): Promise<boolean> {
     // Use cached value if already checked
@@ -60,15 +54,18 @@ class SmartOnFHIRAIAssistant {
     }
 
     try {
-      // Try to reach the backend AI endpoint with a quick timeout
-      const response = await fetch('/ai/chat', {
-        method: 'HEAD',
+      // Use generated HEAD method with timeout
+      await this.aiApi.headAdminAiChat({
         signal: AbortSignal.timeout(2000)
       });
-      this.backendAvailable = response.ok || response.status === 503; // 503 means endpoint exists but MCP is down
-      return this.backendAvailable;
+      this.backendAvailable = true;
+      return true;
     } catch (error) {
-      console.warn('Backend AI API not available:', error);
+      // 503 means endpoint exists but MCP is down - still consider it "available"
+      if (error instanceof Response && error.status === 503) {
+        this.backendAvailable = true;
+        return true;
+      }
       this.backendAvailable = false;
       return false;
     }
@@ -85,7 +82,7 @@ class SmartOnFHIRAIAssistant {
     };
 
     try {
-      const response = await this.aiApi.postAiChat({ chatRequest: request });
+      const response = await this.aiApi.postAdminAiChat({ chatRequest: request });
       return response;
     } catch (error) {
       // Re-throw with more context
@@ -106,18 +103,9 @@ class SmartOnFHIRAIAssistant {
    */
   async isBackendAuthenticated(): Promise<boolean> {
     try {
-      const response = await fetch('/ai/health', {
-        signal: AbortSignal.timeout(2000)
-      });
-      
-      if (!response.ok) {
-        return false;
-      }
-      
-      const data = await response.json();
-      return data.backend_authenticated === true;
-    } catch (error) {
-      console.warn('Failed to check backend authentication status:', error);
+      const health = await this.aiApi.getAdminAiHealth();
+      return health.backend_authenticated === true;
+    } catch {
       return false;
     }
   }
@@ -198,7 +186,8 @@ class SmartOnFHIRAIAssistant {
         requestBody: requestBody
       });
       
-      const response = await fetch('/ai/chat/stream', {
+      // Use manual fetch for SSE streaming since generated client doesn't handle streams properly
+      const response = await fetch('/admin/ai/chat/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

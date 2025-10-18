@@ -1,9 +1,9 @@
 import { Elysia } from 'elysia'
 import { oauthRoutes } from './oauth'
 import { clientRegistrationRoutes } from './client-registration'
-import { config } from '../../config'
-import { checkKeycloakConnection, isKeycloakAccessible } from '../../init'
-import { AuthConfigResponse } from '../../schemas/auth/config'
+import { config } from '@/config'
+import { checkKeycloakConnection, isKeycloakAccessible } from '@/init'
+import { AuthConfigResponse } from '@/schemas/auth/config'
 
 /**
  * Authentication routes - OAuth2 and Dynamic Client Registration

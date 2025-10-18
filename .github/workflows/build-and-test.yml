@@ -48,21 +48,9 @@ jobs:
       uses: ./.github/actions/setup-bun-version
 
     # Install Dependencies
-    - name: Install Root Dependencies
+    - name: Install Dependencies (Workspace)
       run: |
-        echo "📦 Installing root dependencies..."
-        bun install
-
-    - name: Install Backend Dependencies
-      run: |
-        echo "📦 Installing backend dependencies..."
-        cd backend
-        bun install
-
-    - name: Install Frontend Dependencies
-      run: |
-        echo "📦 Installing frontend dependencies..."
-        cd ui
+        echo "📦 Installing all dependencies via workspace..."
         bun install
 
     # Backend Build
@@ -79,7 +67,8 @@ jobs:
       run: |
         echo "🔨 Building frontend..."
         cd ui
-        bun run build
+        bun run typecheck
+        bunx --bun vite build
 
     # Backend Tests
     - name: Test Backend

@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { FhirServerWithState } from '../../lib/types/api';
+import type { FhirServerWithState } from '@/lib/types/api';
 
 interface EditServerDialogProps {
   open: boolean;

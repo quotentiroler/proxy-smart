@@ -17,7 +17,10 @@ Name | Type | Description | Notes
 **realm_roles** | **List[str]** | Realm-level roles | [optional] 
 **client_roles** | **object** |  | [optional] 
 **organization** | **str** | Organization identifier | [optional] 
-**fhir_user** | **str** | FHIR user reference (e.g., Practitioner/123) | [optional] 
+**fhir_persons** | [**List[FhirPersonAssociation]**](FhirPersonAssociation.md) | FHIR Person associations across different servers | [optional] 
+**email_verified** | **bool** | Whether the email is verified | [optional] 
+**npi** | **str** | National Provider Identifier (NPI) | [optional] 
+**practitioner_id** | **str** | FHIR Practitioner resource ID | [optional] 
 
 ## Example
 

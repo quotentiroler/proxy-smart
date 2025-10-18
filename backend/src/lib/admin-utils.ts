@@ -1,19 +1,9 @@
 import KeycloakAdminClient from '@keycloak/keycloak-admin-client'
+import type UserRepresentation from '@keycloak/keycloak-admin-client/lib/defs/userRepresentation.js'
 import { logger } from './logger'
 
-
-// Define a minimal user type based on Keycloak user structure
-interface KeycloakUser {
-  id?: string
-  username?: string
-  email?: string
-  firstName?: string
-  lastName?: string
-  enabled?: boolean
-  attributes?: Record<string, string[]>
-  createdTimestamp?: number
-  lastLogin?: number | null
-}
+// Use Keycloak's official UserRepresentation type
+type KeycloakUser = UserRepresentation
 
 /**
  * Extract and validate Bearer token from request headers
@@ -103,6 +93,17 @@ export async function getValidatedAdmin(
  * @returns Standardized user profile
  */
 export function mapHealthcareUser(user: KeycloakUser) {
+  // Parse fhirPersons from JSON string in attributes
+  let fhirPersons: Array<{serverId: string, personId: string, display?: string, created?: string}> = []
+  try {
+    const fhirPersonsStr = user.attributes?.fhir_persons?.[0]
+    if (fhirPersonsStr) {
+      fhirPersons = JSON.parse(fhirPersonsStr)
+    }
+  } catch (error) {
+    logger.warn('admin', 'Failed to parse fhir_persons attribute', { userId: user.id, error })
+  }
+
   return {
     id: user.id ?? '',
     username: user.username ?? '',
@@ -112,7 +113,12 @@ export function mapHealthcareUser(user: KeycloakUser) {
     enabled: user.enabled ?? false,
     attributes: user.attributes ?? {},
     createdTimestamp: user.createdTimestamp ?? 0,
-    lastLogin: user.lastLogin ?? null
+    lastLogin: user.attributes?.lastLogin?.[0] ? Number(user.attributes.lastLogin[0]) : null,
+    organization: user.attributes?.organization?.[0],
+    fhirPersons,
+    emailVerified: user.emailVerified,
+    npi: user.attributes?.npi?.[0],
+    practitionerId: user.attributes?.practitioner_id?.[0]
   }
 }
 

@@ -460,6 +460,37 @@ async def update_admin_client_registration_settings(ctx: Context, client_registr
 # ======================================================================
 
 @mcp.tool()
+async def list_admin_ai_health(ctx: Context) -> dict[str, Any]:
+    """
+    Get AI assistant health status
+    
+    Auto-generated from: ai_api.get_admin_ai_health()
+    """
+    try:
+        await ctx.info(f"Calling list_admin_ai_health...")
+        
+        response = ai_api.get_admin_ai_health()
+        
+        # Convert response to dict if it has to_dict method
+        if hasattr(response, 'to_dict'):
+            result = response.to_dict()
+        elif isinstance(response, list) and response and hasattr(response[0], 'to_dict'):
+            result = [item.to_dict() for item in response]
+        else:
+            result = response
+        
+        await ctx.info(f"list_admin_ai_health completed successfully")
+        return {"result": result}
+        
+    except ApiException as e:
+        error_msg = _format_api_error(e)
+        await ctx.error(f"Failed to execute list_admin_ai_health: {error_msg}")
+        return {"error": error_msg, "status": e.status}
+    except Exception as e:
+        await ctx.error(f"Unexpected error in list_admin_ai_health: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.tool()
 async def list_ai_health(ctx: Context) -> dict[str, Any]:
     """
     Get AI assistant health status
@@ -491,6 +522,37 @@ async def list_ai_health(ctx: Context) -> dict[str, Any]:
         return {"error": str(e)}
 
 @mcp.tool()
+async def head_admin_ai_chat(ctx: Context) -> dict[str, Any]:
+    """
+    Check AI assistant availability
+    
+    Auto-generated from: ai_api.head_admin_ai_chat()
+    """
+    try:
+        await ctx.info(f"Calling head_admin_ai_chat...")
+        
+        response = ai_api.head_admin_ai_chat()
+        
+        # Convert response to dict if it has to_dict method
+        if hasattr(response, 'to_dict'):
+            result = response.to_dict()
+        elif isinstance(response, list) and response and hasattr(response[0], 'to_dict'):
+            result = [item.to_dict() for item in response]
+        else:
+            result = response
+        
+        await ctx.info(f"head_admin_ai_chat completed successfully")
+        return {"result": result}
+        
+    except ApiException as e:
+        error_msg = _format_api_error(e)
+        await ctx.error(f"Failed to execute head_admin_ai_chat: {error_msg}")
+        return {"error": error_msg, "status": e.status}
+    except Exception as e:
+        await ctx.error(f"Unexpected error in head_admin_ai_chat: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.tool()
 async def head_ai_chat(ctx: Context) -> dict[str, Any]:
     """
     Check AI assistant availability
@@ -519,6 +581,106 @@ async def head_ai_chat(ctx: Context) -> dict[str, Any]:
         return {"error": error_msg, "status": e.status}
     except Exception as e:
         await ctx.error(f"Unexpected error in head_ai_chat: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.tool()
+async def create_admin_ai_chat(ctx: Context, chat_request: str) -> dict[str, Any]:
+    """
+    Proxy AI assistant chat request
+    
+    Parameters:
+        chat_request: JSON object with the following fields:
+  - message (REQUIRED): User message/question
+  - conversationId (optional): Conversation ID for context
+  - pageContext (optional): Current page context
+  - additional_properties (optional)
+    
+    Example JSON for parameters:
+      chat_request:
+        {
+          "message": "<message>"
+        }
+    
+    Auto-generated from: ai_api.post_admin_ai_chat()
+    """
+    try:
+        await ctx.info(f"Calling create_admin_ai_chat...")
+        from api_client.models import ChatRequest
+        # Convert JSON string to Pydantic model
+        import json
+        chat_request_data = json.loads(chat_request) if isinstance(chat_request, str) else chat_request
+        chat_request_obj = ChatRequest(**chat_request_data)
+
+        
+        response = ai_api.post_admin_ai_chat(chat_request=chat_request_obj)
+        
+        # Convert response to dict if it has to_dict method
+        if hasattr(response, 'to_dict'):
+            result = response.to_dict()
+        elif isinstance(response, list) and response and hasattr(response[0], 'to_dict'):
+            result = [item.to_dict() for item in response]
+        else:
+            result = response
+        
+        await ctx.info(f"create_admin_ai_chat completed successfully")
+        return {"result": result}
+        
+    except ApiException as e:
+        error_msg = _format_api_error(e)
+        await ctx.error(f"Failed to execute create_admin_ai_chat: {error_msg}")
+        return {"error": error_msg, "status": e.status}
+    except Exception as e:
+        await ctx.error(f"Unexpected error in create_admin_ai_chat: {str(e)}")
+        return {"error": str(e)}
+
+@mcp.tool()
+async def create_admin_ai_chat_stream(ctx: Context, chat_request: str) -> dict[str, Any]:
+    """
+    Proxy AI assistant streaming chat request
+    
+    Parameters:
+        chat_request: JSON object with the following fields:
+  - message (REQUIRED): User message/question
+  - conversationId (optional): Conversation ID for context
+  - pageContext (optional): Current page context
+  - additional_properties (optional)
+    
+    Example JSON for parameters:
+      chat_request:
+        {
+          "message": "<message>"
+        }
+    
+    Auto-generated from: ai_api.post_admin_ai_chat_stream()
+    """
+    try:
+        await ctx.info(f"Calling create_admin_ai_chat_stream...")
+        from api_client.models import ChatRequest
+        # Convert JSON string to Pydantic model
+        import json
+        chat_request_data = json.loads(chat_request) if isinstance(chat_request, str) else chat_request
+        chat_request_obj = ChatRequest(**chat_request_data)
+
+        
+        response = ai_api.post_admin_ai_chat_stream(chat_request=chat_request_obj)
+        
+        # Convert response to dict if it has to_dict method
+        if hasattr(response, 'to_dict'):
+            result = response.to_dict()
+        elif isinstance(response, list) and response and hasattr(response[0], 'to_dict'):
+            result = [item.to_dict() for item in response]
+        else:
+            result = response
+        
+        await ctx.info(f"create_admin_ai_chat_stream completed successfully")
+        return {"result": result}
+        
+    except ApiException as e:
+        error_msg = _format_api_error(e)
+        await ctx.error(f"Failed to execute create_admin_ai_chat_stream: {error_msg}")
+        return {"error": error_msg, "status": e.status}
+    except Exception as e:
+        await ctx.error(f"Unexpected error in create_admin_ai_chat_stream: {str(e)}")
         return {"error": str(e)}
 
 @mcp.tool()
@@ -1379,11 +1541,15 @@ async def create_admin_healthcare_users(ctx: Context, create_healthcare_user_req
   - firstName (REQUIRED): First name
   - lastName (REQUIRED): Last name
   - organization (optional): Organization identifier
-  - fhirUser (optional): FHIR user reference
+  - fhirPersons (optional): FHIR Person associations to create
   - password (optional): User password
   - temporaryPassword (optional): Whether password is temporary and must be changed
   - realmRoles (optional): Realm-level roles to assign
   - clientRoles (optional)
+  - enabled (optional): Whether the user is enabled
+  - emailVerified (optional): Whether the email is verified
+  - npi (optional): National Provider Identifier (NPI) for healthcare providers
+  - practitionerId (optional): FHIR Practitioner resource ID
   - additional_properties (optional)
     
     Example JSON for parameters:
@@ -1440,9 +1606,12 @@ async def update_admin_healthcare_users_by_user_id(ctx: Context, user_id: str, u
   - email (optional): Email address
   - enabled (optional): Whether the user is enabled
   - organization (optional): Organization identifier
-  - fhirUser (optional): FHIR user reference
+  - fhirPersons (optional): FHIR Person associations to update
   - realmRoles (optional): Realm-level roles
   - clientRoles (optional)
+  - emailVerified (optional): Whether the email is verified
+  - npi (optional): National Provider Identifier (NPI)
+  - practitionerId (optional): FHIR Practitioner resource ID
   - additional_properties (optional)
     
     Example JSON for parameters:
@@ -3343,15 +3512,26 @@ async def create_admin_smart_apps(ctx: Context, create_smart_app_request: str) -
   - publicClient (optional): Whether this is a public client
   - redirectUris (optional): Allowed redirect URIs
   - webOrigins (optional): Allowed web origins
-  - defaultScopes (optional): Default SMART scopes
-  - optionalScopes (optional): Optional SMART scopes
+  - defaultClientScopes (optional): Default SMART scopes
+  - optionalClientScopes (optional): Optional SMART scopes
   - smartVersion (optional): SMART App Launch version
   - fhirVersion (optional): FHIR version
   - appType (optional)
   - clientType (optional)
+  - secret (optional): Client secret for symmetric authentication (only for confidential clients)
   - publicKey (optional): Public key for JWT authentication (PEM format)
   - jwksUri (optional): JWKS URI for JWT authentication
   - systemScopes (optional): System-level scopes for backend services
+  - launchUrl (optional): SMART App launch URL
+  - logoUri (optional): Logo URI for application display
+  - tosUri (optional): Terms of Service URI
+  - policyUri (optional): Privacy Policy URI
+  - contacts (optional): Contact emails or names
+  - serverAccessType (optional)
+  - allowedServerIds (optional): List of allowed FHIR server IDs (when serverAccessType is selected-servers)
+  - scopeSetId (optional): Reference to a predefined scope set configuration
+  - requirePkce (optional): Require Proof Key for Code Exchange (PKCE) for public clients
+  - allowOfflineAccess (optional): Allow offline access (refresh tokens)
   - additional_properties (optional)
     
     Example JSON for parameters:
@@ -3404,12 +3584,29 @@ async def update_admin_smart_apps_by_client_id(ctx: Context, client_id: str, upd
   - name (optional): Application name
   - description (optional): Application description
   - enabled (optional): Whether the app is enabled
+  - publicClient (optional): Whether this is a public client
   - redirectUris (optional): Allowed redirect URIs
   - webOrigins (optional): Allowed web origins
-  - defaultScopes (optional): Default SMART scopes
-  - optionalScopes (optional): Optional SMART scopes
+  - defaultClientScopes (optional): Default SMART scopes
+  - optionalClientScopes (optional): Optional SMART scopes
   - smartVersion (optional): SMART App Launch version
   - fhirVersion (optional): FHIR version
+  - appType (optional)
+  - clientType (optional)
+  - secret (optional): Client secret for symmetric authentication (only for confidential clients)
+  - publicKey (optional): Public key for JWT authentication (PEM format)
+  - jwksUri (optional): JWKS URI for JWT authentication
+  - systemScopes (optional): System-level scopes for backend services
+  - launchUrl (optional): SMART App launch URL
+  - logoUri (optional): Logo URI for application display
+  - tosUri (optional): Terms of Service URI
+  - policyUri (optional): Privacy Policy URI
+  - contacts (optional): Contact emails or names
+  - serverAccessType (optional)
+  - allowedServerIds (optional): List of allowed FHIR server IDs
+  - scopeSetId (optional): Reference to a predefined scope set configuration
+  - requirePkce (optional): Require PKCE for public clients
+  - allowOfflineAccess (optional): Allow offline access (refresh tokens)
   - additional_properties (optional)
     
     Example JSON for parameters:
@@ -3449,7 +3646,7 @@ async def update_admin_smart_apps_by_client_id(ctx: Context, client_id: str, upd
         return {"error": str(e)}
 
 
-# Generated 84 tools from 12 API classes
+# Generated 88 tools from 12 API classes
 
 def main():
     """Run the FastMCP backend tools server."""

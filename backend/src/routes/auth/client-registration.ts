@@ -1,9 +1,9 @@
 import { Elysia } from 'elysia'
-import { logger } from '../../lib/logger'
+import { logger } from '@/lib/logger'
 import KcAdminClient from '@keycloak/keycloak-admin-client'
 import * as crypto from 'crypto'
 import { getClientRegistrationSettings } from '../admin/client-registration-settings'
-import { ClientRegistrationRequest, ClientRegistrationResponse, CommonErrorResponses } from '../../schemas'
+import { ClientRegistrationRequest, ClientRegistrationResponse, CommonErrorResponses } from '@/schemas'
 
 /**
  * OAuth 2.0 Dynamic Client Registration Protocol (RFC 7591)

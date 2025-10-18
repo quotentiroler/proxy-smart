@@ -18,7 +18,7 @@ export default defineConfig({
         target: process.env.VITE_API_BASE_URL || 'http://localhost:8445',
         changeOrigin: true
       },
-      '/ai': {
+      '/admin/ai': {
         target: process.env.VITE_API_BASE_URL || 'http://localhost:8445',
         changeOrigin: true
       }

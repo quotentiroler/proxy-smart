@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { keycloakPlugin } from '../../lib/keycloak-plugin'
+import { keycloakPlugin } from '@/lib/keycloak-plugin'
 import { 
   CommonErrorResponses,
   CreateIdentityProviderRequest, 
@@ -11,9 +11,9 @@ import {
   type IdentityProviderResponseType,
   type SuccessResponseType,
   type ErrorResponseType
-} from '../../schemas'
-import { handleAdminError } from '../../lib/admin-error-handler'
-import type { IdentityProvider } from '../../types'
+} from '@/schemas'
+import { handleAdminError } from '@/lib/admin-error-handler'
+import type { IdentityProvider } from '@/types'
 
 /**
  * Identity Provider Management - handles external IdP integrations

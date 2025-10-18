@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia'
-import { smartConfigService } from '../../lib/smart-config'
-import { validateToken } from '../../lib/auth'
-import { CommonErrorResponses, SmartConfigRefreshResponse } from '../../schemas'
+import { smartConfigService } from '@/lib/smart-config'
+import { validateToken } from '@/lib/auth'
+import { CommonErrorResponses, SmartConfigRefreshResponse } from '@/schemas'
 
 /**
  * SMART Configuration Admin endpoints

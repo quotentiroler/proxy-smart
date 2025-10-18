@@ -60,16 +60,6 @@ export function extractPageContext(): PageContext {
     interactiveElements,
     forms,
   };
-  
-  // Log what we extracted
-  console.log('[Page Context] Extracted:', {
-    url,
-    title,
-    currentSection,
-    visibleTextLength: visibleText.length,
-    interactiveElementsCount: interactiveElements.length,
-    formsCount: forms.length
-  });
 
   return context;
 }

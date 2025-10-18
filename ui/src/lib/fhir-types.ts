@@ -2,21 +2,46 @@
 // Imports from available FHIR type libraries based on version
 
 import type { 
-  Person as PersonR4, 
-  Patient as PatientR4, 
-  Practitioner as PractitionerR4, 
-  RelatedPerson as RelatedPersonR4,
-  Reference as ReferenceR4
-} from '@medplum/fhirtypes';
+  Person as PersonR3, 
+  Patient as PatientR3, 
+  Practitioner as PractitionerR3, 
+  RelatedPerson as RelatedPersonR3, 
+  Reference as ReferenceR3,
+  ContactPoint as ContactPointR3
+} from 'fhir/r3';  
 
-// TODO: support multiple FHIR versions in the future
+
+import type {
+  Person as PersonR4,
+  Patient as PatientR4,
+  Practitioner as PractitionerR4,
+  RelatedPerson as RelatedPersonR4,
+  Reference as ReferenceR4,
+  ContactPoint as ContactPointR4
+} from 'fhir/r4';
+
+import type { 
+  Person as PersonR5, 
+  Patient as PatientR5, 
+  Practitioner as PractitionerR5, 
+  RelatedPerson as RelatedPersonR5, 
+  Reference as ReferenceR5,
+  ContactPoint as ContactPointR5
+} from 'fhir/r5';
+
+// Export version-specific types for use in production code
+export type { PersonR3, PatientR3, PractitionerR3, RelatedPersonR3, ReferenceR3, ContactPointR3 };
+export type { PersonR4, PatientR4, PractitionerR4, RelatedPersonR4, ReferenceR4, ContactPointR4 };
+export type { PersonR5, PatientR5, PractitionerR5, RelatedPersonR5, ReferenceR5, ContactPointR5 };
+
 // TODO: dont use custom types for FHIR resources, use the existing libraries only
-// Re-export types with version-agnostic names for FHIR resources
+// Re-export types with version-agnostic names for FHIR resources (defaults to R4)
 export type Person = PersonR4;
 export type Patient = PatientR4;
 export type Practitioner = PractitionerR4;
 export type RelatedPerson = RelatedPersonR4;
 export type Reference = ReferenceR4;
+export type ContactPoint = ContactPointR4;
 
 // Custom types for our UI that extend FHIR concepts
 export type LinkedResourceType = 'Patient' | 'Practitioner' | 'RelatedPerson';

@@ -15,7 +15,6 @@ import {
 import { useFhirServers } from '@/stores/smartStore';
 import type { ScopeSet, SmartAppFormData } from '@/lib/types/api';
 
-// Types - now using generated models - updated to match centralized types
 type SmartAppType = 'backend-service' | 'standalone-app' | 'ehr-launch' | 'agent';
 type AuthenticationType = 'asymmetric' | 'symmetric' | 'none';
 type ServerAccessType = 'all-servers' | 'selected-servers' | 'user-person-servers';
@@ -23,23 +22,24 @@ type ServerAccessType = 'all-servers' | 'selected-servers' | 'user-person-server
 interface SmartAppAddFormProps {
   open: boolean;
   onClose: () => void;
-  onAddApp: (app: SmartAppFormData) => void; // Using our form data type instead
+  onAddApp: (app: SmartAppFormData) => void;
   scopeSets: ScopeSet[];
 }
 
 export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartAppAddFormProps) {
   const { servers, loading: serversLoading } = useFhirServers();
+  
   const [newApp, setNewApp] = useState<SmartAppFormData>({
     name: '',
     clientId: '',
     launchUrl: '',
     redirectUris: [], // Changed to array for API compatibility
     description: '',
-    defaultScopes: [],
+    defaultClientScopes: [],
     scopeSetId: '',
-    optionalScopes: [],
+    optionalClientScopes: [],
     appType: 'standalone-app',
-    authenticationType: 'asymmetric',
+    authenticationType: 'symmetric', // UI-only field - not sent to backend
     serverAccessType: 'all-servers',
     allowedServerIds: [],
     publicClient: false,
@@ -118,14 +118,14 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
     e.preventDefault();
     
     // Get scopes from selected scope set - guard against undefined arrays
-    let finalDefaultScopes = [...(newApp.defaultScopes || [])];
+    let finalDefaultScopes = [...(newApp.defaultClientScopes || [])];
     if (newApp.scopeSetId) {
       const selectedScopeSet = scopeSets.find(set => set.id === newApp.scopeSetId);
       if (selectedScopeSet) {
-        finalDefaultScopes = [...selectedScopeSet.scopes, ...(newApp.optionalScopes || [])];
+        finalDefaultScopes = [...selectedScopeSet.scopes, ...(newApp.optionalClientScopes || [])];
       }
     } else {
-      finalDefaultScopes = [...(newApp.defaultScopes || []), ...(newApp.optionalScopes || [])];
+      finalDefaultScopes = [...(newApp.defaultClientScopes || []), ...(newApp.optionalClientScopes || [])];
     }
     
     onAddApp({
@@ -134,13 +134,15 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
       launchUrl: newApp.launchUrl,
       redirectUris: newApp.redirectUris || [],
       description: newApp.description,
-      defaultScopes: finalDefaultScopes,
+      defaultClientScopes: finalDefaultScopes,
       scopeSetId: newApp.scopeSetId,
-      optionalScopes: newApp.optionalScopes || [],
+      optionalClientScopes: newApp.optionalClientScopes || [],
       appType: newApp.appType!,
-      authenticationType: newApp.authenticationType,
       serverAccessType: newApp.serverAccessType!,
       allowedServerIds: newApp.allowedServerIds || [],
+      // authenticationType is UI-only - backend infers from jwksUri/publicKey presence
+      jwksUri: newApp.jwksUri,
+      publicKey: newApp.publicKey,
     });
 
     // Reset form
@@ -150,11 +152,11 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
       launchUrl: '',
       redirectUris: [], 
       description: '', 
-      defaultScopes: [], 
+      defaultClientScopes: [], 
       scopeSetId: '',
-      optionalScopes: [],
-      appType: 'standalone-app', 
-      authenticationType: 'asymmetric',
+      optionalClientScopes: [],
+      appType: 'standalone-app',
+      authenticationType: 'symmetric', // UI-only
       serverAccessType: 'all-servers',
       allowedServerIds: [],
     });
@@ -168,11 +170,11 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
       launchUrl: '',
       redirectUris: [], 
       description: '', 
-      defaultScopes: [], 
+      defaultClientScopes: [], 
       scopeSetId: '',
-      optionalScopes: [],
-      appType: 'standalone-app', 
-      authenticationType: 'asymmetric',
+      optionalClientScopes: [],
+      appType: 'standalone-app',
+      authenticationType: 'symmetric', // UI-only
       serverAccessType: 'all-servers',
       allowedServerIds: [],
     });
@@ -233,7 +235,7 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
                   ...newApp,
                   appType,
                   redirectUris: requiresRedirectUri(appType) ? newApp.redirectUris : [],
-                  authenticationType: hasFixedAuthType(appType) ? getFixedAuthType(appType) : newApp.authenticationType
+                  authenticationType: hasFixedAuthType(appType) ? getFixedAuthType(appType) : (newApp.authenticationType || 'symmetric')
                 });
               }}
               className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
@@ -272,6 +274,106 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
             </div>
           )}
         </div>
+
+        {/* Authentication Credentials Section */}
+        {(newApp.authenticationType === 'asymmetric' || hasFixedAuthType(newApp.appType!)) && (
+          <div className="space-y-6 p-6 bg-amber-500/10 rounded-xl border border-amber-500/20">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-amber-500/10 rounded-lg flex items-center justify-center shadow-sm">
+                <Shield className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-foreground tracking-tight">Asymmetric Authentication</h4>
+                <p className="text-muted-foreground text-sm font-medium">Provide JWKS URI or public key for JWT signature verification</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="jwksUri" className="text-sm font-semibold text-foreground">JWKS URI</Label>
+              <Input
+                id="jwksUri"
+                type="url"
+                placeholder="https://your-app.com/.well-known/jwks.json"
+                value={newApp.jwksUri || ''}
+                onChange={(e) => setNewApp({ ...newApp, jwksUri: e.target.value })}
+                className="rounded-xl border-input focus:border-ring focus:ring-ring shadow-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                URL endpoint where the proxy can fetch your app's public keys for JWT verification
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="publicKey" className="text-sm font-semibold text-foreground">Public Key (Alternative)</Label>
+              <textarea
+                id="publicKey"
+                placeholder="-----BEGIN PUBLIC KEY-----&#10;MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...&#10;-----END PUBLIC KEY-----"
+                value={newApp.publicKey || ''}
+                onChange={(e) => setNewApp({ ...newApp, publicKey: e.target.value })}
+                className="flex min-h-[100px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm font-mono"
+                rows={6}
+              />
+              <p className="text-xs text-muted-foreground">
+                Provide a public key directly if not using JWKS URI. Supports PEM format (RSA, EC).
+              </p>
+            </div>
+
+            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-semibold text-blue-800 dark:text-blue-300 mb-1">Authentication Options</p>
+                  <p className="text-blue-700 dark:text-blue-400 text-xs">
+                    You can provide either a JWKS URI or a public key directly. The JWKS URI is recommended as it allows for key rotation.
+                    If both are provided, the JWKS URI takes precedence.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {newApp.authenticationType === 'symmetric' && !hasFixedAuthType(newApp.appType!) && (
+          <div className="space-y-6 p-6 bg-rose-500/10 rounded-xl border border-rose-500/20">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-rose-500/10 rounded-lg flex items-center justify-center shadow-sm">
+                <Shield className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-foreground tracking-tight">Symmetric Authentication</h4>
+                <p className="text-muted-foreground text-sm font-medium">Store a shared secret for client authentication</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="clientSecret" className="text-sm font-semibold text-foreground">Client Secret</Label>
+              <Input
+                id="clientSecret"
+                type="password"
+                placeholder="Enter shared secret"
+                value={newApp.secret || ''}
+                onChange={(e) => setNewApp({ ...newApp, secret: e.target.value })}
+                className="rounded-xl border-input focus:border-ring focus:ring-ring shadow-sm font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                A shared secret used for symmetric client authentication. Keep this secure and never expose it in client-side code.
+              </p>
+            </div>
+
+            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-semibold text-amber-800 dark:text-amber-300 mb-1">Security Warning</p>
+                  <p className="text-amber-700 dark:text-amber-400 text-xs">
+                    Symmetric authentication (client secrets) is less secure than asymmetric authentication (JWT with public/private keys).
+                    Use asymmetric authentication when possible, especially for production deployments.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-3">
           <Label htmlFor="redirectUri" className="text-sm font-semibold text-foreground">Redirect URI</Label>
@@ -490,17 +592,17 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
               <Input
                 id="customScopes"
                 placeholder="patient/Patient.read, user/Observation.read"
-                value={(newApp.optionalScopes || []).join(', ')}
+                value={(newApp.optionalClientScopes || []).join(', ')}
                 onChange={(e) => setNewApp({ 
                   ...newApp, 
-                  optionalScopes: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                  optionalClientScopes: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                 })}
                 className="rounded-xl border-input focus:border-ring focus:ring-ring shadow-sm"
               />
             </div>
           </div>
 
-          {(newApp.scopeSetId || (newApp.optionalScopes || []).length > 0) && (
+          {(newApp.scopeSetId || (newApp.optionalClientScopes || []).length > 0) && (
             <div className="bg-card/50 p-4 rounded-lg border border-border">
               <Label className="text-sm font-semibold text-foreground mb-2 block">Current Scope Preview</Label>
               <div className="text-xs text-muted-foreground mb-2">
@@ -514,7 +616,7 @@ export function SmartAppAddForm({ open, onClose, onAddApp, scopeSets }: SmartApp
                   </Badge>
                 ))}
                 {/* Show additional scopes */}
-                {(newApp.optionalScopes || []).map((scope: string, index: number) => (
+                {(newApp.optionalClientScopes || []).map((scope: string, index: number) => (
                   <Badge key={`optional-${index}`} variant="outline" className="text-xs bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20 font-mono">
                     {scope}
                   </Badge>
