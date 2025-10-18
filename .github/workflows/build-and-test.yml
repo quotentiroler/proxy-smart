@@ -48,22 +48,10 @@ jobs:
       uses: ./.github/actions/setup-bun-version
 
     # Install Dependencies
-    - name: Install Root Dependencies
+    - name: Install Dependencies (Workspace)
       run: |
-        echo "📦 Installing root dependencies..."
-        bun install
-
-    - name: Install Backend Dependencies
-      run: |
-        echo "📦 Installing backend dependencies..."
-        cd backend
-        bun install
-
-    - name: Install Frontend Dependencies
-      run: |
-        echo "📦 Installing frontend dependencies..."
-        cd ui
-        bun install
+        echo "📦 Installing all dependencies via workspace..."
+        bun install --frozen-lockfile
 
     # Backend Build
     - name: Build Backend
