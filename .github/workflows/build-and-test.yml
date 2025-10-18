@@ -51,7 +51,7 @@ jobs:
     - name: Install Dependencies (Workspace)
       run: |
         echo "📦 Installing all dependencies via workspace..."
-        bun install --frozen-lockfile
+        bun install --frozen-lockfile --backend=hardlink
 
     # Backend Build
     - name: Build Backend
