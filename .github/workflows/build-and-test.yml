@@ -67,8 +67,7 @@ jobs:
       run: |
         echo "🔨 Building frontend..."
         cd ui
-        bun run typecheck
-        bunx --bun vite build
+        bun run build
 
     # Backend Tests
     - name: Test Backend
