@@ -14,10 +14,6 @@
         "typescript": "5.9.3",
         "typescript-eslint": "^8.35.0",
       },
-      "optionalDependencies": {
-        "@tailwindcss/oxide-linux-x64-gnu": "^4.1.14",
-        "lightningcss-linux-x64-gnu": "^1.30.1",
-      },
     },
     "backend": {
       "name": "proxy-smart-backend",
@@ -116,6 +112,10 @@
         "typescript": "5.9.3",
         "typescript-eslint": "^8.46.0",
         "vite": "7.1.0",
+      },
+      "optionalDependencies": {
+        "@tailwindcss/oxide-linux-x64-gnu": "^4.1.14",
+        "lightningcss-linux-x64-gnu": "^1.30.1",
       },
     },
   },
