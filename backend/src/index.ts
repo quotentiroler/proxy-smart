@@ -14,7 +14,6 @@ import { logger } from './lib/logger'
 import { initializeServer, displayServerEndpoints } from './init'
 import { oauthMetricsLogger } from './lib/oauth-metrics-logger'
 import staticPlugin from '@elysiajs/static'
-import { aiRoutes } from './routes/admin/ai'
 import { join } from 'path'
 
 // Debug CORS configuration
@@ -93,10 +92,9 @@ const app = new Elysia({
   .use(statusRoutes)// Server status and info endpoints, smart launcher, restart and shutdown too (will be moved to admin)
   .use(serverDiscoveryRoutes)// Server discovery endpoints
   .use(authRoutes)
-  .use(adminRoutes) //admin keycloak endpoints
+  .use(adminRoutes) // Admin endpoints including AI routes - all protected by admin guard
   .use(oauthMonitoringRoutes) // OAuth monitoring and analytics endpoints
   .use(oauthWebSocket) // OAuth WebSocket for real-time monitoring
-  .use(aiRoutes) // AI assistant proxy endpoints
   .use(fhirRoutes) // the actual FHIR proxy endpoints
 
 // Export the app instance for type generation

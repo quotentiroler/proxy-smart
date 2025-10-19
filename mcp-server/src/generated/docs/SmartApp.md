@@ -23,7 +23,19 @@ Name | Type | Description | Notes
 **default_client_scopes** | **List[str]** | Default scopes | [optional] 
 **optional_client_scopes** | **List[str]** | Optional scopes | [optional] 
 **app_type** | **str** |  | [optional] 
-**access** | **object** |  | [optional] 
+**client_type** | **str** |  | [optional] 
+**secret** | **str** | Client secret for symmetric authentication (only for confidential clients) | [optional] 
+**access** | **object** | Keycloak admin console permissions (configure, manage, view) - informational only | [optional] 
+**launch_url** | **str** | SMART App launch URL | [optional] 
+**logo_uri** | **str** | Logo URI for application display | [optional] 
+**tos_uri** | **str** | Terms of Service URI | [optional] 
+**policy_uri** | **str** | Privacy Policy URI | [optional] 
+**contacts** | **List[str]** | Contact emails or names | [optional] 
+**server_access_type** | **str** |  | [optional] 
+**allowed_server_ids** | **List[str]** | List of allowed FHIR server IDs | [optional] 
+**scope_set_id** | **str** | Reference to a predefined scope set configuration | [optional] 
+**require_pkce** | **bool** | Require PKCE for public clients | [optional] 
+**allow_offline_access** | **bool** | Allow offline access (refresh tokens) | [optional] 
 
 ## Example
 

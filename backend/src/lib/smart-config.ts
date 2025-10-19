@@ -10,7 +10,7 @@
 
 import { logger } from './logger'
 import { config } from '../config'
-import type { SmartConfiguration } from '../types'
+import type { SmartConfigurationResponseType } from '../schemas'
 
 interface OpenIDConfiguration {
     issuer: string
@@ -26,7 +26,7 @@ interface OpenIDConfiguration {
 }
 
 interface CachedConfig {
-    config: SmartConfiguration
+    config: SmartConfigurationResponseType
     timestamp: number
     ttl: number
 }
@@ -39,7 +39,7 @@ class SmartConfigService {
     /**
      * Get SMART configuration, using cache if available and valid
      */
-    async getSmartConfiguration(): Promise<SmartConfiguration> {
+    async getSmartConfiguration(): Promise<SmartConfigurationResponseType> {
         const now = Date.now()
 
         // Check if we have valid cached config
@@ -63,7 +63,7 @@ class SmartConfigService {
     /**
      * Fetch OpenID configuration from Keycloak and build SMART config
      */
-    private async fetchAndBuildSmartConfig(): Promise<SmartConfiguration> {
+    private async fetchAndBuildSmartConfig(): Promise<SmartConfigurationResponseType> {
         try {
             const response = await fetch(this.keycloakDiscoveryUrl, {
                 headers: {
@@ -90,7 +90,7 @@ class SmartConfigService {
     /**
      * Build SMART configuration from OpenID configuration
      */
-    private buildSmartConfigFromOpenID(openidConfig: OpenIDConfiguration): SmartConfiguration {
+    private buildSmartConfigFromOpenID(openidConfig: OpenIDConfiguration): SmartConfigurationResponseType {
         // Build scopes - combine OpenID scopes with SMART-specific scopes
         const baseScopes = openidConfig.scopes_supported || ['openid', 'profile']
         const smartScopes = this.getSmartScopes()

@@ -6,6 +6,7 @@
     "url": "https://github.com/quotentiroler/proxy-smart.git"
   },
   "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.15.3",
     "@eslint/js": "^9.30.0",
     "concurrently": "^9.2.0",
     "cross-env": "^10.0.0",
@@ -14,6 +15,10 @@
     "globals": "^16.2.0",
     "typescript": "5.9.3",
     "typescript-eslint": "^8.35.0"
+  },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.1.14",
+    "lightningcss-linux-x64-gnu": "^1.30.1"
   },
   "description": "Proxy Smart - Healthcare interoperability proxy with Keycloak integration",
   "engines": {
@@ -49,10 +54,10 @@
     "start:ui": "cd ui && bun run preview",
     "normalize": "git add --renormalize .",
     "normalize:api": "cd ui && git add --renormalize src/lib/api-client/",
-    "generate": "concurrently \"bun run generate:ui\" \"bun run generate:mcp\"",
+    "generate": "cd backend && bun run export-openapi && cd ../ui && bun run generate && cd  ../mcp-server && uv run python src/generate_mcp_tools.py",
     "generate:ui": "cd backend && bun run export-openapi && cd ../ui && bun run generate",
     "generate:ui:normalized": "bun run generate:ui && git add --renormalize ui/src/lib/api-client/",
-    "generate:mcp": "cd backend && bun run export-openapi && cd ../mcp-server && bunx --bun @openapitools/openapi-generator-cli generate -i ../backend/dist/openapi.json -g python -o ./src/generated -c ./openapi-generator-config.json --skip-validate-spec && uv run python src/generate_mcp_tools.py",
+    "generate:mcp": "cd backend && bun run export-openapi && cd ../mcp-server && openapi-generator-cli generate -i ../backend/dist/openapi.json -g python -o ./src/generated -c ./openapi-generator-config.json --skip-validate-spec && uv run python src/generate_mcp_tools.py",
     "generate:test": "cd testing && bun run generate",
     "validate-api": "concurrently \"bun run validate-api:ui\" \"bun run validate-api:test\"",
     "validate-api:ui": "cd ui && bun run validate-api",

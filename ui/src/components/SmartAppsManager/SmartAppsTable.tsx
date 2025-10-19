@@ -28,7 +28,10 @@ import {
   Globe,
   AlertCircle,
 } from 'lucide-react';
-import type { SmartApp, ScopeSet, SmartAppType, AuthenticationType } from '@/lib/types/api';
+import type { SmartApp, ScopeSet, SmartAppType } from '@/lib/types/api';
+
+// UI-only type for display purposes
+type AuthenticationType = 'asymmetric' | 'symmetric' | 'none';
 
 interface SmartAppsTableProps {
   apps: SmartApp[];
@@ -36,6 +39,9 @@ interface SmartAppsTableProps {
   onToggleAppStatus: (id: string) => void;
   onOpenScopeEditor: (app: SmartApp) => void;
   onDeleteApp: (id: string) => void;
+  onEditApp: (app: SmartApp) => void;
+  onViewConfig: (app: SmartApp) => void;
+  onEditAuth: (app: SmartApp) => void;
 }
 
 export function SmartAppsTable({
@@ -44,6 +50,9 @@ export function SmartAppsTable({
   onToggleAppStatus,
   onOpenScopeEditor,
   onDeleteApp,
+  onEditApp,
+  onViewConfig,
+  onEditAuth,
 }: SmartAppsTableProps) {
   const getServerAccessBadge = (app: SmartApp) => {
     switch (app.serverAccessType) {
@@ -154,7 +163,11 @@ export function SmartAppsTable({
             </TableHeader>
             <TableBody>
               {apps.map((app) => {
-                const appTypeBadge = getAppTypeBadge(app.appType || 'standalone-app', app.authenticationType || 'symmetric');
+                // Derive authentication type from clientAuthenticatorType
+                const authType: AuthenticationType = 
+                  app.clientAuthenticatorType === 'client-jwt' ? 'asymmetric' :
+                  app.clientAuthenticatorType === 'client-secret' ? 'symmetric' : 'none';
+                const appTypeBadge = getAppTypeBadge(app.appType || 'standalone-app', authType);
                 return (
                   <TableRow key={app.id} className="border-border/50 hover:bg-muted/50 transition-colors duration-200">
                     <TableCell>
@@ -163,7 +176,11 @@ export function SmartAppsTable({
                           <span className="text-lg">{getAppTypeIcon(app.appType || 'standalone-app')}</span>
                           <div>
                             <div className="font-semibold text-foreground">{app.name}</div>
-                            <div className="text-sm text-muted-foreground mt-1">{app.description}</div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {app.description && app.description.length > 120
+                                ? `${app.description.substring(0, 120)}...`
+                                : app.description}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -257,7 +274,7 @@ export function SmartAppsTable({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="rounded-xl border-border/50 shadow-lg">
-                          <DropdownMenuItem onClick={() => app.id && onToggleAppStatus(app.id)} className="rounded-lg">
+                          <DropdownMenuItem onClick={() => app.clientId && onToggleAppStatus(app.clientId)} className="rounded-lg">
                             <div className="flex items-center">
                               {app.status === 'active' ? (
                                 <X className="w-4 h-4 mr-2 text-red-600 dark:text-red-400" />
@@ -271,25 +288,27 @@ export function SmartAppsTable({
                             <Shield className="w-4 h-4 mr-2 text-primary" />
                             Manage Scopes
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="rounded-lg">
+                          <DropdownMenuItem onClick={() => onEditApp(app)} className="rounded-lg">
                             <Edit className="w-4 h-4 mr-2 text-muted-foreground" />
                             Edit Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="rounded-lg">
+                          <DropdownMenuItem onClick={() => onViewConfig(app)} className="rounded-lg">
                             <Eye className="w-4 h-4 mr-2 text-muted-foreground" />
                             View Configuration
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="rounded-lg">
+                          <DropdownMenuItem onClick={() => onEditAuth(app)} className="rounded-lg">
                             <Settings className="w-4 h-4 mr-2 text-muted-foreground" />
                             Authentication Settings
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => app.id && onDeleteApp(app.id)}
-                            className="text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
+                          {app.clientId !== 'ai-assistant-agent' && (
+                            <DropdownMenuItem
+                              onClick={() => app.clientId && onDeleteApp(app.clientId)}
+                              className="text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

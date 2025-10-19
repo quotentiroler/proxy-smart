@@ -1,15 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { aiAssistant, type ChatMessage, type DocumentChunk } from '../lib/ai-assistant';
 import { useAIChatStore } from '../stores/aiChatStore';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardHeader } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
+import { ActionMarkdownRenderer } from './ai/ActionMarkdownRenderer';
 import {
     Bot,
-    Minimize2,
     X,
     Send,
     Mic,
@@ -17,8 +15,7 @@ import {
     Brain,
     Sparkles,
     FileText,
-    RotateCcw,
-    ShieldCheck
+    RotateCcw
 } from 'lucide-react';
 
 interface AIChatOverlayProps {
@@ -67,7 +64,6 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isOpenAIReady, setIsOpenAIReady] = useState(false);
-    const [isBackendAuthenticated, setIsBackendAuthenticated] = useState(false);
     const [currentMessage, setCurrentMessage] = useState('');
     const [isExpanded, setIsExpanded] = useState(false);
     const [isFullWidth, setIsFullWidth] = useState(false);
@@ -95,16 +91,13 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
         (async () => {
             try {
                 const available = await aiAssistant.isOpenAIAvailable();
-                const authenticated = await aiAssistant.isBackendAuthenticated();
                 if (isMounted) {
                     setIsOpenAIReady(available);
-                    setIsBackendAuthenticated(authenticated);
                 }
             } catch (error) {
                 console.warn('Failed to determine OpenAI availability:', error);
                 if (isMounted) {
                     setIsOpenAIReady(false);
-                    setIsBackendAuthenticated(false);
                 }
             }
         })();
@@ -381,7 +374,10 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                         {/* Vertical Expand Handle - Invisible until hover */}
                         {!isExpanded && (
                             <div 
-                                onClick={() => setIsExpanded(true)}
+                                onClick={() => {
+                                    setIsExpanded(true);
+                                    setIsMinimized(false); // Also open the chat
+                                }}
                                 className="absolute top-0 left-0 right-0 h-3 cursor-ns-resize group z-10"
                                 title={t('Expand to full height')}
                             >
@@ -396,6 +392,7 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                                 onClick={() => {
                                     setIsExpanded(true);
                                     setIsFullWidth(true);
+                                    setIsMinimized(false); // Also open the chat
                                 }}
                                 className="absolute top-0 left-0 w-8 h-8 cursor-nwse-resize group z-20"
                                 title={t('Expand to full screen')}
@@ -422,7 +419,10 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                         {/* Horizontal Expand Handle - Only shows when vertically expanded */}
                         {isExpanded && !isFullWidth && (
                             <div 
-                                onClick={() => setIsFullWidth(true)}
+                                onClick={() => {
+                                    setIsFullWidth(true);
+                                    setIsMinimized(false); // Also open the chat
+                                }}
                                 className="absolute top-0 bottom-0 left-0 w-3 cursor-ew-resize group z-10"
                                 title={t('Expand to full width')}
                             >
@@ -458,7 +458,11 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                             </div>
                         )}
                         
-                <CardHeader className="bg-muted/50 p-4 border-b border-border/50">
+                <CardHeader 
+                    className="bg-muted/50 p-4 border-b border-border/50 cursor-pointer hover:bg-muted/70 transition-colors"
+                    onClick={() => setIsMinimized(!isMinimized)}
+                    title={isMinimized ? t('Expand chat') : t('Minimize chat')}
+                >
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-sm">
@@ -469,51 +473,37 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                                 )}
                             </div>
                             <div>
-                                <div className="flex items-center space-x-2">
-                                    <CardTitle className="text-sm font-semibold text-foreground">
-                                        {t('SMART Assistant')}
-                                    </CardTitle>
-                                    {isOpenAIReady && (
-                                        <Sparkles className="w-3 h-3 text-primary animate-pulse" />
-                                    )}
-                                    {isBackendAuthenticated && (
-                                        <div className="flex items-center gap-1 bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
-                                            <ShieldCheck className="w-3 h-3" />
-                                            <span className="text-[10px] font-medium">Authenticated</span>
-                                        </div>
-                                    )}
-                                </div>
                                 <p className="text-xs text-muted-foreground">
                                     {isOpenAIReady 
-                                        ? t('AI-powered with RAG knowledge base')
+                                        ? t('AI Assistant')
                                         : t('Semantic search with knowledge base')
                                     }
                                 </p>
                             </div>
+                            <Sparkles className="w-3 h-3 text-primary animate-pulse" />
                         </div>
                         <div className="flex items-center space-x-1">
+                            {!isMinimized && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // Prevent toggling when clicking clear
+                                        handleClearChat();
+                                    }}
+                                    className="h-6 w-6 p-0 hover:bg-muted rounded-md"
+                                    title={t('Clear chat history')}
+                                >
+                                    <RotateCcw className="w-3 h-3 text-muted-foreground" />
+                                </Button>
+                            )}
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={handleClearChat}
-                                className="h-6 w-6 p-0 hover:bg-muted rounded-md"
-                                title={t('Clear chat history')}
-                            >
-                                <RotateCcw className="w-3 h-3 text-muted-foreground" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setIsMinimized(!isMinimized)}
-                                className="h-6 w-6 p-0 hover:bg-muted rounded-md"
-                                title={isMinimized ? t('Expand chat') : t('Minimize chat')}
-                            >
-                                <Minimize2 className="w-3 h-3 text-muted-foreground" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={onClose}
+                                onClick={(e) => {
+                                    e.stopPropagation(); // Prevent toggling when clicking close
+                                    onClose();
+                                }}
                                 className="h-6 w-6 p-0 hover:bg-muted rounded-md"
                                 title={t('Close chat')}
                             >
@@ -534,21 +524,21 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                                         : 'bg-muted text-foreground rounded-bl-sm'
                                         }`}>
                                         {message.type === 'agent' ? (
-                                            <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                                                <ReactMarkdown 
-                                                    remarkPlugins={[remarkGfm]}
-                                                    components={{
-                                                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                                        ul: ({ children }) => <ul className="ml-4 mb-2 last:mb-0 list-disc">{children}</ul>,
-                                                        li: ({ children }) => <li className="mb-1">{children}</li>,
-                                                        strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-                                                        em: ({ children }) => <em className="italic">{children}</em>,
-                                                        code: ({ children }) => <code className="bg-muted/60 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                                            message.content ? (
+                                                <ActionMarkdownRenderer 
+                                                    content={message.content}
+                                                    onActionComplete={(actionType, result) => {
+                                                        console.log('Action completed:', actionType, result);
+                                                        // Optionally add a system message about the action
+                                                        if (result && typeof result === 'object' && 'navigated' in result) {
+                                                            // Action was successful, could show feedback
+                                                        }
                                                     }}
-                                                >
-                                                    {message.content || t('(Empty response - this should not happen)')}
-                                                </ReactMarkdown>
-                                            </div>
+                                                />
+                                            ) : !isProcessing ? (
+                                                // Only show "empty response" if we're not currently processing
+                                                <span className="text-muted-foreground italic">{t('(Empty response - this should not happen)')}</span>
+                                            ) : null
                                         ) : (
                                             <div className="whitespace-pre-wrap">{message.content || t('(Empty message)')}</div>
                                         )}

@@ -4,7 +4,7 @@ import {
   X,
   Play
 } from 'lucide-react';
-import type { FhirServerWithState } from '../../lib/types/api';
+import type { FhirServerWithState } from '@/lib/types/api';
 
 interface StatsCardsProps {
   servers: FhirServerWithState[];

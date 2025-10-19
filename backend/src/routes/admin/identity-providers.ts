@@ -1,8 +1,8 @@
 import { Elysia, t } from 'elysia'
-import { keycloakPlugin } from '../../lib/keycloak-plugin'
-import { 
+import { keycloakPlugin } from '@/lib/keycloak-plugin'
+import {
   CommonErrorResponses,
-  CreateIdentityProviderRequest, 
+  CreateIdentityProviderRequest,
   UpdateIdentityProviderRequest,
   IdentityProviderResponse,
   CountResponse,
@@ -10,10 +10,32 @@ import {
   type CountResponseType,
   type IdentityProviderResponseType,
   type SuccessResponseType,
-  type ErrorResponseType
-} from '../../schemas'
-import { handleAdminError } from '../../lib/admin-error-handler'
-import type { IdentityProvider } from '../../types'
+  type ErrorResponseType,
+  type IdentityProviderType,
+  type CreateIdentityProviderRequestType,
+  type UpdateIdentityProviderRequestType
+} from '@/schemas'
+import { handleAdminError } from '@/lib/admin-error-handler'
+import type IdentityProviderRepresentation from '@keycloak/keycloak-admin-client/lib/defs/identityProviderRepresentation.js'
+
+const normalizeProvider = (
+  provider: IdentityProviderRepresentation | IdentityProviderType
+): IdentityProviderResponseType => ({
+  alias: provider.alias,
+  providerId: provider.providerId,
+  displayName: provider.displayName,
+  enabled: provider.enabled,
+  config: provider.config ?? {},
+  addReadTokenRoleOnCreate: provider.addReadTokenRoleOnCreate,
+  firstBrokerLoginFlowAlias: provider.firstBrokerLoginFlowAlias,
+  internalId: provider.internalId,
+  linkOnly: provider.linkOnly,
+  hideOnLogin: provider.hideOnLogin,
+  postBrokerLoginFlowAlias: provider.postBrokerLoginFlowAlias,
+  storeToken: provider.storeToken,
+  trustEmail: provider.trustEmail,
+  organizationId: provider.organizationId
+})
 
 /**
  * Identity Provider Management - handles external IdP integrations
@@ -59,15 +81,9 @@ export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
         return { error: 'Authorization header required' }
       }
 
-      const admin = await getAdmin(token)
-      const providers = await admin.identityProviders.find()
-      return providers.map(provider => ({
-        alias: provider.alias ?? '',
-        providerId: provider.providerId ?? '',
-        displayName: provider.displayName ?? '',
-        enabled: provider.enabled ?? false,
-        config: provider.config ?? {}
-      }));
+  const admin = await getAdmin(token)
+  const providers = await admin.identityProviders.find()
+  return providers.map(provider => normalizeProvider(provider))
     } catch (error) {
       set.status = 500
       return { error: 'Failed to fetch identity providers', details: error }
@@ -94,15 +110,19 @@ export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
       }
 
       const admin = await getAdmin(token)
-      await admin.identityProviders.create(body)
-      const created = await admin.identityProviders.findOne({ alias: (body as IdentityProvider).alias })
-      return {
-        alias: created?.alias ?? (body as IdentityProvider).alias ?? '',
-        providerId: created?.providerId ?? (body as IdentityProvider).providerId ?? '',
-        displayName: created?.displayName ?? '',
-        enabled: created?.enabled ?? false,
-        config: created?.config ?? {}
+      const payload = body as CreateIdentityProviderRequestType
+
+      if (!payload.alias || !payload.providerId) {
+        set.status = 400
+        return { error: 'Alias and providerId are required' }
       }
+
+      await admin.identityProviders.create({
+        ...payload,
+        config: payload.config ?? {}
+      } as IdentityProviderRepresentation)
+      const created = await admin.identityProviders.findOne({ alias: payload.alias })
+      return normalizeProvider((created ?? payload) as IdentityProviderType)
     } catch (error) {
       set.status = 400
       return { error: 'Failed to create identity provider', details: error }
@@ -135,13 +155,7 @@ export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
         set.status = 404
         return { error: 'Identity provider not found' }
       }
-      return {
-        alias: provider.alias ?? params.alias ?? '',
-        providerId: provider.providerId ?? '',
-        displayName: provider.displayName ?? '',
-        enabled: provider.enabled ?? false,
-        config: provider.config ?? {}
-      }
+      return normalizeProvider({ ...provider, alias: provider.alias ?? params.alias })
     } catch (error) {
       set.status = 500
       return { error: 'Failed to fetch identity provider', details: error }
@@ -168,7 +182,15 @@ export const identityProvidersRoutes = new Elysia({ prefix: '/idps' })
       }
 
       const admin = await getAdmin(token)
-      await admin.identityProviders.update({ alias: params.alias }, body)
+      const updatePayload = body as UpdateIdentityProviderRequestType
+
+      await admin.identityProviders.update(
+        { alias: params.alias },
+        {
+          ...updatePayload,
+          config: updatePayload.config ?? undefined
+        } as IdentityProviderRepresentation
+      )
       return { success: true }
     } catch (error) {
       set.status = 400

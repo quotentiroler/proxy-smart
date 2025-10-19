@@ -3,11 +3,10 @@ import fetch, { Headers } from 'cross-fetch'
 import { validateToken } from '../lib/auth'
 import { config } from '../config'
 import { fhirServerStore, getServerByName, getServerInfoByName } from '../lib/fhir-server-store'
-import { CommonErrorResponses, ErrorResponse, CacheRefreshResponse, SmartConfigurationResponse, FhirProxyResponse } from '../schemas'
+import { CommonErrorResponses, ErrorResponse, CacheRefreshResponse, SmartConfigurationResponse, FhirProxyResponse, type SmartConfigurationResponseType } from '../schemas'
 import { smartConfigService } from '../lib/smart-config'
 import { logger } from '../lib/logger'
 import { fetchWithMtls, getMtlsConfig } from './fhir-servers'
-import type { SmartConfiguration } from '../types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function proxyFHIR({ params, request, set }: any) {
@@ -122,7 +121,7 @@ const proxySchema = {
 
 export const fhirRoutes = new Elysia({ prefix: `/${config.name}/:server_name/:fhir_version`, tags: ['fhir'] })
   // SMART on FHIR Configuration endpoint - server-specific configuration
-  .get('/.well-known/smart-configuration', async (): Promise<SmartConfiguration> => {
+  .get('/.well-known/smart-configuration', async (): Promise<SmartConfigurationResponseType> => {
     return await smartConfigService.getSmartConfiguration()
   }, {
     params: t.Object({

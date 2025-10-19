@@ -1,9 +1,8 @@
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Loader2, Shield } from 'lucide-react';
 import { useAuth } from '@/stores/authStore';
 
-// Import extracted components
 import { NotificationToast } from '../ui/NotificationToast';
 import { IdPStatisticsCards } from './IdPStatisticsCards';
 import { IdPAddForm } from './IdPAddForm';
@@ -12,418 +11,329 @@ import { IdPEditDialog } from './IdPEditDialog';
 import { ConnectionTestDialog } from './ConnectionTestDialog';
 import { CertificatesDialog } from './CertificatesDialog';
 
-// Sample data for Identity Providers (fallback when no real data)
-const SAMPLE_IDPS: IdP[] = [
-  {
-    id: '1',
-    name: 'Hospital Azure AD',
-    type: 'SAML',
-    provider: 'Microsoft Azure',
-    status: 'active',
-    entityId: 'https://hospital.onmicrosoft.com/saml',
-    ssoUrl: 'https://login.microsoftonline.com/hospital/saml2',
-    lastUsed: '2024-12-28T10:30:00Z',
-    userCount: 156,
-  },
-  {
-    id: '2',
-    name: 'Google Workspace',
-    type: 'OAuth2',
-    provider: 'Google',
-    status: 'active',
-    entityId: 'google-workspace-hospital',
-    ssoUrl: 'https://accounts.google.com/oauth/authorize',
-    lastUsed: '2024-12-28T09:15:00Z',
-    userCount: 89,
-  },
-  {
-    id: '3',
-    name: 'Epic MyChart SSO',
-    type: 'OIDC',
-    provider: 'Epic',
-    status: 'active',
-    entityId: 'epic-mychart-sso',
-    ssoUrl: 'https://mychart.hospital.com/oauth2/authorize',
-    lastUsed: '2024-12-27T16:45:00Z',
-    userCount: 342,
-  },
-  {
-    id: '4',
-    name: 'Legacy LDAP',
-    type: 'LDAP',
-    provider: 'OpenLDAP',
-    status: 'inactive',
-    entityId: 'ldap://hospital.local',
-    ssoUrl: 'ldap://hospital.local:389',
-    lastUsed: '2024-12-15T08:30:00Z',
-    userCount: 23,
-  },
-  {
-    id: '5',
-    name: 'Okta Healthcare',
-    type: 'SAML',
-    provider: 'Okta',
-    status: 'active',
-    entityId: 'https://hospital.okta.com/saml2/service-provider',
-    ssoUrl: 'https://hospital.okta.com/app/saml/sso',
-    lastUsed: '2024-12-28T11:00:00Z',
-    userCount: 78,
-  },
-];
+import type {
+  IdentityProviderWithStats,
+  IdentityProviderFormData,
+  IdentityProviderConfig,
+  IdentityProviderResponse,
+  UpdateIdentityProviderRequest,
+  CreateIdentityProviderRequest
+} from '@/lib/types/api';
 
-export type IdP = {
-  id: string;
-  name: string;
-  type: string;
-  provider: string;
-  status: 'active' | 'inactive';
-  entityId: string;
-  ssoUrl: string;
-  lastUsed: string;
-  userCount: number;
+const DEFAULT_NAME_ID_FORMAT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent';
+
+const createDefaultConfig = (): IdentityProviderConfig => ({
+  displayName: '',
+  entityId: '',
+  singleSignOnServiceUrl: '',
+  singleLogoutServiceUrl: '',
+  logoutUrl: '',
+  clientSecret: '',
+  tokenUrl: '',
+  userInfoUrl: '',
+  issuer: '',
+  metadataDescriptorUrl: '',
+  defaultScopes: 'openid profile email',
+  signatureAlgorithm: 'RS256',
+  nameIdPolicyFormat: DEFAULT_NAME_ID_FORMAT,
+  signingCertificate: '',
+  validateSignature: true,
+  wantAuthnRequestsSigned: false,
+});
+
+const createEmptyFormData = (): IdentityProviderFormData => ({
+  alias: '',
+  providerId: 'saml',
+  displayName: '',
+  enabled: true,
+  config: createDefaultConfig(),
+  vendorName: '',
+});
+
+const sanitizeConfig = (config: IdentityProviderConfig): IdentityProviderConfig => {
+  const sanitized: IdentityProviderConfig = { ...config };
+  (Object.entries(sanitized) as Array<[
+    keyof IdentityProviderConfig,
+    IdentityProviderConfig[keyof IdentityProviderConfig]
+  ]>).forEach(([key, value]) => {
+    if (value === undefined || value === null) {
+      delete sanitized[key];
+      return;
+    }
+    if (typeof value === 'string' && value.trim() === '') {
+      delete sanitized[key];
+    }
+  });
+  return sanitized;
 };
 
-export type IdPFormData = {
-  name: string;
-  type: string;
-  provider: string;
-  entityId: string;
-  ssoUrl: string;
-  displayName: string;
-  clientSecret: string;
-  tokenUrl: string;
-  userInfoUrl: string;
-  logoutUrl: string;
-  issuer: string;
-  metadataUrl: string;
-  certificate: string;
-  signatureAlgorithm: string;
-  nameIdFormat: string;
-  defaultScopes: string;
-  validateSignature: boolean;
-  wantAuthnRequestsSigned: boolean;
-  enabled: boolean;
+const mapResponseToStats = (provider: IdentityProviderResponse): IdentityProviderWithStats => {
+  const config = {
+    ...createDefaultConfig(),
+    ...((provider.config as IdentityProviderConfig) ?? {}),
+  };
+
+  return {
+    ...provider,
+    config,
+    vendorName: (provider as IdentityProviderWithStats).vendorName ?? config.displayName,
+    status: provider.enabled === false ? 'inactive' : 'active',
+    userCount: 0,
+    lastUsed: new Date().toISOString(),
+  };
 };
+
+const formDataFromStats = (provider: IdentityProviderWithStats): IdentityProviderFormData => ({
+  alias: provider.alias ?? '',
+  providerId: provider.providerId ?? 'saml',
+  displayName: provider.displayName ?? '',
+  enabled: provider.enabled ?? true,
+  config: {
+    ...createDefaultConfig(),
+    ...((provider.config as IdentityProviderConfig) ?? {}),
+  },
+  vendorName: provider.vendorName,
+});
 
 export function IdPManager() {
   const { isAuthenticated, clientApis } = useAuth();
-  const [idps, setIdps] = useState<IdP[]>([]);
+  const [idps, setIdps] = useState<IdentityProviderWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingIdp, setEditingIdp] = useState<IdP | null>(null);
+  const [editingIdp, setEditingIdp] = useState<IdentityProviderFormData | null>(null);
   const [testingConnection, setTestingConnection] = useState<string | null>(null);
-  const [connectionResults, setConnectionResults] = useState<Record<string, { success: boolean; message: string }>>({});
+  const [connectionResults, setConnectionResults] = useState<Record<string, { success: boolean; message: string; testedAt?: string }>>({});
   const [showCertificates, setShowCertificates] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [newIdp, setNewIdp] = useState<IdentityProviderFormData>(createEmptyFormData());
 
-  const resetNewIdp = (): IdPFormData => ({
-    name: '',
-    type: 'SAML',
-    provider: '',
-    entityId: '',
-    ssoUrl: '',
-    displayName: '',
-    clientSecret: '',
-    tokenUrl: '',
-    userInfoUrl: '',
-    logoutUrl: '',
-    issuer: '',
-    metadataUrl: '',
-    certificate: '',
-    signatureAlgorithm: 'RS256',
-    nameIdFormat: 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
-    defaultScopes: 'openid profile email',
-    validateSignature: true,
-    wantAuthnRequestsSigned: false,
-    enabled: true
-  });
+  const refreshIdps = useCallback(async () => {
+    if (!isAuthenticated || !clientApis.identityProviders) {
+      setIdps([]);
+      return;
+    }
 
-  const [newIdp, setNewIdp] = useState<IdPFormData>(resetNewIdp());
-
-  // Load Identity Providers from backend or use sample data as fallback
-  useEffect(() => {
-    const loadIdPs = async () => {
-      setLoading(true);
-      try {
-        if (!isAuthenticated) {
-          setIdps(SAMPLE_IDPS);
-          return;
-        }
-
-        // Try to fetch real data from backend
-        const countResponse = await clientApis.identityProviders.getAdminIdpsCount();
-        
-        // If we get real data from the backend, fetch the full list
-        if (countResponse.total && countResponse.total > 0) {
-          // Fetch the actual identity providers list
-          const providersResponse = await clientApis.identityProviders.getAdminIdps();
-          
-          // Transform backend data to match our interface
-          const transformedIdps = providersResponse.map((provider) => {
-            const config = provider.config as Record<string, unknown> | undefined;
-            return {
-              id: provider.alias || 'unknown',
-              name: provider.displayName || provider.alias || 'Unknown Provider',
-              type: provider.providerId || 'Unknown',
-              provider: provider.providerId || 'Unknown',
-              status: provider.enabled ? 'active' as const : 'inactive' as const,
-              entityId: (config?.entityId as string) || provider.alias || '',
-              ssoUrl: (config?.singleSignOnServiceUrl as string) || '',
-              lastUsed: new Date().toISOString(), // Backend doesn't provide this
-              userCount: 0, // Backend doesn't provide this
-            };
-          });
-          
-          setIdps(transformedIdps);
-          console.log('Loaded real Identity Provider data from backend');
-        } else {
-          console.log('No real IdP data found, using sample data');
-          setIdps(SAMPLE_IDPS);
-        }
-      } catch (error) {
-        console.error('Failed to load Identity Providers, using sample data:', error);
-        setIdps(SAMPLE_IDPS);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadIdPs();
+    try {
+      const providers = await clientApis.identityProviders.getAdminIdps();
+      setIdps(providers.map(mapResponseToStats));
+    } catch (error) {
+      console.error('Failed to load Identity Providers:', error);
+      setIdps([]);
+      setNotification({ type: 'error', message: 'Failed to load Identity Providers. Please try again.' });
+    }
   }, [isAuthenticated, clientApis.identityProviders]);
 
-  const handleAddIdp = async (formData: IdPFormData) => {
+  useEffect(() => {
+    setLoading(true);
+    refreshIdps().finally(() => setLoading(false));
+  }, [refreshIdps]);
+
+  const handleAddIdp = async (formData: IdentityProviderFormData) => {
+    const derivedAlias = (formData.alias || formData.displayName || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+
+    if (!derivedAlias) {
+      setNotification({ type: 'error', message: 'Alias or display name is required to create an Identity Provider.' });
+      return;
+    }
+
+    const providerId = (formData.providerId ?? 'saml').toLowerCase();
+    const configWithDisplayName: IdentityProviderConfig = {
+      ...formData.config,
+      displayName: formData.config.displayName || formData.displayName || derivedAlias,
+    };
+
     try {
       if (isAuthenticated && clientApis.identityProviders) {
-        // Try to add via backend API
-        const config: Record<string, unknown> = {
-          displayName: formData.displayName || formData.name,
-          entityId: formData.entityId,
-          singleSignOnServiceUrl: formData.ssoUrl,
+        const payload: CreateIdentityProviderRequest = {
+          alias: derivedAlias,
+          providerId,
+          displayName: formData.displayName?.trim() || undefined,
+          enabled: formData.enabled,
+          config: sanitizeConfig(configWithDisplayName),
         };
 
-        // Add type-specific configuration
-        if (formData.type === 'OIDC' || formData.type === 'OAuth2') {
-          if (formData.clientSecret) config.clientSecret = formData.clientSecret;
-          if (formData.tokenUrl) config.tokenUrl = formData.tokenUrl;
-          if (formData.userInfoUrl) config.userInfoUrl = formData.userInfoUrl;
-          if (formData.issuer) config.issuer = formData.issuer;
-          if (formData.defaultScopes) config.defaultScopes = formData.defaultScopes;
-          if (formData.logoutUrl) config.logoutUrl = formData.logoutUrl;
-        }
-
-        if (formData.type === 'SAML') {
-          if (formData.signatureAlgorithm) config.signatureAlgorithm = formData.signatureAlgorithm;
-          if (formData.nameIdFormat) config.nameIdPolicyFormat = formData.nameIdFormat;
-          if (formData.certificate) config.signingCertificate = formData.certificate;
-          if (formData.logoutUrl) config.singleLogoutServiceUrl = formData.logoutUrl;
-          config.validateSignature = formData.validateSignature;
-          config.wantAuthnRequestsSigned = formData.wantAuthnRequestsSigned;
-        }
-
-        // Common configuration
-        if (formData.metadataUrl) config.metadataDescriptorUrl = formData.metadataUrl;
-        config.enabled = formData.enabled;
-
-        const response = await clientApis.identityProviders.postAdminIdps({
-          createIdentityProviderRequest: {
-            alias: formData.name.toLowerCase().replace(/\s+/g, '-'),
-            providerId: formData.type.toLowerCase(),
-            config,
-          },
+        await clientApis.identityProviders.postAdminIdps({
+          createIdentityProviderRequest: payload,
         });
-        
-        console.log('IdP added successfully:', response);
-        
-        // Reload IdPs from backend
-        const providersResponse = await clientApis.identityProviders.getAdminIdps();
-        const transformedIdps = providersResponse.map((provider) => {
-          const config = provider.config as Record<string, unknown> | undefined;
-          return {
-            id: provider.alias || 'unknown',
-            name: provider.displayName || provider.alias || 'Unknown Provider',
-            type: provider.providerId || 'Unknown',
-            provider: provider.providerId || 'Unknown',
-            status: provider.enabled ? 'active' as const : 'inactive' as const,
-            entityId: (config?.entityId as string) || provider.alias || '',
-            ssoUrl: (config?.singleSignOnServiceUrl as string) || '',
-            lastUsed: new Date().toISOString(),
-            userCount: 0,
-          };
-        });
-        setIdps(transformedIdps);
+
+        await refreshIdps();
         setNotification({ type: 'success', message: 'Identity Provider added successfully!' });
       } else {
-        // Fallback to local state for non-authenticated users
-        const idp: IdP = {
-          id: Date.now().toString(),
-          name: formData.name,
-          type: formData.type,
-          provider: formData.provider,
-          status: 'active',
-          entityId: formData.entityId,
-          ssoUrl: formData.ssoUrl,
-          lastUsed: new Date().toISOString(),
+        const localEntry: IdentityProviderWithStats = {
+          alias: derivedAlias,
+          providerId,
+          displayName: formData.displayName,
+          enabled: formData.enabled,
+          config: sanitizeConfig(configWithDisplayName),
+          vendorName: formData.vendorName,
+          status: formData.enabled ? 'active' : 'inactive',
           userCount: 0,
+          lastUsed: new Date().toISOString(),
         };
-        setIdps([...idps, idp]);
-        setNotification({ type: 'success', message: 'Identity Provider added successfully!' });
+
+        setIdps((prev) => [...prev, localEntry]);
+        setNotification({ type: 'success', message: 'Identity Provider added (local only).' });
       }
-      
-      setNewIdp(resetNewIdp());
-      setShowAddForm(false);
     } catch (error) {
       console.error('Failed to add IdP:', error);
       setNotification({ type: 'error', message: 'Failed to add Identity Provider. Please try again.' });
-      // Fallback to local state on error
-      const idp: IdP = {
-        id: Date.now().toString(),
-        name: formData.name,
-        type: formData.type,
-        provider: formData.provider,
-        status: 'active',
-        entityId: formData.entityId,
-        ssoUrl: formData.ssoUrl,
-        lastUsed: new Date().toISOString(),
-        userCount: 0,
-      };
-      setIdps([...idps, idp]);
-      setNewIdp(resetNewIdp());
+    } finally {
+      setNewIdp(createEmptyFormData());
       setShowAddForm(false);
     }
   };
 
-  const handleEditIdp = (idp: IdP) => {
-    setEditingIdp(idp);
+  const handleEditIdp = (idp: IdentityProviderWithStats) => {
+    setEditingIdp(formDataFromStats(idp));
   };
 
-  const handleUpdateIdp = async (updatedIdp: IdP) => {
+  const handleUpdateIdp = async (updatedIdp: IdentityProviderFormData) => {
+    if (!updatedIdp.alias) {
+      setNotification({ type: 'error', message: 'Alias is required to update an Identity Provider.' });
+      return;
+    }
+
+    const sanitizedConfig = sanitizeConfig(updatedIdp.config);
+
     try {
       if (isAuthenticated && clientApis.identityProviders) {
-        // Try to update via backend API
+        const payload: UpdateIdentityProviderRequest = {
+          displayName: updatedIdp.displayName,
+          enabled: updatedIdp.enabled,
+          config: Object.keys(sanitizedConfig).length ? sanitizedConfig : undefined,
+        };
+
         await clientApis.identityProviders.putAdminIdpsByAlias({
-          alias: updatedIdp.id,
-          updateIdentityProviderRequest: {
-            displayName: updatedIdp.name,
-            enabled: updatedIdp.status === 'active',
-            config: {
-              entityId: updatedIdp.entityId,
-              singleSignOnServiceUrl: updatedIdp.ssoUrl,
-            },
-          },
+          alias: updatedIdp.alias,
+          updateIdentityProviderRequest: payload,
         });
-        
-        // Reload IdPs from backend
-        const providersResponse = await clientApis.identityProviders.getAdminIdps();
-        const transformedIdps = providersResponse.map((provider) => {
-          const config = provider.config as Record<string, unknown> | undefined;
-          return {
-            id: provider.alias || 'unknown',
-            name: provider.displayName || provider.alias || 'Unknown Provider',
-            type: provider.providerId || 'Unknown',
-            provider: provider.providerId || 'Unknown',
-            status: provider.enabled ? 'active' as const : 'inactive' as const,
-            entityId: (config?.entityId as string) || provider.alias || '',
-            ssoUrl: (config?.singleSignOnServiceUrl as string) || '',
-            lastUsed: new Date().toISOString(),
-            userCount: 0,
-          };
-        });
-        setIdps(transformedIdps);
+
+        await refreshIdps();
         setNotification({ type: 'success', message: 'Identity Provider updated successfully!' });
       } else {
-        // Fallback to local state
-        setIdps(idps.map(idp => idp.id === updatedIdp.id ? updatedIdp : idp));
-        setNotification({ type: 'success', message: 'Identity Provider updated successfully!' });
+        setIdps((prev) =>
+          prev.map((idp) =>
+            (idp.alias ?? '') === updatedIdp.alias
+              ? {
+                  ...idp,
+                  providerId: updatedIdp.providerId,
+                  displayName: updatedIdp.displayName,
+                  enabled: updatedIdp.enabled,
+                  status: updatedIdp.enabled ? 'active' : 'inactive',
+                  config: sanitizedConfig,
+                  vendorName: updatedIdp.vendorName,
+                }
+              : idp,
+          ),
+        );
+        setNotification({ type: 'success', message: 'Identity Provider updated (local only).' });
       }
-      
-      setEditingIdp(null);
     } catch (error) {
       console.error('Failed to update IdP:', error);
       setNotification({ type: 'error', message: 'Failed to update Identity Provider. Please try again.' });
-      // Fallback to local state on error
-      setIdps(idps.map(idp => idp.id === updatedIdp.id ? updatedIdp : idp));
+    } finally {
       setEditingIdp(null);
     }
   };
 
-  const handleTestConnection = async (idp: IdP) => {
-    setTestingConnection(idp.id);
-    
+  const handleTestConnection = async (idp: IdentityProviderWithStats) => {
+    const alias = idp.alias ?? '';
+    if (!alias) {
+      setNotification({ type: 'error', message: 'Cannot test connection for providers without an alias.' });
+      return;
+    }
+
+    setTestingConnection(alias);
+
     try {
-      // Simulate connection test - in real implementation, this would call a backend endpoint
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Mock result based on IdP status
-      const success = idp.status === 'active' && Math.random() > 0.3; // 70% success rate for active IdPs
-      const message = success 
-        ? `Successfully connected to ${idp.name}. SSO endpoint is reachable and responding.`
-        : idp.status === 'inactive' 
-          ? `Connection failed: ${idp.name} is currently disabled.`
-          : `Connection failed: Unable to reach SSO endpoint at ${idp.ssoUrl}`;
-      
-      setConnectionResults(prev => ({
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const success = (idp.status ?? (idp.enabled ? 'active' : 'inactive')) === 'active' && Math.random() > 0.3;
+      const message = success
+        ? `Successfully connected to ${idp.displayName ?? alias}.`
+        : `Connection failed for ${idp.displayName ?? alias}.`;
+
+      setConnectionResults((prev) => ({
         ...prev,
-        [idp.id]: { success, message }
+        [alias]: { success, message, testedAt: new Date().toISOString() },
       }));
     } catch (error) {
-      setConnectionResults(prev => ({
+      setConnectionResults((prev) => ({
         ...prev,
-        [idp.id]: { 
-          success: false, 
-          message: `Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
-        }
+        [alias]: {
+          success: false,
+          message: `Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          testedAt: new Date().toISOString(),
+        },
       }));
     } finally {
       setTestingConnection(null);
     }
   };
 
-  const handleViewCertificates = (idp: IdP) => {
-    setShowCertificates(idp.id);
+  const handleViewCertificates = (idp: IdentityProviderWithStats) => {
+    if (idp.alias) {
+      setShowCertificates(idp.alias);
+    }
   };
 
-  const handleDeleteIdp = async (id: string) => {
+  const handleDeleteIdp = async (alias: string) => {
+    if (!alias) {
+      setNotification({ type: 'error', message: 'Unable to delete provider without an alias.' });
+      return;
+    }
+
     try {
       if (isAuthenticated && clientApis.identityProviders) {
-        // Try to delete via backend API
-        await clientApis.identityProviders.deleteAdminIdpsByAlias({ alias: id });
-        
-        // Reload IdPs from backend
-        const providersResponse = await clientApis.identityProviders.getAdminIdps();
-        const transformedIdps = providersResponse.map((provider) => {
-          const config = provider.config as Record<string, unknown> | undefined;
-          return {
-            id: provider.alias || 'unknown',
-            name: provider.displayName || provider.alias || 'Unknown Provider',
-            type: provider.providerId || 'Unknown',
-            provider: provider.providerId || 'Unknown',
-            status: provider.enabled ? 'active' as const : 'inactive' as const,
-            entityId: (config?.entityId as string) || provider.alias || '',
-            ssoUrl: (config?.singleSignOnServiceUrl as string) || '',
-            lastUsed: new Date().toISOString(),
-            userCount: 0,
-          };
-        });
-        setIdps(transformedIdps);
+        await clientApis.identityProviders.deleteAdminIdpsByAlias({ alias });
+        await refreshIdps();
         setNotification({ type: 'success', message: 'Identity Provider deleted successfully!' });
       } else {
-        // Fallback to local state
-        setIdps(idps.filter(idp => idp.id !== id));
-        setNotification({ type: 'success', message: 'Identity Provider deleted successfully!' });
+        setIdps((prev) => prev.filter((idp) => (idp.alias ?? '') !== alias));
+        setNotification({ type: 'success', message: 'Identity Provider deleted (local only).' });
       }
     } catch (error) {
       console.error('Failed to delete IdP:', error);
       setNotification({ type: 'error', message: 'Failed to delete Identity Provider. Please try again.' });
-      // Fallback to local state on error
-      setIdps(idps.filter(idp => idp.id !== id));
     }
   };
 
-  const toggleIdpStatus = async (id: string) => {
-    const idp = idps.find(i => i.id === id);
-    if (idp) {
-      const updatedIdp = { ...idp, status: idp.status === 'active' ? 'inactive' as const : 'active' as const };
-      await handleUpdateIdp(updatedIdp);
+  const toggleIdpStatus = async (alias: string) => {
+    if (!alias) {
+      setNotification({ type: 'error', message: 'Unable to toggle status without an alias.' });
+      return;
+    }
+
+    const target = idps.find((idp) => (idp.alias ?? '') === alias);
+    if (!target) {
+      return;
+    }
+
+    const nextEnabled = !(target.enabled ?? true);
+
+    try {
+      if (isAuthenticated && clientApis.identityProviders) {
+        await clientApis.identityProviders.putAdminIdpsByAlias({
+          alias,
+          updateIdentityProviderRequest: { enabled: nextEnabled },
+        });
+
+        await refreshIdps();
+      } else {
+        setIdps((prev) =>
+          prev.map((idp) =>
+            (idp.alias ?? '') === alias
+              ? { ...idp, enabled: nextEnabled, status: nextEnabled ? 'active' : 'inactive' }
+              : idp,
+          ),
+        );
+      }
+    } catch (error) {
+      console.error('Failed to toggle IdP status:', error);
+      setNotification({ type: 'error', message: 'Failed to update Identity Provider status. Please try again.' });
     }
   };
 
@@ -440,13 +350,11 @@ export function IdPManager() {
 
   return (
     <div className="p-8 space-y-8">
-      {/* Notification Toast */}
       <NotificationToast
         notification={notification}
         onClose={() => setNotification(null)}
       />
 
-      {/* Enhanced Header */}
       <div className="bg-gradient-to-r from-background to-muted/50 p-8 rounded-3xl border border-border shadow-lg">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between space-y-6 lg:space-y-0">
           <div className="flex-1">
@@ -460,8 +368,8 @@ export function IdPManager() {
               Configure and manage identity providers for healthcare system authentication
             </div>
           </div>
-          <Button 
-            onClick={() => setShowAddForm(true)} 
+          <Button
+            onClick={() => setShowAddForm(true)}
             className="px-8 py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-semibold rounded-2xl hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 border border-blue-500/20"
           >
             <Plus className="h-5 w-5 mr-2" />
@@ -470,10 +378,8 @@ export function IdPManager() {
         </div>
       </div>
 
-      {/* Statistics Cards */}
       <IdPStatisticsCards idps={idps} />
 
-      {/* Add New IdP Form */}
       <IdPAddForm
         isOpen={showAddForm}
         onClose={() => setShowAddForm(false)}
@@ -485,7 +391,6 @@ export function IdPManager() {
         setNewIdp={setNewIdp}
       />
 
-      {/* Identity Providers Table */}
       <IdPTable
         idps={idps}
         testingConnection={testingConnection}
@@ -497,7 +402,6 @@ export function IdPManager() {
         onDelete={handleDeleteIdp}
       />
 
-      {/* Edit IdP Dialog */}
       <IdPEditDialog
         isOpen={!!editingIdp}
         onClose={() => setEditingIdp(null)}
@@ -506,7 +410,6 @@ export function IdPManager() {
         setEditingIdp={setEditingIdp}
       />
 
-      {/* Connection Test Results Dialog */}
       {Object.keys(connectionResults).length > 0 && (
         <ConnectionTestDialog
           isOpen={Object.keys(connectionResults).length > 0}
@@ -516,7 +419,6 @@ export function IdPManager() {
         />
       )}
 
-      {/* Certificates Dialog */}
       {showCertificates && (
         <CertificatesDialog
           isOpen={!!showCertificates}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -19,15 +19,17 @@ import {
   Server,
   Database,
   Network,
+  CalendarDays,
   ChevronDown
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { oauthWebSocketService, type OAuthAnalytics, type OAuthEventSimple } from '../service/oauth-websocket-service';
+import { oauthWebSocketService, type OAuthAnalytics, type OAuthEventSimple, type WeekdayInsight } from '../service/oauth-websocket-service';
 import { oauthMonitoringService } from '../service/oauth-monitoring-service';
 import { getItem } from '../lib/storage';
 import { config } from '@/config';
+import type { OAuthAnalyticsTopClient } from '../lib/api-client/models/OAuthAnalyticsTopClient';
 
 interface SystemHealth {
   oauthServer: {
@@ -46,6 +48,8 @@ interface SystemHealth {
     errorRate: number;
   };
 }
+
+type PieClientDatum = OAuthAnalyticsTopClient & Record<string, unknown>;
 
 export function OAuthMonitoringDashboard() {
   const { t } = useTranslation();
@@ -70,6 +74,107 @@ export function OAuthMonitoringDashboard() {
   useEffect(() => {
     isRealTimeActiveRef.current = isRealTimeActive;
   }, [isRealTimeActive]);
+
+  const clientDistributionData = useMemo<PieClientDatum[]>(() => {
+    if (!analytics?.topClients?.length) {
+      return [];
+    }
+
+    return analytics.topClients.map((client) => ({
+      ...client,
+      name: client.clientName
+    }));
+  }, [analytics?.topClients]);
+  const hasClientDistribution = clientDistributionData.length > 0;
+  const predictiveInsights = analytics?.predictiveInsights;
+  const weekdayHighlights = useMemo(() => {
+    const insights = analytics?.weekdayInsights ?? [];
+
+    if (!insights.length) {
+      return null;
+    }
+
+    const summary = insights.reduce((acc, insight) => {
+      if (!acc.busiest || insight.projectedTotal > acc.busiest.projectedTotal) {
+        acc.busiest = insight;
+      }
+      if (!acc.highestSuccess || insight.projectedSuccessRate > acc.highestSuccess.projectedSuccessRate) {
+        acc.highestSuccess = insight;
+      }
+      if (!acc.attention || insight.projectedSuccessRate < acc.attention.projectedSuccessRate) {
+        acc.attention = insight;
+      }
+      if (insight.lastObserved) {
+        const observedTs = new Date(insight.lastObserved).getTime();
+        if (!Number.isNaN(observedTs) && (!acc.latestObserved || observedTs > acc.latestObserved.ts)) {
+          acc.latestObserved = { ts: observedTs, iso: insight.lastObserved };
+        }
+      }
+      return acc;
+    }, {
+      busiest: undefined as WeekdayInsight | undefined,
+      highestSuccess: undefined as WeekdayInsight | undefined,
+      attention: undefined as WeekdayInsight | undefined,
+      latestObserved: undefined as { ts: number; iso: string } | undefined
+    });
+
+    if (!summary.busiest || !summary.highestSuccess || !summary.attention) {
+      return null;
+    }
+
+    return {
+      busiest: summary.busiest,
+      highestSuccess: summary.highestSuccess,
+      attention: summary.attention,
+      lastObserved: summary.latestObserved?.iso
+    };
+  }, [analytics?.weekdayInsights]);
+  const weekdayLastObservedLabel = useMemo(() => {
+    if (!weekdayHighlights?.lastObserved) {
+      return null;
+    }
+
+    try {
+      return format(new Date(weekdayHighlights.lastObserved), 'MMM dd, HH:mm');
+    } catch {
+      return weekdayHighlights.lastObserved;
+    }
+  }, [weekdayHighlights]);
+  const predictiveRiskBadgeClass = useMemo(() => {
+    switch (predictiveInsights?.anomalyRisk) {
+      case 'high':
+        return 'bg-red-500/15 text-red-800 dark:text-red-300 border-red-500/30';
+      case 'medium':
+        return 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30';
+      case 'low':
+        return 'bg-green-500/15 text-green-800 dark:text-green-300 border-green-500/30';
+      default:
+        return 'bg-muted text-muted-foreground border-border';
+    }
+  }, [predictiveInsights?.anomalyRisk]);
+  const predictiveTrendLabel = useMemo(() => {
+    switch (predictiveInsights?.trendDirection) {
+      case 'increasing':
+        return t('Increasing');
+      case 'decreasing':
+        return t('Decreasing');
+      case 'stable':
+      default:
+        return t('Stable');
+    }
+  }, [predictiveInsights?.trendDirection, t]);
+  const predictiveRiskLabel = useMemo(() => {
+    switch (predictiveInsights?.anomalyRisk) {
+      case 'high':
+        return t('Risk: High');
+      case 'medium':
+        return t('Risk: Medium');
+      case 'low':
+        return t('Risk: Low');
+      default:
+        return t('Risk: Unknown');
+    }
+  }, [predictiveInsights?.anomalyRisk, t]);
 
   // Load initial data
   const loadInitialData = useCallback(async (forceMode?: 'websocket' | 'sse') => {
@@ -129,7 +234,9 @@ export function OAuthMonitoringDashboard() {
               flowsByType: (initialAnalyticsResponse.flowsByType as Record<string, number>) || {},
               errorsByType: (initialAnalyticsResponse.errorsByType as Record<string, number>) || {},
               hourlyStats: initialAnalyticsResponse.hourlyStats || [],
-              timestamp: initialAnalyticsResponse.timestamp || new Date().toISOString()
+              timestamp: initialAnalyticsResponse.timestamp || new Date().toISOString(),
+              predictiveInsights: (initialAnalyticsResponse as OAuthAnalytics).predictiveInsights,
+              weekdayInsights: (initialAnalyticsResponse as OAuthAnalytics).weekdayInsights
             };
             
             if (isInitialLoadRef.current || isRealTimeActiveRef.current) {
@@ -652,7 +759,7 @@ export function OAuthMonitoringDashboard() {
 
             <TabsContent value="overview" className="space-y-6">
               {/* Key Metrics */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                 <div className="bg-card/70 backdrop-blur-sm p-6 rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
@@ -720,6 +827,97 @@ export function OAuthMonitoringDashboard() {
                     </div>
                   </div>
                 </div>
+
+                {predictiveInsights && (
+                  <div className="bg-gradient-to-br from-sky-500/10 via-sky-500/5 to-indigo-500/10 p-6 rounded-2xl border border-sky-500/40 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-sky-500/30 to-indigo-500/40 rounded-xl flex items-center justify-center shadow-sm">
+                            <TrendingUp className="w-6 h-6 text-sky-600" />
+                          </div>
+                          <h3 className="text-sm font-semibold text-sky-900 dark:text-sky-300 tracking-wide">{t('Predictive Forecast')}</h3>
+                        </div>
+                        <div className="text-3xl font-bold text-sky-900 dark:text-sky-200 mb-1">
+                          {predictiveInsights.nextHour.totalFlows.toLocaleString()}
+                        </div>
+                        <p className="text-sm text-sky-700 dark:text-sky-300 font-medium">
+                          {t('Projected OAuth flows in the next hour')}
+                        </p>
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-muted-foreground font-medium">{t('Success rate')}</p>
+                            <p className="text-foreground font-semibold">{predictiveInsights.nextHour.successRate.toFixed(1)}%</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-muted-foreground font-medium">{t('Trend')}</p>
+                            <p className="text-foreground font-semibold">{predictiveTrendLabel}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right space-y-2">
+                        <Badge className={`${predictiveRiskBadgeClass} font-semibold`}>{predictiveRiskLabel}</Badge>
+                        <p className="text-xs text-muted-foreground w-40 leading-snug">
+                          {predictiveInsights.anomalyReasons[0]}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {weekdayHighlights && (
+                  <div className="bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-rose-500/10 p-6 rounded-2xl border border-amber-500/40 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-amber-500/30 to-rose-500/40 rounded-xl flex items-center justify-center shadow-sm">
+                            <CalendarDays className="w-6 h-6 text-amber-600" />
+                          </div>
+                          <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200 tracking-wide">{t('Weekday Patterns')}</h3>
+                        </div>
+                        <div className="text-3xl font-bold text-amber-900 dark:text-amber-100 mb-1">
+                          {weekdayHighlights.busiest.label}
+                        </div>
+                        <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                          {t('Projected busiest day for OAuth volume')}
+                        </p>
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-muted-foreground font-medium">{t('Highest success')}</p>
+                            <p className="text-foreground font-semibold">
+                              {weekdayHighlights.highestSuccess.label}
+                              <span className="ml-2 text-muted-foreground">
+                                {weekdayHighlights.highestSuccess.projectedSuccessRate.toFixed(1)}%
+                              </span>
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-muted-foreground font-medium">{t('Watchlist')}</p>
+                            <p className="text-foreground font-semibold">
+                              {weekdayHighlights.attention.label}
+                              <span className="ml-2 text-muted-foreground">
+                                {weekdayHighlights.attention.projectedErrorRate.toFixed(1)}%
+                              </span>
+                              {typeof weekdayHighlights.attention.deltaFromAverage === 'number' && (
+                                <span className={`ml-1 ${weekdayHighlights.attention.deltaFromAverage > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                  ({weekdayHighlights.attention.deltaFromAverage > 0 ? '+' : ''}{weekdayHighlights.attention.deltaFromAverage.toFixed(1)}%)
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                      <Badge variant="secondary" className="bg-white/40 dark:bg-black/30 text-foreground border border-white/40 dark:border-white/20">
+                        {weekdayHighlights.busiest.sampleDays} {t('days sampled')}
+                      </Badge>
+                      {weekdayLastObservedLabel && (
+                        <span>{t('Last observed')} · {weekdayLastObservedLabel}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Charts */}
@@ -956,7 +1154,7 @@ export function OAuthMonitoringDashboard() {
             </TabsContent>
 
             <TabsContent value="analytics" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className={`grid grid-cols-1 ${predictiveInsights ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
                 {/* Success Rate Chart */}
                 <div className="bg-card/70 backdrop-blur-sm p-6 rounded-2xl border border-border shadow-lg">
                   <div className="flex items-center space-x-3 mb-6">
@@ -1012,11 +1210,11 @@ export function OAuthMonitoringDashboard() {
                     </div>
                   </div>
                   <div className="h-[300px]">
-                    {analytics?.topClients?.length ? (
+                    {hasClientDistribution ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                            data={analytics.topClients}
+                            data={clientDistributionData}
                             cx="50%"
                             cy="50%"
                             outerRadius={100}
@@ -1024,7 +1222,7 @@ export function OAuthMonitoringDashboard() {
                             dataKey="count"
                             label={({ clientName, count }) => `${clientName}: ${count}`}
                           >
-                            {analytics.topClients.map((entry, index) => (
+                            {clientDistributionData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={`hsl(${(index * 45) % 360}, 70%, 50%)`} />
                             ))}
                           </Pie>
@@ -1044,6 +1242,49 @@ export function OAuthMonitoringDashboard() {
                     )}
                   </div>
                 </div>
+
+                {predictiveInsights && (
+                  <div className="bg-card/70 backdrop-blur-sm p-6 rounded-2xl border border-border shadow-lg">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="w-12 h-12 bg-gradient-to-br from-sky-500/20 to-indigo-500/30 rounded-xl flex items-center justify-center shadow-sm">
+                        <Activity className="w-6 h-6 text-sky-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-foreground tracking-tight">{t('Predictive Insights')}</h4>
+                        <p className="text-muted-foreground font-medium">{t('Early warning indicators for OAuth reliability')}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground font-medium">{t('Forecast generated')}</span>
+                        <span className="text-foreground font-semibold">
+                          {format(new Date(predictiveInsights.generatedAt), 'MMM dd, HH:mm')}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground font-medium">{t('Confidence')}</span>
+                        <span className="text-foreground font-semibold">{Math.round(predictiveInsights.trendConfidence * 100)}%</span>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground font-medium mb-2">{t('Key signals')}</p>
+                        <ul className="space-y-2 text-sm">
+                          {predictiveInsights.anomalyReasons.slice(0, 3).map((reason, idx) => (
+                            <li key={`insight-reason-${idx}`} className="flex items-start gap-2">
+                              <span className="mt-1 h-2 w-2 rounded-full bg-sky-500" aria-hidden />
+                              <span className="text-foreground leading-relaxed">{reason}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      {predictiveInsights.notes && (
+                        <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 text-sm text-sky-900 dark:text-sky-200">
+                          <p className="font-semibold mb-1">{t('Recommended action')}</p>
+                          <p className="leading-relaxed">{predictiveInsights.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
