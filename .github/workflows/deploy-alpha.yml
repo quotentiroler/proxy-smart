@@ -28,14 +28,18 @@ on:
         description: "Target platform where app was deployed"
         value: ${{ jobs.deploy.outputs.deployment_target }}
     secrets:
-      FLY_API_TOKEN:
+      NORTHFLANK_API_TOKEN:
         required: true
-      ALPHA_DB_PASSWORD:
-        required: false
+      NORTHFLANK_PROJECT_ID:
+        required: true
+      NORTHFLANK_SERVICE_ID_FULLSTACK:
+        required: true
+      NORTHFLANK_SERVICE_ID_KEYCLOAK:
+        required: true
 
 jobs:
   deploy:
-    name: Deploy Alpha (Fly.io)
+    name: Deploy Alpha (Northflank)
     runs-on: ubuntu-latest
     outputs:
       fhir_server_url: ${{ steps.deploy.outputs.fhir_server_url }}
@@ -50,19 +54,13 @@ jobs:
         with:
           ref: ${{ inputs.source_branch }}
       
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun-version
-      
-      - name: Setup Fly.io CLI
-        uses: superfly/flyctl-actions/setup-flyctl@master
-      
       - name: Check Keycloak Changes
         id: check-keycloak-changes
         run: |
           echo "🔍 Checking if Keycloak realm configuration has changed..."
           
           # Check if realm export file has changed in this commit
-          REALM_CHANGED=$(git diff HEAD~1 HEAD --name-only | grep -E "keycloak/.*\.json$|fly\.keycloak\.toml$|Dockerfile\.keycloak$" || true)
+          REALM_CHANGED=$(git diff HEAD~1 HEAD --name-only | grep -E "keycloak/.*\.json$|Dockerfile\.keycloak$" || true)
           
           if [ -n "$REALM_CHANGED" ]; then
             echo "📝 Keycloak configuration files changed:"
@@ -74,97 +72,199 @@ jobs:
             echo "✅ No Keycloak changes detected - skipping Keycloak deployment"
           fi
 
-      - name: Deploy Alpha Keycloak (Fly.io)
+      - name: Deploy Alpha Keycloak (Northflank)
         id: deploy-keycloak
         if: steps.check-keycloak-changes.outputs.keycloak_changed == 'true'
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          NORTHFLANK_API_TOKEN: ${{ secrets.NORTHFLANK_API_TOKEN }}
+          NORTHFLANK_PROJECT_ID: ${{ secrets.NORTHFLANK_PROJECT_ID }}
+          NORTHFLANK_SERVICE_ID: ${{ secrets.NORTHFLANK_SERVICE_ID_KEYCLOAK }}
         run: |
           echo "🔐 Deploying Keycloak for Alpha environment (configuration changed)..."
           
-          # Verify flyctl is available and authenticate
-          echo "🔧 Setting up Fly.io authentication..."
-          flyctl auth token $FLY_API_TOKEN
+          # Trigger Northflank deployment via API (combined service)
+          echo "🚀 Triggering Keycloak deployment on Northflank..."
+          DEPLOY_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST \
+            "https://api.northflank.com/v1/projects/${NORTHFLANK_PROJECT_ID}/services/${NORTHFLANK_SERVICE_ID}/build" \
+            -H "Authorization: Bearer ${NORTHFLANK_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"type": "code"}')
           
-          # Create Keycloak app if it doesn't exist
-          echo "🏗️ Creating Fly.io Keycloak app..."
-          flyctl apps create proxy-smart-alpha-auth --org personal || echo "Keycloak app already exists"
-
-          # Create Postgres database for Keycloak first
-          echo "🗄️ Setting up Keycloak database..."
-          flyctl postgres create \
-            --name proxy-smart-alpha-db \
-            --region fra \
-            --initial-cluster-size 1 \
-            --vm-size shared-cpu-1x \
-            --volume-size 3 \
-            --password alphapassword123 || echo "Database already exists"
+          HTTP_CODE=$(echo "$DEPLOY_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+          RESPONSE_BODY=$(echo "$DEPLOY_RESPONSE" | sed '/HTTP_CODE:/d')
           
-          # Deploy Keycloak using our existing configuration
-          echo "🚀 Deploying Keycloak app..."
-          flyctl deploy --config fly.keycloak.toml
-
-          # Try 10 times to ping Keycloak to ensure it's ready every 5 seconds
-          echo "⏳ Waiting for Keycloak to be ready..."
-          for i in {1..10}; do
-            if curl -s -o /dev/null -w "%{http_code}" https://proxy-smart-alpha-auth.fly.dev/ > /dev/null; then
-              echo "✅ Keycloak is ready!"
-              break
+          BUILD_ID=$(echo "$RESPONSE_BODY" | jq -r '.data.buildId // empty')
+          
+          if [ -z "$BUILD_ID" ] || [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Failed to trigger Keycloak deployment (HTTP $HTTP_CODE)"
+            echo "Response: $RESPONSE_BODY"
+            exit 1
+          fi
+          
+          echo "✅ Keycloak build triggered (Build ID: $BUILD_ID)"
+          
+          # Wait for build and deployment to complete
+          echo "⏳ Waiting for Keycloak build to complete..."
+          MAX_WAIT=300  # 5 minutes
+          ELAPSED=0
+          
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            BUILD_INFO=$(curl -s \
+              "https://api.northflank.com/v1/projects/${NORTHFLANK_PROJECT_ID}/builds/${BUILD_ID}" \
+              -H "Authorization: Bearer ${NORTHFLANK_API_TOKEN}")
+            
+            BUILD_STATUS=$(echo "$BUILD_INFO" | jq -r '.data.status // "unknown"')
+            
+            if [ "$BUILD_STATUS" = "success" ]; then
+              echo "✅ Keycloak build completed successfully!"
+              
+              # Check service deployment status
+              SERVICE_INFO=$(curl -s \
+                "https://api.northflank.com/v1/projects/${NORTHFLANK_PROJECT_ID}/services/${NORTHFLANK_SERVICE_ID}" \
+                -H "Authorization: Bearer ${NORTHFLANK_API_TOKEN}")
+              
+              DEPLOY_STATUS=$(echo "$SERVICE_INFO" | jq -r '.data.deployment.status // "unknown"')
+              
+              if [ "$DEPLOY_STATUS" = "running" ] || [ "$DEPLOY_STATUS" = "healthy" ]; then
+                echo "✅ Keycloak service is live and healthy!"
+                break
+              else
+                echo "🔄 Service status: $DEPLOY_STATUS (waiting for healthy state...)"
+              fi
+            elif [ "$BUILD_STATUS" = "failed" ]; then
+              echo "❌ Keycloak build failed"
+              echo "Build info: $BUILD_INFO"
+              exit 1
+            elif [ "$BUILD_STATUS" = "building" ] || [ "$BUILD_STATUS" = "pending" ]; then
+              echo "🔄 Build status: $BUILD_STATUS (${ELAPSED}s elapsed)"
             else
-              echo "🔄 Keycloak not ready yet, retrying in 5 seconds..."
-              sleep 5
+              echo "⚠️ Unexpected build status: $BUILD_STATUS (${ELAPSED}s elapsed)"
             fi
+            
+            sleep 10
+            ELAPSED=$((ELAPSED + 10))
           done
           
-          echo "✅ Keycloak deployed at https://proxy-smart-alpha-auth.fly.dev"
+          if [ $ELAPSED -ge $MAX_WAIT ]; then
+            echo "⚠️ Deployment timeout - check Northflank dashboard"
+          fi
+          
+          echo "✅ Keycloak deployed and available"
           echo "✅ Realm 'proxy-smart' imported and available"
 
       - name: Skip Keycloak Deployment
         if: steps.check-keycloak-changes.outputs.keycloak_changed == 'false'
         run: |
           echo "⏭️ Skipping Keycloak deployment - no configuration changes detected"
-          echo "🔐 Existing Keycloak instance at https://proxy-smart-alpha-auth.fly.dev will be used"
+          echo "🔐 Existing Keycloak instance will be used"
       
-      - name: Deploy Alpha Backend (Fly.io)
+      - name: Deploy Alpha Fullstack (Northflank)
         id: deploy
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          NORTHFLANK_API_TOKEN: ${{ secrets.NORTHFLANK_API_TOKEN }}
+          NORTHFLANK_PROJECT_ID: ${{ secrets.NORTHFLANK_PROJECT_ID }}
+          NORTHFLANK_SERVICE_ID: ${{ secrets.NORTHFLANK_SERVICE_ID_FULLSTACK }}
         run: |
-          echo "🚀 Deploying Alpha version ${{ inputs.app_version }} to Fly.io..."
+          echo "🚀 Deploying Alpha version ${{ inputs.app_version }} to Northflank..."
 
-          # Create Backend App if it doesn't exist
-          echo "🏗️ Creating Fly.io backend app..."
-          flyctl apps create proxy-smart-alpha --org personal || echo "Backend app already exists"
+          # Trigger Northflank deployment via API (combined service)
+          echo "🚀 Triggering fullstack deployment on Northflank..."
+          DEPLOY_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST \
+            "https://api.northflank.com/v1/projects/${NORTHFLANK_PROJECT_ID}/services/${NORTHFLANK_SERVICE_ID}/build" \
+            -H "Authorization: Bearer ${NORTHFLANK_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"type": "code"}')
           
-          # Deploy backend to its own Fly.io app
-          flyctl deploy --config fly.toml
+          HTTP_CODE=$(echo "$DEPLOY_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+          RESPONSE_BODY=$(echo "$DEPLOY_RESPONSE" | sed '/HTTP_CODE:/d')
           
-          # Wait for deployment to be ready
-          echo "⏳ Waiting for backend deployment to be ready..."
-          for i in {1..10}; do
-            if curl -s -o /dev/null -w "%{http_code}" https://proxy-smart-alpha.fly.dev/ > /dev/null; then
-              echo "✅ Backend is ready!"
-              break
+          BUILD_ID=$(echo "$RESPONSE_BODY" | jq -r '.data.buildId // empty')
+          
+          if [ -z "$BUILD_ID" ] || [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Failed to trigger fullstack deployment (HTTP $HTTP_CODE)"
+            echo "Response: $RESPONSE_BODY"
+            exit 1
+          fi
+          
+          echo "✅ Fullstack build triggered (Build ID: $BUILD_ID)"
+          
+          # Wait for build and deployment to complete
+          echo "⏳ Waiting for fullstack build to complete..."
+          MAX_WAIT=600  # 10 minutes for fullstack
+          ELAPSED=0
+          
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            BUILD_INFO=$(curl -s \
+              "https://api.northflank.com/v1/projects/${NORTHFLANK_PROJECT_ID}/builds/${BUILD_ID}" \
+              -H "Authorization: Bearer ${NORTHFLANK_API_TOKEN}")
+            
+            BUILD_STATUS=$(echo "$BUILD_INFO" | jq -r '.data.status // "unknown"')
+            
+            if [ "$BUILD_STATUS" = "success" ]; then
+              echo "✅ Fullstack build completed successfully!"
+              
+              # Check service deployment status
+              SERVICE_INFO=$(curl -s \
+                "https://api.northflank.com/v1/projects/${NORTHFLANK_PROJECT_ID}/services/${NORTHFLANK_SERVICE_ID}" \
+                -H "Authorization: Bearer ${NORTHFLANK_API_TOKEN}")
+              
+              DEPLOY_STATUS=$(echo "$SERVICE_INFO" | jq -r '.data.deployment.status // "unknown"')
+              
+              if [ "$DEPLOY_STATUS" = "running" ] || [ "$DEPLOY_STATUS" = "healthy" ]; then
+                echo "✅ Fullstack service is live and healthy!"
+                break
+              else
+                echo "🔄 Service status: $DEPLOY_STATUS (waiting for healthy state...)"
+              fi
+            elif [ "$BUILD_STATUS" = "failed" ]; then
+              echo "❌ Fullstack build failed"
+              echo "Build info: $BUILD_INFO"
+              exit 1
+            elif [ "$BUILD_STATUS" = "building" ] || [ "$BUILD_STATUS" = "pending" ]; then
+              echo "🔄 Build status: $BUILD_STATUS (${ELAPSED}s elapsed)"
             else
-              echo "🔄 Backend not ready yet, retrying in 5 seconds..."
-              sleep 5
+              echo "⚠️ Unexpected build status: $BUILD_STATUS (${ELAPSED}s elapsed)"
             fi
+            
+            sleep 15
+            ELAPSED=$((ELAPSED + 15))
           done
+          
+          if [ $ELAPSED -ge $MAX_WAIT ]; then
+            echo "⚠️ Deployment timeout - check Northflank dashboard"
+            exit 1
+          fi
 
-          # Get deployed URLs
-          BACKEND_URL="https://proxy-smart-alpha.fly.dev"
-          KEYCLOAK_URL="https://proxy-smart-alpha-auth.fly.dev"
+          # Get service details to extract URLs
+          echo "📡 Fetching service details..."
+          SERVICE_INFO=$(curl -s \
+            "https://api.northflank.com/v1/projects/${NORTHFLANK_PROJECT_ID}/services/${NORTHFLANK_SERVICE_ID}" \
+            -H "Authorization: Bearer ${NORTHFLANK_API_TOKEN}")
+          
+          # Extract the public URL from the service (mono service on port 8445)
+          FULLSTACK_URL=$(echo "$SERVICE_INFO" | jq -r '.data.publicUrl // empty')
+          
+          if [ -z "$FULLSTACK_URL" ]; then
+            echo "⚠️ Could not extract fullstack URL from service info"
+            FULLSTACK_URL="https://proxy-smart-alpha--${NORTHFLANK_PROJECT_ID}.code.run"
+          fi
+          
+          # Construct Keycloak URL (assuming naming convention)
+          KEYCLOAK_URL="https://keycloak-alpha--${NORTHFLANK_PROJECT_ID}.code.run"
           
           # Set outputs
-          echo "fhir_server_url=$BACKEND_URL/proxy-smart-backend/hapi-fhir-server/R4" >> $GITHUB_OUTPUT
+          # Mono service serves both backend API and UI at /webapp
+          echo "fhir_server_url=${FULLSTACK_URL}/proxy-smart-backend/hapi-fhir-server/R4" >> $GITHUB_OUTPUT
           echo "keycloak_url=$KEYCLOAK_URL" >> $GITHUB_OUTPUT
-          echo "app_url=$BACKEND_URL" >> $GITHUB_OUTPUT
+          echo "app_url=${FULLSTACK_URL}/webapp" >> $GITHUB_OUTPUT
           echo "deployment_status=success" >> $GITHUB_OUTPUT
-          echo "deployment_target=fly.io" >> $GITHUB_OUTPUT
+          echo "deployment_target=northflank" >> $GITHUB_OUTPUT
           
           echo "✅ Alpha deployment completed successfully"
-          echo "📍 Backend: $BACKEND_URL"
-          echo "📍 FHIR Server (Proxied): $BACKEND_URL/proxy-smart-backend/hapi-fhir-server/R4"
+          echo "📍 Fullstack Service: $FULLSTACK_URL"
+          echo "📍 UI (Web App): ${FULLSTACK_URL}/webapp"
+          echo "📍 Backend API: $FULLSTACK_URL"
+          echo "📍 FHIR Server (Proxied): ${FULLSTACK_URL}/proxy-smart-backend/hapi-fhir-server/R4"
           echo "📍 Keycloak: $KEYCLOAK_URL"
           echo "📍 Keycloak Admin: $KEYCLOAK_URL (admin/admin)"
           echo "📍 SMART Realm: $KEYCLOAK_URL/realms/proxy-smart"
