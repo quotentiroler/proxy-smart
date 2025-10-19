@@ -67,7 +67,6 @@
         "@radix-ui/react-slot": "^1.2.3",
         "@radix-ui/react-switch": "^1.2.5",
         "@radix-ui/react-tabs": "^1.1.12",
-        "@tailwindcss/vite": "^4.1.14",
         "@testing-library/react": "^16.3.0",
         "@testing-library/user-event": "^14.6.1",
         "@types/fhir": "^0.0.41",
@@ -86,7 +85,6 @@
         "recharts": "^3.1.0",
         "remark-gfm": "^4.0.1",
         "tailwind-merge": "^3.3.1",
-        "tailwindcss": "^4.1.11",
         "vitest": "^3.2.4",
         "zod": "^3.25.76",
         "zustand": "^5.0.8",
@@ -94,6 +92,7 @@
       "devDependencies": {
         "@eslint/js": "^9.30.1",
         "@playwright/test": "^1.54.1",
+        "@tailwindcss/postcss": "^4.1.11",
         "@testing-library/jest-dom": "^6.7.0",
         "@types/crypto-js": "^4.2.2",
         "@types/mime": "1.3.5",
@@ -107,16 +106,20 @@
         "eslint-plugin-react-refresh": "^0.4.20",
         "globals": "^16.3.0",
         "jsdom": "^26.0.0",
+        "postcss": "^8.5.6",
         "rollup": "^4.52.4",
+        "tailwindcss": "^4.1.11",
         "tw-animate-css": "^1.4.0",
         "typescript": "5.9.3",
         "typescript-eslint": "^8.35.1",
-        "vite": "^7.1.0",
+        "vite": "7.1.0",
       },
     },
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.4.4", "", {}, ""],
+
+    "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
 
     "@ampproject/remapping": ["@ampproject/remapping@2.3.0", "", { "dependencies": { "@jridgewell/gen-mapping": "^0.3.5", "@jridgewell/trace-mapping": "^0.3.24" } }, ""],
 
@@ -474,7 +477,7 @@
 
     "@tailwindcss/oxide-win32-x64-msvc": ["@tailwindcss/oxide-win32-x64-msvc@4.1.14", "", { "os": "win32", "cpu": "x64" }, "sha512-ttblVGHgf68kEE4om1n/n44I0yGPkCPbLsqzjvybhpwa6mKKtgFfAzy6btc3HRmuW7nHe0OOrSeNP9sQmmH9XA=="],
 
-    "@tailwindcss/vite": ["@tailwindcss/vite@4.1.14", "", { "dependencies": { "@tailwindcss/node": "4.1.14", "@tailwindcss/oxide": "4.1.14", "tailwindcss": "4.1.14" }, "peerDependencies": { "vite": "^5.2.0 || ^6 || ^7" } }, "sha512-BoFUoU0XqgCUS1UXWhmDJroKKhNXeDzD7/XwabjkDIAbMnc4ULn5e2FuEuBbhZ6ENZoSYzKlzvZ44Yr6EUDUSA=="],
+    "@tailwindcss/postcss": ["@tailwindcss/postcss@4.1.14", "", { "dependencies": { "@alloc/quick-lru": "^5.2.0", "@tailwindcss/node": "4.1.14", "@tailwindcss/oxide": "4.1.14", "postcss": "^8.4.41", "tailwindcss": "4.1.14" } }, "sha512-BdMjIxy7HUNThK87C7BC8I1rE8BVUsfNQSI5siQ4JK3iIa3w0XyVvVL9SXLWO//CtYTcp1v7zci0fYwJOjB+Zg=="],
 
     "@testing-library/dom": ["@testing-library/dom@10.4.1", "", { "dependencies": { "@babel/code-frame": "^7.10.4", "@babel/runtime": "^7.12.5", "@types/aria-query": "^5.0.1", "aria-query": "5.3.0", "dom-accessibility-api": "^0.5.9", "lz-string": "^1.5.0", "picocolors": "1.1.1", "pretty-format": "^27.0.2" } }, ""],
 

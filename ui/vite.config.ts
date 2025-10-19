@@ -1,7 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react-swc'
-import tailwindcss from '@tailwindcss/vite'
 import type { RollupLog, LoggingFunction } from 'rollup'
 import path from 'path'
 
@@ -9,8 +8,7 @@ import path from 'path'
 export default defineConfig({
   base: process.env.VITE_BASE || '/',
   plugins: [
-    react(),
-    tailwindcss()
+    react()
   ],
   server: {
     proxy: {
