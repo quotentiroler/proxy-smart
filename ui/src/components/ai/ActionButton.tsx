@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -39,15 +39,31 @@ interface ActionButtonProps {
     action: ActionConfig;
     onComplete?: (result: unknown) => void;
     compact?: boolean;
+    formOpen?: boolean;
+    onFormOpenChange?: (open: boolean) => void;
 }
 
-export function ActionButton({ action, onComplete, compact = false }: ActionButtonProps) {
+export function ActionButton({ action, onComplete, compact = false, formOpen, onFormOpenChange }: ActionButtonProps) {
     const { t } = useTranslation();
     const { setActiveTab } = useAppStore();
     const [isExecuting, setIsExecuting] = useState(false);
-    const [showForm, setShowForm] = useState(false);
     const [formData, setFormData] = useState<Record<string, string>>({});
     const [result, setResult] = useState<{ success: boolean; message?: string } | null>(null);
+
+    const [internalShowForm, setInternalShowForm] = useState(false);
+    const isControlled = formOpen !== undefined;
+    const showForm = isControlled ? formOpen ?? false : internalShowForm;
+
+    const setShowFormState = useCallback(
+        (open: boolean) => {
+            if (isControlled) {
+                onFormOpenChange?.(open);
+            } else {
+                setInternalShowForm(open);
+            }
+        },
+        [isControlled, onFormOpenChange]
+    );
 
     const handleNavigate = () => {
         if (action.tab) {
@@ -103,6 +119,7 @@ export function ActionButton({ action, onComplete, compact = false }: ActionButt
                 const data = await response.json();
                 setResult({ success: true, message: t('Request completed successfully') });
                 onComplete?.(data);
+                setShowFormState(false);
             } else {
                 setResult({ success: false, message: t('Request failed') });
                 onComplete?.({ error: true, status: response.status });
@@ -133,7 +150,7 @@ export function ActionButton({ action, onComplete, compact = false }: ActionButt
             handleApiCall();
         } else {
             onComplete?.(formData);
-            setShowForm(false);
+            setShowFormState(false);
             setResult({ success: true, message: t('Form submitted') });
         }
     };
@@ -184,7 +201,7 @@ export function ActionButton({ action, onComplete, compact = false }: ActionButt
                 return (
                     <Button
                         size={compact ? 'sm' : 'default'}
-                        onClick={action.fields ? () => setShowForm(true) : handleApiCall}
+                        onClick={action.fields ? () => setShowFormState(true) : handleApiCall}
                         disabled={isExecuting}
                         className="gap-2"
                         variant="default"
@@ -202,7 +219,7 @@ export function ActionButton({ action, onComplete, compact = false }: ActionButt
                 return (
                     <Button
                         size={compact ? 'sm' : 'default'}
-                        onClick={() => setShowForm(true)}
+                        onClick={() => setShowFormState(true)}
                         className="gap-2"
                         variant="default"
                     >
@@ -293,7 +310,7 @@ export function ActionButton({ action, onComplete, compact = false }: ActionButt
                                 type="button"
                                 size="sm"
                                 variant="outline"
-                                onClick={() => setShowForm(false)}
+                                onClick={() => setShowFormState(false)}
                             >
                                 {t('Cancel')}
                             </Button>

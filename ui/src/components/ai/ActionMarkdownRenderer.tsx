@@ -29,6 +29,8 @@ interface ActionMarkdownRendererProps {
  * [action:api:Fetch Data:GET:/admin/stats]
  */
 export function ActionMarkdownRenderer({ content, onActionComplete }: ActionMarkdownRendererProps) {
+    const [openForms, setOpenForms] = React.useState<Record<string, boolean>>({});
+
     // Parse action syntax from markdown - memoized to avoid re-parsing on every render
     const { processedContent, actions } = React.useMemo(() => {
         const parseActions = (text: string): Array<{ original: string; action: ActionConfig; id: string }> => {
@@ -145,6 +147,20 @@ export function ActionMarkdownRenderer({ content, onActionComplete }: ActionMark
         return { processedContent, actions };
     }, [content]);
 
+    // Prune open form state when actions change (e.g., new message content)
+    React.useEffect(() => {
+        setOpenForms((prev) => {
+            const validActionIds = new Set(actions.map((action) => action.id));
+            const next: Record<string, boolean> = {};
+            validActionIds.forEach((id) => {
+                if (prev[id]) {
+                    next[id] = prev[id];
+                }
+            });
+            return next;
+        });
+    }, [actions]);
+
     // Component to handle inline text that might contain action placeholders
     // For inline contexts (list items, emphasis, etc), we just strip action placeholders
     const InlineTextWithActions = ({ children }: { children: React.ReactNode }) => {
@@ -196,10 +212,17 @@ export function ActionMarkdownRenderer({ content, onActionComplete }: ActionMark
 
             if (actionData) {
                 parts.push(
-                    <div key={`action-${key++}`} className="my-2">
+                    <div key={actionData.id} className="my-2">
                         <ActionButton
                             action={actionData.action}
                             compact={true}
+                            formOpen={openForms[actionData.id] ?? false}
+                            onFormOpenChange={(open) =>
+                                setOpenForms((prev) => ({
+                                    ...prev,
+                                    [actionData.id]: open,
+                                }))
+                            }
                             onComplete={(result) => {
                                 onActionComplete?.(actionData.action.type, result);
                             }}

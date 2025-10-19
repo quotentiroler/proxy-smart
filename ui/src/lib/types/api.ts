@@ -15,7 +15,10 @@ import type {
   FhirServerListServersInner, 
   SmartApp as ApiSmartApp,
   CreateSmartAppRequest,
-  CreateHealthcareUserRequest
+  CreateHealthcareUserRequest,
+  IdentityProviderResponse,
+  CreateIdentityProviderRequest,
+  IdentityProviderConfig
 } from '../api-client/models';
 
 // Additional type aliases for compatibility
@@ -54,7 +57,6 @@ export interface FhirServerWithState extends FhirServerListServersInner {
 export interface HealthcareUserFormData extends CreateHealthcareUserRequest {
   // UI-specific fields (NOT sent to backend API)
   primaryRole?: string; // UI helper for role selection
-  // Note: enabled, emailVerified, npi, practitionerId, fhirPersons are already in CreateHealthcareUserRequest
 }
 
 // SmartAppFormData - Extends CreateSmartAppRequest with UI-only fields
@@ -117,3 +119,18 @@ export type { KeycloakConfigResponse } from '../api-client/models';
 export type { SystemStatusResponse } from '../api-client/models';
 export type { OAuthAnalyticsResponse } from '../api-client/models';
 export type { OAuthEventsResponse as OAuthEventsListResponse } from '../api-client/models';
+
+// Identity Provider UI extensions
+
+export interface IdentityProviderWithStats extends IdentityProviderResponse {
+  config?: IdentityProviderConfig;
+  vendorName?: string;
+  status?: 'active' | 'inactive';
+  userCount?: number;
+  lastUsed?: string;
+}
+
+export interface IdentityProviderFormData extends CreateIdentityProviderRequest {
+  config: IdentityProviderConfig;
+  vendorName?: string;
+}

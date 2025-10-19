@@ -36,13 +36,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await ai_assistant.knowledge_base.initialize_embeddings()
         logger.info("Embeddings initialized successfully")
     
-    # Fetch Keycloak token for backend API access
+    # Fetch backend services token for proxy API access
     if not settings.backend_api_token:
         try:
-            logger.info("Fetching Keycloak access token for backend API...")
-            from services.keycloak_auth import get_keycloak_auth
-            keycloak_auth = get_keycloak_auth()
-            token = await keycloak_auth.get_access_token()
+            logger.info("Fetching backend services access token via proxy...")
+            from services.auth import get_backend_services_auth
+
+            auth_service = get_backend_services_auth()
+            token = await auth_service.get_access_token()
             settings.backend_api_token = token
             logger.info("Successfully obtained backend API token")
         except Exception as e:
