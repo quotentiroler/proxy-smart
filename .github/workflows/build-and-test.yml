@@ -62,8 +62,10 @@ jobs:
         bun run build
 
     # Frontend Build  
-    - name: Build Frontend
+    - name: Build Frontend  
       id: frontend-build
+      env:
+        TAILWIND_DISABLE_LIGHTNINGCSS: "1"
       run: |
         echo "🔨 Building frontend..."
         cd ui
@@ -84,6 +86,8 @@ jobs:
       if: ${{ inputs.run_tests == true || inputs.run_tests == null }}
       id: frontend-test
       continue-on-error: ${{ !inputs.fail_on_test_failure }}
+      env:
+        TAILWIND_DISABLE_LIGHTNINGCSS: "1"
       run: |
         echo "🧪 Testing frontend..."
         cd ui
