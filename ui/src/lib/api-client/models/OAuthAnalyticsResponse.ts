@@ -20,6 +20,13 @@ import {
     OAuthAnalyticsHourlyStatsToJSON,
     OAuthAnalyticsHourlyStatsToJSONTyped,
 } from './OAuthAnalyticsHourlyStats';
+import type { OAuthPredictiveInsights } from './OAuthPredictiveInsights';
+import {
+    OAuthPredictiveInsightsFromJSON,
+    OAuthPredictiveInsightsFromJSONTyped,
+    OAuthPredictiveInsightsToJSON,
+    OAuthPredictiveInsightsToJSONTyped,
+} from './OAuthPredictiveInsights';
 import type { OAuthAnalyticsTopClient } from './OAuthAnalyticsTopClient';
 import {
     OAuthAnalyticsTopClientFromJSON,
@@ -100,6 +107,12 @@ export interface OAuthAnalyticsResponse {
      * @memberof OAuthAnalyticsResponse
      */
     timestamp: string;
+    /**
+     * 
+     * @type {OAuthPredictiveInsights}
+     * @memberof OAuthAnalyticsResponse
+     */
+    predictiveInsights?: OAuthPredictiveInsights;
 }
 
 /**
@@ -141,6 +154,7 @@ export function OAuthAnalyticsResponseFromJSONTyped(json: any, ignoreDiscriminat
         'errorsByType': json['errorsByType'],
         'hourlyStats': ((json['hourlyStats'] as Array<any>).map(OAuthAnalyticsHourlyStatsFromJSON)),
         'timestamp': json['timestamp'],
+        'predictiveInsights': json['predictiveInsights'] == null ? undefined : OAuthPredictiveInsightsFromJSON(json['predictiveInsights']),
     };
 }
 
@@ -166,6 +180,7 @@ export function OAuthAnalyticsResponseToJSONTyped(value?: OAuthAnalyticsResponse
         'errorsByType': value['errorsByType'],
         'hourlyStats': ((value['hourlyStats'] as Array<any>).map(OAuthAnalyticsHourlyStatsToJSON)),
         'timestamp': value['timestamp'],
+        'predictiveInsights': OAuthPredictiveInsightsToJSON(value['predictiveInsights']),
     };
 }
 

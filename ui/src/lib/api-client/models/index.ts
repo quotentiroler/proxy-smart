@@ -56,6 +56,8 @@ export * from './OAuthAnalyticsTopClient';
 export * from './OAuthEvent';
 export * from './OAuthEventFhirContext';
 export * from './OAuthEventsResponse';
+export * from './OAuthPredictiveInsights';
+export * from './OAuthPredictiveInsightsNextHour';
 export * from './PublicIdentityProvider';
 export * from './RoleResponse';
 export * from './SaveKeycloakConfigRequest';

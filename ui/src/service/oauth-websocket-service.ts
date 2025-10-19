@@ -18,8 +18,24 @@ export interface OAuthEventSimple {
   errorMessage?: string;
 }
 
-// Use the generated API client type for analytics
-export type OAuthAnalytics = OAuthAnalyticsResponse;
+export interface PredictiveInsights {
+  generatedAt: string;
+  trendDirection: 'increasing' | 'decreasing' | 'stable';
+  trendConfidence: number;
+  nextHour: {
+    totalFlows: number;
+    successRate: number;
+    errorRate: number;
+  };
+  anomalyRisk: 'low' | 'medium' | 'high';
+  anomalyReasons: string[];
+  notes?: string;
+}
+
+// Use the generated API client type for analytics and merge predictive insights
+export type OAuthAnalytics = OAuthAnalyticsResponse & {
+  predictiveInsights?: PredictiveInsights;
+};
 
 export class OAuthWebSocketService {
   private ws: WebSocket | null = null;
@@ -148,7 +164,8 @@ export class OAuthWebSocketService {
         flowsByType: (analytics.flowsByType as Record<string, number>) || {},
         errorsByType: (analytics.errorsByType as Record<string, number>) || {},
         hourlyStats: analytics.hourlyStats || [],
-        timestamp: analytics.timestamp || new Date().toISOString()
+        timestamp: analytics.timestamp || new Date().toISOString(),
+        predictiveInsights: analytics.predictiveInsights
       };
       
       this.analyticsUpdateHandlers.forEach(handler => handler(convertedAnalytics));

@@ -35,6 +35,20 @@ export interface OAuthFlowEvent {
   };
 }
 
+export interface OAuthPredictiveInsights {
+  generatedAt: string;
+  trendDirection: 'increasing' | 'decreasing' | 'stable';
+  trendConfidence: number;
+  nextHour: {
+    totalFlows: number;
+    successRate: number;
+    errorRate: number;
+  };
+  anomalyRisk: 'low' | 'medium' | 'high';
+  anomalyReasons: string[];
+  notes?: string;
+}
+
 export interface OAuthAnalytics {
   totalFlows: number;
   successRate: number;
@@ -54,6 +68,7 @@ export interface OAuthAnalytics {
     error: number;
     total: number;
   }>;
+  predictiveInsights?: OAuthPredictiveInsights;
 }
 
 class OAuthMetricsLogger {
@@ -284,6 +299,11 @@ class OAuthMetricsLogger {
         };
       });
 
+      const predictiveInsights = this.calculatePredictiveInsights({
+        hourlyStats,
+        errorsByType
+      });
+
       this.analytics = {
         totalFlows,
         successRate,
@@ -292,7 +312,8 @@ class OAuthMetricsLogger {
         topClients,
         flowsByType,
         errorsByType,
-        hourlyStats
+        hourlyStats,
+        predictiveInsights: predictiveInsights ?? undefined
       };
 
       // Persist analytics to file
@@ -315,6 +336,127 @@ class OAuthMetricsLogger {
     } catch (error) {
       logger.auth.error('Failed to calculate OAuth analytics', { error });
     }
+  }
+
+  private calculatePredictiveInsights(input: {
+    hourlyStats: Array<{ hour: string; success: number; error: number; total: number }>;
+    errorsByType: Record<string, number>;
+  }): OAuthPredictiveInsights | null {
+    const { hourlyStats, errorsByType } = input;
+
+    if (!hourlyStats || hourlyStats.length < 4) {
+      return null;
+    }
+
+    const recent = hourlyStats.slice(-6).filter(stat => Number.isFinite(stat.total));
+    if (recent.length < 3) {
+      return null;
+    }
+
+    const totals = recent.map(stat => stat.total);
+  const successes = recent.map(stat => stat.success);
+
+    const { slope: volumeSlope, direction: trendDirection, confidence: volumeConfidence } = this.computeLinearTrend(totals);
+    const { slope: successSlope } = this.computeLinearTrend(successes.map((value, idx) => {
+      const total = recent[idx].total || 0;
+      return total === 0 ? 0 : (value / total) * 100;
+    }));
+
+    const latest = recent[recent.length - 1];
+    const latestTotal = latest.total;
+    const latestSuccessRate = latest.total > 0 ? (latest.success / latest.total) * 100 : 0;
+    const predictedTotal = Math.max(0, Math.round(latestTotal + volumeSlope));
+    const predictedSuccessRate = Math.max(0, Math.min(100, latestSuccessRate + successSlope));
+    const predictedErrorRate = Math.max(0, Math.min(100, 100 - predictedSuccessRate));
+
+    const recentErrorRates = recent.slice(0, -1).map(stat => {
+      if (stat.total === 0) return 0;
+      return (stat.error / stat.total) * 100;
+    });
+    const averageErrorRate = recentErrorRates.length
+      ? recentErrorRates.reduce((sum, value) => sum + value, 0) / recentErrorRates.length
+      : 0;
+    const variance = recentErrorRates.length
+      ? recentErrorRates.reduce((sum, value) => sum + Math.pow(value - averageErrorRate, 2), 0) / recentErrorRates.length
+      : 0;
+    const stdDeviation = Math.sqrt(variance);
+    const lastErrorRate = latest.total === 0 ? 0 : (latest.error / latest.total) * 100;
+
+    let anomalyRisk: 'low' | 'medium' | 'high' = 'low';
+    const anomalyReasons: string[] = [];
+
+    if (recentErrorRates.length >= 2) {
+      if (lastErrorRate > averageErrorRate + 2 * stdDeviation && lastErrorRate > 5) {
+        anomalyRisk = 'high';
+        anomalyReasons.push('Error rate spiked significantly in the last hour');
+      } else if (lastErrorRate > averageErrorRate + stdDeviation) {
+        anomalyRisk = 'medium';
+        anomalyReasons.push('Error rate is trending upward');
+      }
+    }
+
+    if (trendDirection === 'increasing' && predictedErrorRate > 10) {
+      anomalyRisk = anomalyRisk === 'high' ? 'high' : 'medium';
+      anomalyReasons.push('Increasing traffic with elevated projected error rate');
+    }
+
+    const topErrorType = Object.entries(errorsByType)
+      .sort((a, b) => b[1] - a[1])
+      .map(([type]) => type)[0];
+
+    if (topErrorType) {
+      anomalyReasons.push(`Dominant error category: ${topErrorType}`);
+    }
+
+    if (anomalyReasons.length === 0) {
+      anomalyReasons.push('No anomalies detected in the last six hours');
+    }
+
+    const trendConfidence = Math.max(0, Math.min(1, volumeConfidence));
+
+    return {
+      generatedAt: new Date().toISOString(),
+      trendDirection,
+      trendConfidence,
+      nextHour: {
+        totalFlows: predictedTotal,
+        successRate: Number(predictedSuccessRate.toFixed(1)),
+        errorRate: Number(predictedErrorRate.toFixed(1))
+      },
+      anomalyRisk,
+      anomalyReasons,
+      notes: anomalyRisk === 'high' ? 'Investigate failing clients or infrastructure issues impacting OAuth flows.' : undefined
+    };
+  }
+
+  private computeLinearTrend(values: number[]): { slope: number; direction: 'increasing' | 'decreasing' | 'stable'; confidence: number } {
+    const numeric = values.filter(value => Number.isFinite(value));
+    const n = numeric.length;
+    if (n < 2) {
+      return { slope: 0, direction: 'stable', confidence: 0 };
+    }
+
+    const sumX = numeric.reduce((acc, _, idx) => acc + idx, 0);
+    const sumY = numeric.reduce((acc, value) => acc + value, 0);
+    const sumXY = numeric.reduce((acc, value, idx) => acc + idx * value, 0);
+    const sumX2 = numeric.reduce((acc, _, idx) => acc + idx * idx, 0);
+
+    const denominator = n * sumX2 - sumX * sumX;
+    const slope = denominator === 0 ? 0 : (n * sumXY - sumX * sumY) / denominator;
+
+    let direction: 'increasing' | 'decreasing' | 'stable' = 'stable';
+    const threshold = Math.max(1, numeric[n - 1] * 0.05);
+    if (slope > threshold) {
+      direction = 'increasing';
+    } else if (slope < -threshold) {
+      direction = 'decreasing';
+    }
+
+    const average = sumY / n;
+    const variance = numeric.reduce((acc, value) => acc + Math.pow(value - average, 2), 0) / n;
+    const confidence = average === 0 ? 0 : Math.min(1, Math.abs(slope) / (average + Math.sqrt(variance) + 1));
+
+    return { slope, direction, confidence };
   }
 
   /**

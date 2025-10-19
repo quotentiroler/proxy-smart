@@ -115,6 +115,30 @@ export const OAuthAnalyticsHourlyStats = t.Object({
 
 export type OAuthAnalyticsHourlyStatsType = Static<typeof OAuthAnalyticsHourlyStats>
 
+export const OAuthPredictiveInsights = t.Object({
+  generatedAt: t.String({ description: 'Timestamp when the prediction was generated' }),
+  trendDirection: t.Union([
+    t.Literal('increasing'),
+    t.Literal('decreasing'),
+    t.Literal('stable')
+  ], { description: 'Traffic trend direction' }),
+  trendConfidence: t.Number({ description: 'Confidence score for the trend (0-1)' }),
+  nextHour: t.Object({
+    totalFlows: t.Number({ description: 'Predicted total OAuth flows for the next hour' }),
+    successRate: t.Number({ description: 'Predicted success rate percentage for the next hour' }),
+    errorRate: t.Number({ description: 'Predicted error rate percentage for the next hour' })
+  }, { description: 'Forecast for the next hour' }),
+  anomalyRisk: t.Union([
+    t.Literal('low'),
+    t.Literal('medium'),
+    t.Literal('high')
+  ], { description: 'Estimated anomaly risk level' }),
+  anomalyReasons: t.Array(t.String({ description: 'Drivers that influenced the risk score' })),
+  notes: t.Optional(t.String({ description: 'Human-readable guidance or recommendation' }))
+}, { title: 'OAuthPredictiveInsights' })
+
+export type OAuthPredictiveInsightsType = Static<typeof OAuthPredictiveInsights>
+
 export const OAuthAnalyticsResponse = t.Object({
   totalRequests: t.Number({ description: 'Total requests in period' }),
   successfulRequests: t.Number({ description: 'Successful requests' }),
@@ -126,7 +150,8 @@ export const OAuthAnalyticsResponse = t.Object({
   flowsByType: t.Record(t.String(), t.Number(), { description: 'OAuth flows by type' }),
   errorsByType: t.Record(t.String(), t.Number(), { description: 'Errors by type' }),
   hourlyStats: t.Array(OAuthAnalyticsHourlyStats, { description: 'Hourly statistics' }),
-  timestamp: t.String({ description: 'Response timestamp' })
+  timestamp: t.String({ description: 'Response timestamp' }),
+  predictiveInsights: t.Optional(OAuthPredictiveInsights)
 }, { title: 'OAuthAnalyticsResponse' })
 
 export type OAuthAnalyticsResponseType = Static<typeof OAuthAnalyticsResponse>
