@@ -2,52 +2,15 @@ import { writeFile, appendFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { logger } from './logger';
+import type {
+  OAuthEventType,
+  OAuthPredictiveInsightsType,
+  OAuthWeekdayInsightType
+} from '../schemas/monitoring';
 
-export interface OAuthFlowEvent {
-  id: string;
-  timestamp: string;
-  type: 'authorization' | 'token' | 'refresh' | 'error' | 'revoke' | 'introspect';
-  status: 'success' | 'error' | 'pending' | 'warning';
-  clientId: string;
-  clientName?: string;
-  userId?: string;
-  userName?: string;
-  scopes: string[];
-  grantType: string;
-  responseTime: number;
-  ipAddress: string;
-  userAgent: string;
-  errorMessage?: string;
-  errorCode?: string;
-  tokenType?: string;
-  expiresIn?: number;
-  refreshToken?: boolean;
-  fhirContext?: {
-    patient?: string;
-    encounter?: string;
-    location?: string;
-    fhirUser?: string;
-  };
-  requestDetails?: {
-    path: string;
-    method: string;
-    headers?: Record<string, string>;
-  };
-}
-
-export interface OAuthPredictiveInsights {
-  generatedAt: string;
-  trendDirection: 'increasing' | 'decreasing' | 'stable';
-  trendConfidence: number;
-  nextHour: {
-    totalFlows: number;
-    successRate: number;
-    errorRate: number;
-  };
-  anomalyRisk: 'low' | 'medium' | 'high';
-  anomalyReasons: string[];
-  notes?: string;
-}
+export type OAuthFlowEvent = OAuthEventType;
+type OAuthPredictiveInsights = OAuthPredictiveInsightsType;
+type OAuthWeekdayInsight = OAuthWeekdayInsightType;
 
 export interface OAuthAnalytics {
   totalFlows: number;
@@ -69,6 +32,7 @@ export interface OAuthAnalytics {
     total: number;
   }>;
   predictiveInsights?: OAuthPredictiveInsights;
+  weekdayInsights?: OAuthWeekdayInsight[];
 }
 
 class OAuthMetricsLogger {
@@ -304,6 +268,8 @@ class OAuthMetricsLogger {
         errorsByType
       });
 
+      const weekdayInsights = this.calculateWeekdayInsights(this.events);
+
       this.analytics = {
         totalFlows,
         successRate,
@@ -313,7 +279,8 @@ class OAuthMetricsLogger {
         flowsByType,
         errorsByType,
         hourlyStats,
-        predictiveInsights: predictiveInsights ?? undefined
+        predictiveInsights: predictiveInsights ?? undefined,
+        weekdayInsights: weekdayInsights ?? undefined
       };
 
       // Persist analytics to file
@@ -515,6 +482,89 @@ class OAuthMetricsLogger {
   private async measureResponseTime(): Promise<number> {
     // This is a placeholder - in production you'd ping your actual OAuth endpoints
     return Math.random() * 200 + 100; // 100-300ms
+  }
+
+  private calculateWeekdayInsights(events: OAuthFlowEvent[]): OAuthWeekdayInsight[] | null {
+    const now = new Date();
+    const weekWindow = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weeklyEvents = events.filter(event => new Date(event.timestamp) >= weekWindow);
+
+    if (weeklyEvents.length === 0) {
+      return null;
+    }
+
+    const dateMap = new Map<string, { total: number; success: number; lastTimestamp: Date }>();
+
+    weeklyEvents.forEach(event => {
+      const eventTimestamp = new Date(event.timestamp);
+      const dateKey = eventTimestamp.toISOString().split('T')[0];
+      const entry = dateMap.get(dateKey) ?? { total: 0, success: 0, lastTimestamp: eventTimestamp };
+      entry.total += 1;
+      if (event.status === 'success') {
+        entry.success += 1;
+      }
+      if (eventTimestamp > entry.lastTimestamp) {
+        entry.lastTimestamp = eventTimestamp;
+      }
+      dateMap.set(dateKey, entry);
+    });
+
+    if (dateMap.size === 0) {
+      return null;
+    }
+
+    const weekdayMap = new Map<number, Array<{ total: number; successRate: number; timestamp: Date }>>();
+
+    for (const entry of dateMap.values()) {
+      const weekday = entry.lastTimestamp.getUTCDay();
+      const successRate = entry.total > 0 ? (entry.success / entry.total) * 100 : 0;
+      const list = weekdayMap.get(weekday) ?? [];
+      list.push({
+        total: entry.total,
+        successRate,
+        timestamp: entry.lastTimestamp
+      });
+      weekdayMap.set(weekday, list);
+    }
+
+    const weekdayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const insights: OAuthWeekdayInsight[] = [];
+
+    for (const [weekday, entries] of weekdayMap.entries()) {
+      if (!entries.length) {
+        continue;
+      }
+
+      const totals = entries.map(entry => entry.total);
+      const successRates = entries.map(entry => entry.successRate);
+      const averageTotalRaw = totals.reduce((sum, value) => sum + value, 0) / totals.length;
+      const averageSuccessRateRaw = successRates.reduce((sum, value) => sum + value, 0) / successRates.length;
+      const latestEntry = entries.slice().sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+      const deltaFromAverage = latestEntry
+        ? ((latestEntry.total - averageTotalRaw) / (averageTotalRaw || 1)) * 100
+        : undefined;
+
+      insights.push({
+        weekday,
+        label: weekdayLabels[weekday],
+        sampleDays: entries.length,
+        averageTotal: Number(averageTotalRaw.toFixed(1)),
+        averageSuccessRate: Number(averageSuccessRateRaw.toFixed(1)),
+        averageErrorRate: Number((100 - averageSuccessRateRaw).toFixed(1)),
+        projectedTotal: Math.max(0, Math.round(averageTotalRaw)),
+        projectedSuccessRate: Number(averageSuccessRateRaw.toFixed(1)),
+        projectedErrorRate: Number((100 - averageSuccessRateRaw).toFixed(1)),
+        latestTotal: latestEntry?.total,
+        deltaFromAverage: deltaFromAverage !== undefined ? Number(deltaFromAverage.toFixed(1)) : undefined,
+        lastObserved: latestEntry?.timestamp.toISOString()
+      });
+    }
+
+    if (!insights.length) {
+      return null;
+    }
+
+    return insights.sort((a, b) => a.weekday - b.weekday);
   }
 }
 

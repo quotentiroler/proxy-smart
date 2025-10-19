@@ -67,9 +67,11 @@ models/OAuthAnalyticsResponse.ts
 models/OAuthAnalyticsTopClient.ts
 models/OAuthEvent.ts
 models/OAuthEventFhirContext.ts
+models/OAuthEventRequestDetails.ts
 models/OAuthEventsResponse.ts
 models/OAuthPredictiveInsights.ts
 models/OAuthPredictiveInsightsNextHour.ts
+models/OAuthWeekdayInsight.ts
 models/PublicIdentityProvider.ts
 models/RoleResponse.ts
 models/SaveKeycloakConfigRequest.ts

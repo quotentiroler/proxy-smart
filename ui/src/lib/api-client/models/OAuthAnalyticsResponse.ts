@@ -34,6 +34,13 @@ import {
     OAuthAnalyticsTopClientToJSON,
     OAuthAnalyticsTopClientToJSONTyped,
 } from './OAuthAnalyticsTopClient';
+import type { OAuthWeekdayInsight } from './OAuthWeekdayInsight';
+import {
+    OAuthWeekdayInsightFromJSON,
+    OAuthWeekdayInsightFromJSONTyped,
+    OAuthWeekdayInsightToJSON,
+    OAuthWeekdayInsightToJSONTyped,
+} from './OAuthWeekdayInsight';
 
 /**
  * 
@@ -113,6 +120,12 @@ export interface OAuthAnalyticsResponse {
      * @memberof OAuthAnalyticsResponse
      */
     predictiveInsights?: OAuthPredictiveInsights;
+    /**
+     * Insights aggregated by weekday
+     * @type {Array<OAuthWeekdayInsight>}
+     * @memberof OAuthAnalyticsResponse
+     */
+    weekdayInsights?: Array<OAuthWeekdayInsight>;
 }
 
 /**
@@ -155,6 +168,7 @@ export function OAuthAnalyticsResponseFromJSONTyped(json: any, ignoreDiscriminat
         'hourlyStats': ((json['hourlyStats'] as Array<any>).map(OAuthAnalyticsHourlyStatsFromJSON)),
         'timestamp': json['timestamp'],
         'predictiveInsights': json['predictiveInsights'] == null ? undefined : OAuthPredictiveInsightsFromJSON(json['predictiveInsights']),
+        'weekdayInsights': json['weekdayInsights'] == null ? undefined : ((json['weekdayInsights'] as Array<any>).map(OAuthWeekdayInsightFromJSON)),
     };
 }
 
@@ -181,6 +195,7 @@ export function OAuthAnalyticsResponseToJSONTyped(value?: OAuthAnalyticsResponse
         'hourlyStats': ((value['hourlyStats'] as Array<any>).map(OAuthAnalyticsHourlyStatsToJSON)),
         'timestamp': value['timestamp'],
         'predictiveInsights': OAuthPredictiveInsightsToJSON(value['predictiveInsights']),
+        'weekdayInsights': value['weekdayInsights'] == null ? undefined : ((value['weekdayInsights'] as Array<any>).map(OAuthWeekdayInsightToJSON)),
     };
 }
 

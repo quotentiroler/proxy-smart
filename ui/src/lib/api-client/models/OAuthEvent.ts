@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { OAuthEventRequestDetails } from './OAuthEventRequestDetails';
+import {
+    OAuthEventRequestDetailsFromJSON,
+    OAuthEventRequestDetailsFromJSONTyped,
+    OAuthEventRequestDetailsToJSON,
+    OAuthEventRequestDetailsToJSONTyped,
+} from './OAuthEventRequestDetails';
 import type { OAuthEventFhirContext } from './OAuthEventFhirContext';
 import {
     OAuthEventFhirContextFromJSON,
@@ -141,6 +148,12 @@ export interface OAuthEvent {
      * @memberof OAuthEvent
      */
     fhirContext?: OAuthEventFhirContext;
+    /**
+     * 
+     * @type {OAuthEventRequestDetails}
+     * @memberof OAuthEvent
+     */
+    requestDetails?: OAuthEventRequestDetails;
 }
 
 /**
@@ -189,6 +202,7 @@ export function OAuthEventFromJSONTyped(json: any, ignoreDiscriminator: boolean)
         'expiresIn': json['expiresIn'] == null ? undefined : json['expiresIn'],
         'refreshToken': json['refreshToken'] == null ? undefined : json['refreshToken'],
         'fhirContext': json['fhirContext'] == null ? undefined : OAuthEventFhirContextFromJSON(json['fhirContext']),
+        'requestDetails': json['requestDetails'] == null ? undefined : OAuthEventRequestDetailsFromJSON(json['requestDetails']),
     };
 }
 
@@ -222,6 +236,7 @@ export function OAuthEventToJSONTyped(value?: OAuthEvent | null, ignoreDiscrimin
         'expiresIn': value['expiresIn'],
         'refreshToken': value['refreshToken'],
         'fhirContext': OAuthEventFhirContextToJSON(value['fhirContext']),
+        'requestDetails': OAuthEventRequestDetailsToJSON(value['requestDetails']),
     };
 }
 

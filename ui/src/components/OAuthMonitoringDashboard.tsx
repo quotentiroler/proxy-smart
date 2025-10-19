@@ -19,12 +19,13 @@ import {
   Server,
   Database,
   Network,
+  CalendarDays,
   ChevronDown
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { oauthWebSocketService, type OAuthAnalytics, type OAuthEventSimple } from '../service/oauth-websocket-service';
+import { oauthWebSocketService, type OAuthAnalytics, type OAuthEventSimple, type WeekdayInsight } from '../service/oauth-websocket-service';
 import { oauthMonitoringService } from '../service/oauth-monitoring-service';
 import { getItem } from '../lib/storage';
 import { config } from '@/config';
@@ -86,6 +87,59 @@ export function OAuthMonitoringDashboard() {
   }, [analytics?.topClients]);
   const hasClientDistribution = clientDistributionData.length > 0;
   const predictiveInsights = analytics?.predictiveInsights;
+  const weekdayHighlights = useMemo(() => {
+    const insights = analytics?.weekdayInsights ?? [];
+
+    if (!insights.length) {
+      return null;
+    }
+
+    const summary = insights.reduce((acc, insight) => {
+      if (!acc.busiest || insight.projectedTotal > acc.busiest.projectedTotal) {
+        acc.busiest = insight;
+      }
+      if (!acc.highestSuccess || insight.projectedSuccessRate > acc.highestSuccess.projectedSuccessRate) {
+        acc.highestSuccess = insight;
+      }
+      if (!acc.attention || insight.projectedSuccessRate < acc.attention.projectedSuccessRate) {
+        acc.attention = insight;
+      }
+      if (insight.lastObserved) {
+        const observedTs = new Date(insight.lastObserved).getTime();
+        if (!Number.isNaN(observedTs) && (!acc.latestObserved || observedTs > acc.latestObserved.ts)) {
+          acc.latestObserved = { ts: observedTs, iso: insight.lastObserved };
+        }
+      }
+      return acc;
+    }, {
+      busiest: undefined as WeekdayInsight | undefined,
+      highestSuccess: undefined as WeekdayInsight | undefined,
+      attention: undefined as WeekdayInsight | undefined,
+      latestObserved: undefined as { ts: number; iso: string } | undefined
+    });
+
+    if (!summary.busiest || !summary.highestSuccess || !summary.attention) {
+      return null;
+    }
+
+    return {
+      busiest: summary.busiest,
+      highestSuccess: summary.highestSuccess,
+      attention: summary.attention,
+      lastObserved: summary.latestObserved?.iso
+    };
+  }, [analytics?.weekdayInsights]);
+  const weekdayLastObservedLabel = useMemo(() => {
+    if (!weekdayHighlights?.lastObserved) {
+      return null;
+    }
+
+    try {
+      return format(new Date(weekdayHighlights.lastObserved), 'MMM dd, HH:mm');
+    } catch {
+      return weekdayHighlights.lastObserved;
+    }
+  }, [weekdayHighlights]);
   const predictiveRiskBadgeClass = useMemo(() => {
     switch (predictiveInsights?.anomalyRisk) {
       case 'high':
@@ -181,7 +235,8 @@ export function OAuthMonitoringDashboard() {
               errorsByType: (initialAnalyticsResponse.errorsByType as Record<string, number>) || {},
               hourlyStats: initialAnalyticsResponse.hourlyStats || [],
               timestamp: initialAnalyticsResponse.timestamp || new Date().toISOString(),
-              predictiveInsights: (initialAnalyticsResponse as OAuthAnalytics).predictiveInsights
+              predictiveInsights: (initialAnalyticsResponse as OAuthAnalytics).predictiveInsights,
+              weekdayInsights: (initialAnalyticsResponse as OAuthAnalytics).weekdayInsights
             };
             
             if (isInitialLoadRef.current || isRealTimeActiveRef.current) {
@@ -704,7 +759,7 @@ export function OAuthMonitoringDashboard() {
 
             <TabsContent value="overview" className="space-y-6">
               {/* Key Metrics */}
-              <div className={`grid grid-cols-1 md:grid-cols-2 ${predictiveInsights ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-6`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                 <div className="bg-card/70 backdrop-blur-sm p-6 rounded-2xl border border-border shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
@@ -806,6 +861,60 @@ export function OAuthMonitoringDashboard() {
                           {predictiveInsights.anomalyReasons[0]}
                         </p>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {weekdayHighlights && (
+                  <div className="bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-rose-500/10 p-6 rounded-2xl border border-amber-500/40 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-amber-500/30 to-rose-500/40 rounded-xl flex items-center justify-center shadow-sm">
+                            <CalendarDays className="w-6 h-6 text-amber-600" />
+                          </div>
+                          <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200 tracking-wide">{t('Weekday Patterns')}</h3>
+                        </div>
+                        <div className="text-3xl font-bold text-amber-900 dark:text-amber-100 mb-1">
+                          {weekdayHighlights.busiest.label}
+                        </div>
+                        <p className="text-sm text-amber-800 dark:text-amber-200 font-medium">
+                          {t('Projected busiest day for OAuth volume')}
+                        </p>
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-muted-foreground font-medium">{t('Highest success')}</p>
+                            <p className="text-foreground font-semibold">
+                              {weekdayHighlights.highestSuccess.label}
+                              <span className="ml-2 text-muted-foreground">
+                                {weekdayHighlights.highestSuccess.projectedSuccessRate.toFixed(1)}%
+                              </span>
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-muted-foreground font-medium">{t('Watchlist')}</p>
+                            <p className="text-foreground font-semibold">
+                              {weekdayHighlights.attention.label}
+                              <span className="ml-2 text-muted-foreground">
+                                {weekdayHighlights.attention.projectedErrorRate.toFixed(1)}%
+                              </span>
+                              {typeof weekdayHighlights.attention.deltaFromAverage === 'number' && (
+                                <span className={`ml-1 ${weekdayHighlights.attention.deltaFromAverage > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                  ({weekdayHighlights.attention.deltaFromAverage > 0 ? '+' : ''}{weekdayHighlights.attention.deltaFromAverage.toFixed(1)}%)
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                      <Badge variant="secondary" className="bg-white/40 dark:bg-black/30 text-foreground border border-white/40 dark:border-white/20">
+                        {weekdayHighlights.busiest.sampleDays} {t('days sampled')}
+                      </Badge>
+                      {weekdayLastObservedLabel && (
+                        <span>{t('Last observed')} · {weekdayLastObservedLabel}</span>
+                      )}
                     </div>
                   </div>
                 )}
