@@ -9,12 +9,9 @@
 .openapi-generator/
 
 # OpenAPI Generator auto-generated files we don't want
-**/generated/**/.github/
-**/generated/**/.gitlab-ci.yml
-**/generated/**/.travis.yml
-**/generated/**/appveyor.yml
-**/generated/**/git_push.sh
-**/generated/**/tox.ini
+**/generated
+ui/src/lib/api-client
+**/backend_mcp_server_generated.py
 
 # AI Tools Cache
 .ai_tools_cache/

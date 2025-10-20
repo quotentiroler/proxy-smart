@@ -10,9 +10,21 @@ with the Python client that's already generated and typed.
 
 import inspect
 import json
+import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, get_type_hints, get_origin, get_args
+
+# Configure environment to use UTF-8 encoding (fixes emoji display on Windows)
+if sys.platform == 'win32':
+    # Set console to UTF-8 mode on Windows
+    os.system('chcp 65001 > nul 2>&1')
+    # Reconfigure stdout encoding if available (Python 3.7+)
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        pass  # Not available or failed, continue anyway
 
 
 def get_api_modules():
@@ -26,7 +38,7 @@ def get_api_modules():
         sys.path.insert(0, str(generated_path))
     
     # Import the api_client package
-    import api_client
+    import generated.api_client as api_client
     
     # Dynamically discover all API classes (classes ending with 'Api')
     api_modules = {}
@@ -64,8 +76,8 @@ def sanitize_name(name: str) -> str:
     verb_mapping = {
         'get': 'list',  # GET collection
         'post': 'create',
-        'put': 'update',
-        'patch': 'update',
+        'put': 'replace',  # PUT = full replacement
+        'patch': 'update',  # PATCH = partial update
         'delete': 'delete',
     }
     
@@ -319,7 +331,7 @@ def generate_tool_for_method(api_var_name: str, method_name: str, method) -> str
     model_imports = ""
     if pydantic_params:
         model_names = [model.__name__ for model in pydantic_params.values()]
-        model_imports = f"\n        from api_client.models import {', '.join(set(model_names))}"
+        model_imports = f"\n        from generated.api_client.models import {', '.join(set(model_names))}"
     
     code = f'''
 @mcp.tool()
@@ -332,13 +344,32 @@ async def {tool_name}({", ".join(func_params)}) -> dict[str, Any]:
         
         response = {api_var_name}.{method_name}({call_args})
         
-        # Convert response to dict if it has to_dict method
-        if hasattr(response, 'to_dict'):
+        # Convert response to dict - handle various response types
+        if response is None:
+            result = None
+        elif hasattr(response, 'to_dict') and callable(response.to_dict):
+            # Pydantic model with to_dict method
             result = response.to_dict()
-        elif isinstance(response, list) and response and hasattr(response[0], 'to_dict'):
-            result = [item.to_dict() for item in response]
-        else:
+        elif isinstance(response, list):
+            # List of items - convert each if possible
+            result = []
+            for item in response:
+                if hasattr(item, 'to_dict') and callable(item.to_dict):
+                    result.append(item.to_dict())
+                else:
+                    result.append(item)
+        elif isinstance(response, tuple):
+            # Tuple response (some APIs return tuples)
+            result = list(response) if response else []
+        elif isinstance(response, (dict, str, int, float, bool)):
+            # Primitive types or already a dict
             result = response
+        else:
+            # Fallback: try to convert to dict or use as-is
+            try:
+                result = dict(response) if hasattr(response, '__dict__') else response
+            except:
+                result = str(response)
         
         await ctx.info(f"{tool_name} completed successfully")
         return {{"result": result}}
@@ -397,7 +428,7 @@ generated_path = Path(__file__).parent / "generated"
 if str(generated_path) not in sys.path:
     sys.path.insert(0, str(generated_path))
 
-from api_client import (
+from generated.api_client import (
     ApiClient,
     ApiException,
     Configuration,
@@ -495,7 +526,7 @@ def main():
         
         # Write to file
         output_file = Path(__file__).parent / "backend_mcp_server_generated.py"
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(server_code)
         
         print(f"✅ Generated MCP server: {output_file}")
