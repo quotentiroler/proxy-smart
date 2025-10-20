@@ -6,7 +6,6 @@ COPY keycloak/realm-export.json /opt/keycloak/data/import/realm-export.json
 # Set environment variables for production operation
 ENV KEYCLOAK_ADMIN=admin
 ENV KC_DB=postgres
-ENV KC_PROXY=edge
 ENV KC_PROXY_HEADERS=xforwarded
 ENV KC_HTTP_ENABLED=true
 ENV KC_HOSTNAME_STRICT=false

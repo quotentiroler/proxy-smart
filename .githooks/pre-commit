@@ -2,6 +2,7 @@
 
 # Pre-commit hook to ensure version consistency
 echo "Checking version consistency..."
+git pull
 
 # Run version sync to ensure all packages have the same version
 node scripts/version.js sync
