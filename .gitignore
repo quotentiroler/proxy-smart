@@ -11,6 +11,7 @@
 # OpenAPI Generator auto-generated files we don't want
 **/generated
 ui/src/lib/api-client
+**/backend_mcp_server_generated.py
 
 # AI Tools Cache
 .ai_tools_cache/
