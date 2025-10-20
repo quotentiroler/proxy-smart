@@ -64,7 +64,7 @@ jobs:
     - name: Generate Client APIs
       run: |
         echo "🔨 Generating client APIs..."
-        bun run generate
+        bun run generate:ui
 
     # Frontend Build  
     - name: Build Frontend  
