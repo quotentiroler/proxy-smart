@@ -1893,7 +1893,7 @@ wheels = [
 ]
 
 [[package]]
-name = "smart-fhir-mcp-server"
+name = "proxy-smart-mcp-server"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [

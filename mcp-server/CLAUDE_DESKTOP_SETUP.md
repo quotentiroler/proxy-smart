@@ -31,7 +31,7 @@ Expected output:
 ```json
 {
   "mcpServers": {
-    "smart-fhir-backend": {
+    "proxy-smart-backend": {
       "command": "uv",
       "args": [
         "run",

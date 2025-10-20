@@ -1,5 +1,5 @@
 [project]
-name = "smart-fhir-mcp-server"
+name = "proxy-smart-mcp-server"
 version = "0.0.1"
 description = "MCP server for SMART on FHIR AI Assistant"
 authors = [
