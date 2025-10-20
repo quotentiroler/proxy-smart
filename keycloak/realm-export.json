@@ -23,14 +23,16 @@
         "http://localhost:3000/*",
         "http://localhost:8445/*",
         "https://proxy-smart-alpha.fly.dev/*",
-        "https://proxy-smart.fly.dev/*"
+        "https://proxy-smart.fly.dev/*",
+        "https://p02--proxy-smart-alpha--776jg9nwd8rw.code.run/*"
       ],
       "webOrigins": [
         "http://localhost:5173",
         "http://localhost:3000",
         "http://localhost:8445",
         "https://proxy-smart-alpha.fly.dev",
-        "https://proxy-smart-alpha.fly.dev"
+        "https://proxy-smart-alpha.fly.dev",
+        "https://p02--proxy-smart-alpha--776jg9nwd8rw.code.run"
       ],
       "protocol": "openid-connect",
       "publicClient": true,
