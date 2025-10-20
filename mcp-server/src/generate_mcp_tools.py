@@ -10,9 +10,21 @@ with the Python client that's already generated and typed.
 
 import inspect
 import json
+import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, get_type_hints, get_origin, get_args
+
+# Configure environment to use UTF-8 encoding (fixes emoji display on Windows)
+if sys.platform == 'win32':
+    # Set console to UTF-8 mode on Windows
+    os.system('chcp 65001 > nul 2>&1')
+    # Reconfigure stdout encoding if available (Python 3.7+)
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        pass  # Not available or failed, continue anyway
 
 
 def get_api_modules():
@@ -514,7 +526,7 @@ def main():
         
         # Write to file
         output_file = Path(__file__).parent / "backend_mcp_server_generated.py"
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(server_code)
         
         print(f"✅ Generated MCP server: {output_file}")
