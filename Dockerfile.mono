@@ -20,6 +20,7 @@ COPY scripts/ ./scripts/
 # Install dependencies for all workspaces
 RUN bun install --frozen-lockfile
 
+RUN bun run generate:ui
 # Use the mono build script which handles:
 # - Building UI with correct VITE_BASE=/webapp/
 # - Copying UI dist to backend/public/webapp/
