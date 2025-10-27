@@ -14,8 +14,8 @@ fi
 # Run version sync
 node scripts/version.js sync
 
-# Stage changed package.json files
-git add -- **/package.json || true
+# Stage ALL changed files (including package.json and any files that were auto-formatted)
+git add -u || true
 
 echo "✅ Version consistency ensured (auto-pull)"
 exit 0
