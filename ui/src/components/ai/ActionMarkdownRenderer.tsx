@@ -1,15 +1,19 @@
 import React from 'react';
-import ReactMarkdown from 'react-markdown';
+import { Md } from '@m2d/react-markdown/client';
 import remarkGfm from 'remark-gfm';
 import { ActionButton, type ActionConfig } from './ActionButton';
 
 interface ActionMarkdownRendererProps {
     content: string;
+    streaming?: boolean;
     onActionComplete?: (actionType: string, result: unknown) => void;
 }
 
 /**
  * Custom markdown renderer that supports interactive action buttons
+ * 
+ * Actions are only parsed and rendered when streaming is complete to avoid
+ * performance issues during real-time updates.
  * 
  * Syntax examples:
  * 
@@ -28,19 +32,26 @@ interface ActionMarkdownRendererProps {
  * Simple API call:
  * [action:api:Fetch Data:GET:/admin/stats]
  */
-export function ActionMarkdownRenderer({ content, onActionComplete }: ActionMarkdownRendererProps) {
+export function ActionMarkdownRenderer({ content, streaming = false, onActionComplete }: ActionMarkdownRendererProps) {
     const [openForms, setOpenForms] = React.useState<Record<string, boolean>>({});
 
     // Parse action syntax from markdown - memoized to avoid re-parsing on every render
+    // Skip action parsing while streaming to improve performance
     const { processedContent, actions } = React.useMemo(() => {
+        // While streaming, just return the raw content without parsing actions
+        if (streaming) {
+            return { processedContent: content, actions: [] };
+        }
+
         const parseActions = (text: string): Array<{ original: string; action: ActionConfig; id: string }> => {
-            const actionRegex = /\[action:(navigate|refresh|api|external|form):([^\]]+)\]/g;
+            const actionRegex = /\[action:(navigate|refresh|api|external|form):([^\]]+)\]/gi;
             const actions: Array<{ original: string; action: ActionConfig; id: string }> = [];
             let match;
             let counter = 0;
 
             while ((match = actionRegex.exec(text)) !== null) {
-                const [fullMatch, type, params] = match;
+                const [fullMatch, rawType, params] = match;
+                const type = rawType.toLowerCase();
                 const parts = params.split(':');
                 const id = `action-${counter++}`;
 
@@ -139,185 +150,178 @@ export function ActionMarkdownRenderer({ content, onActionComplete }: ActionMark
         // Replace action markers with placeholders
         const actions = parseActions(content);
         let processedContent = content;
-        
         actions.forEach(({ original, id }) => {
             processedContent = processedContent.replace(original, `{{ACTION_${id}}}`);
         });
-
         return { processedContent, actions };
-    }, [content]);
+    }, [content, streaming]);
 
-    // Prune open form state when actions change (e.g., new message content)
-    React.useEffect(() => {
-        setOpenForms((prev) => {
-            const validActionIds = new Set(actions.map((action) => action.id));
-            const next: Record<string, boolean> = {};
-            validActionIds.forEach((id) => {
-                if (prev[id]) {
-                    next[id] = prev[id];
+    // Simple component to render paragraph with inline action buttons
+    const ParagraphComponent = React.useCallback(({ children }: { children?: React.ReactNode }) => {
+        // Helper to extract plain text from possible nested children
+        const extractText = (node: unknown): string => {
+            if (node == null) return '';
+            if (typeof node === 'string' || typeof node === 'number') return String(node);
+            if (Array.isArray(node)) return node.map(extractText).join('');
+            if (typeof node === 'object' && node !== null && 'props' in (node as Record<string, unknown>)) {
+                const props = (node as Record<string, unknown>).props as { children?: unknown } | undefined;
+                if (props && 'children' in props) {
+                    return extractText(props.children);
                 }
-            });
-            return next;
-        });
-    }, [actions]);
-
-    // Component to handle inline text that might contain action placeholders
-    // For inline contexts (list items, emphasis, etc), we just strip action placeholders
-    const InlineTextWithActions = ({ children }: { children: React.ReactNode }) => {
-        if (typeof children !== 'string') {
-            return <>{children}</>;
-        }
-
-        // Remove action placeholders from inline contexts (they should only be in paragraphs)
-        const cleanText = children.replace(/\{\{ACTION_[^}]+\}\}/g, '');
-        return <>{cleanText}</>;
-    };
-
-    // Custom component to render paragraphs with action buttons
-    // This component detects action placeholders and renders them as separate block elements
-    const ParagraphWithActions = ({ children }: { children: React.ReactNode }) => {
-        if (typeof children !== 'string') {
-            return <p className="mb-2 last:mb-0">{children}</p>;
-        }
-
-        const actionPlaceholderRegex = /\{\{ACTION_([^}]+)\}\}/g;
-        const hasActions = actionPlaceholderRegex.test(children);
-        
-        if (!hasActions) {
-            return <p className="mb-2 last:mb-0">{children}</p>;
-        }
-
-        // Reset regex
-        actionPlaceholderRegex.lastIndex = 0;
-        
-        const parts: React.ReactNode[] = [];
-        let lastIndex = 0;
-        let match;
-        let key = 0;
-
-        while ((match = actionPlaceholderRegex.exec(children)) !== null) {
-            // Add text before the action as a paragraph
-            const textBefore = children.substring(lastIndex, match.index).trim();
-            if (textBefore) {
-                parts.push(
-                    <p key={`text-${key++}`} className="mb-2 last:mb-0">
-                        {textBefore}
-                    </p>
-                );
             }
+            return '';
+        };
 
-            // Add the action button as a block element
-            const actionId = match[1];
-            const actionData = actions.find(a => a.id === actionId);
+        const childText = extractText(children);
 
-            if (actionData) {
-                parts.push(
-                    <div key={actionData.id} className="my-2">
+        // Find all placeholders in this paragraph
+        const re = /\{\{ACTION_([^}]+)\}\}/g;
+        const segments: Array<{ type: 'text' | 'action'; value: string }> = [];
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+
+        while ((match = re.exec(childText)) !== null) {
+            const [full, id] = match;
+            // Push preceding text
+            if (match.index > lastIndex) {
+                segments.push({ type: 'text', value: childText.slice(lastIndex, match.index) });
+            }
+            segments.push({ type: 'action', value: id });
+            lastIndex = match.index + full.length;
+        }
+        // Push remaining text
+        if (lastIndex < childText.length) {
+            segments.push({ type: 'text', value: childText.slice(lastIndex) });
+        }
+
+        if (segments.length === 0) {
+            return <p className="mb-2 last:mb-0">{children}</p>;
+        }
+
+        // If the paragraph contains actions, render a div wrapper instead of <p>
+        // to avoid invalid DOM nesting (ActionButton currently renders block elements).
+        return (
+            <div className="mb-2 last:mb-0">
+                {segments.map((seg, idx) => {
+                    if (seg.type === 'text') return <span key={idx}>{seg.value}</span>;
+                    const action = actions.find(a => a.id === seg.value);
+                    if (!action) {
+                        console.warn('⚠️ Action ID not found in actions array!', {
+                            searchingFor: seg.value,
+                            availableIds: actions.map(a => a.id),
+                        });
+                        return <span key={idx}>{`{{ACTION_${seg.value}}}`}</span>;
+                    }
+                    return (
                         <ActionButton
-                            action={actionData.action}
-                            compact={true}
-                            formOpen={openForms[actionData.id] ?? false}
-                            onFormOpenChange={(open) =>
-                                setOpenForms((prev) => ({
-                                    ...prev,
-                                    [actionData.id]: open,
-                                }))
-                            }
+                            key={idx}
+                            action={action.action}
+                            formOpen={openForms[seg.value] || false}
+                            onFormOpenChange={(open) => {
+                                setOpenForms(prev => ({ ...prev, [seg.value]: open }));
+                            }}
                             onComplete={(result) => {
-                                onActionComplete?.(actionData.action.type, result);
+                                onActionComplete?.(action.action.type, result);
                             }}
                         />
-                    </div>
-                );
+                    );
+                })}
+            </div>
+        );
+    }, [actions, openForms, onActionComplete]);
+
+    // Custom list item component to render action buttons in lists
+    const ListItemComponent = React.useCallback(({ children }: { children?: React.ReactNode }) => {
+        // Same logic as Paragraph: support placeholders anywhere in the item
+        const extractText = (node: unknown): string => {
+            if (node == null) return '';
+            if (typeof node === 'string' || typeof node === 'number') return String(node);
+            if (Array.isArray(node)) return node.map(extractText).join('');
+            if (typeof node === 'object' && node !== null && 'props' in (node as Record<string, unknown>)) {
+                const props = (node as Record<string, unknown>).props as { children?: unknown } | undefined;
+                if (props && 'children' in props) {
+                    return extractText(props.children);
+                }
             }
-
-            lastIndex = match.index + match[0].length;
+            return '';
+        };
+        const childText = extractText(children);
+        const re = /\{\{ACTION_([^}]+)\}\}/g;
+        const segments: Array<{ type: 'text' | 'action'; value: string }> = [];
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = re.exec(childText)) !== null) {
+            const [full, id] = match;
+            if (match.index > lastIndex) {
+                segments.push({ type: 'text', value: childText.slice(lastIndex, match.index) });
+            }
+            segments.push({ type: 'action', value: id });
+            lastIndex = match.index + full.length;
+        }
+        if (lastIndex < childText.length) {
+            segments.push({ type: 'text', value: childText.slice(lastIndex) });
         }
 
-        // Add remaining text as a paragraph
-        const textAfter = children.substring(lastIndex).trim();
-        if (textAfter) {
-            parts.push(
-                <p key={`text-${key++}`} className="mb-2 last:mb-0">
-                    {textAfter}
-                </p>
-            );
+        if (segments.length === 0) {
+            return <li>{children}</li>;
         }
 
-        return <>{parts}</>;
-    };
+        return (
+            <li style={{ listStyle: 'none', marginBottom: '0.5rem' }}>
+                {segments.map((seg, idx) => {
+                    if (seg.type === 'text') return <span key={idx}>{seg.value}</span>;
+                    const action = actions.find(a => a.id === seg.value);
+                    if (!action) return <span key={idx}>{`{{ACTION_${seg.value}}}`}</span>;
+                    return (
+                        <ActionButton
+                            key={idx}
+                            action={action.action}
+                            formOpen={openForms[seg.value] || false}
+                            onFormOpenChange={(open) => {
+                                setOpenForms(prev => ({ ...prev, [seg.value]: open }));
+                            }}
+                            onComplete={(result) => {
+                                onActionComplete?.(action.action.type, result);
+                            }}
+                        />
+                    );
+                })}
+            </li>
+        );
+    }, [actions, openForms, onActionComplete]);
 
+    // While streaming, avoid the heavy markdown parsing/rendering path to reduce re-renders and memory usage
+    if (streaming) {
+        return (
+            <div className="whitespace-pre-wrap break-words text-sm">
+                {content}
+            </div>
+        );
+    }
+
+    // If the final content is excessively large, avoid heavy markdown rendering to prevent freezes
+    const SAFE_MAX_MARKDOWN_CHARS = 100_000;
+    if (processedContent.length > SAFE_MAX_MARKDOWN_CHARS) {
+        console.log('🔍 ActionMarkdownRenderer: content too large, returning simple view');
+        return (
+            <div className="whitespace-pre-wrap break-words text-sm">
+                {processedContent}
+            </div>
+        );
+    }
+
+    // Use lightweight @m2d/react-markdown with simplified paragraph component
     return (
         <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-            <ReactMarkdown
+            <Md 
                 remarkPlugins={[remarkGfm]}
                 components={{
-                    p: ({ children }) => (
-                        <ParagraphWithActions>{children}</ParagraphWithActions>
-                    ),
-                    ul: ({ children }) => <ul className="ml-4 mb-2 last:mb-0 list-disc">{children}</ul>,
-                    ol: ({ children }) => <ol className="ml-4 mb-2 last:mb-0 list-decimal">{children}</ol>,
-                    li: ({ children }) => (
-                        <li className="mb-1">
-                            <InlineTextWithActions>{children}</InlineTextWithActions>
-                        </li>
-                    ),
-                    strong: ({ children }) => (
-                        <strong className="font-semibold text-foreground">
-                            <InlineTextWithActions>{children}</InlineTextWithActions>
-                        </strong>
-                    ),
-                    em: ({ children }) => (
-                        <em className="italic">
-                            <InlineTextWithActions>{children}</InlineTextWithActions>
-                        </em>
-                    ),
-                    code: ({ children }) => (
-                        <code className="bg-muted/60 px-1 py-0.5 rounded text-xs font-mono">
-                            {children}
-                        </code>
-                    ),
-                    pre: ({ children }) => (
-                        <pre className="bg-muted/40 p-3 rounded-lg overflow-x-auto text-xs my-2">
-                            {children}
-                        </pre>
-                    ),
-                    blockquote: ({ children }) => (
-                        <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-2">
-                            {children}
-                        </blockquote>
-                    ),
-                    a: ({ href, children }) => (
-                        <a
-                            href={href}
-                            className="text-primary hover:underline"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            {children}
-                        </a>
-                    ),
-                    table: ({ children }) => (
-                        <div className="overflow-x-auto my-2">
-                            <table className="min-w-full divide-y divide-border">
-                                {children}
-                            </table>
-                        </div>
-                    ),
-                    th: ({ children }) => (
-                        <th className="px-3 py-2 text-left text-xs font-semibold bg-muted">
-                            {children}
-                        </th>
-                    ),
-                    td: ({ children }) => (
-                        <td className="px-3 py-2 text-xs border-t border-border">
-                            {children}
-                        </td>
-                    ),
+                    p: ParagraphComponent,
+                    li: ListItemComponent,
                 }}
             >
                 {processedContent}
-            </ReactMarkdown>
+            </Md>
         </div>
     );
 }

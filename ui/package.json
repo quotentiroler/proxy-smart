@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
+    "@m2d/react-markdown": "^1.0.0",
     "@mantine/core": "^7.0.0",
     "@mantine/hooks": "^7.0.0",
     "@mantine/notifications": "^7.0.0",
@@ -50,7 +51,6 @@
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.65.0",
     "react-i18next": "^16.0.0",
-    "react-markdown": "^10.1.0",
     "recharts": "^3.2.1",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.3.1",

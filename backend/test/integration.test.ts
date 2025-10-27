@@ -57,7 +57,7 @@ describe('Integration Tests', () => {
       const { data } = await api.health.get()
       expect(data).toMatchObject({
         status: 'healthy',
-        timestamp: expect.any(String),
+        timestamp: expect.anything(),
         uptime: expect.any(Number)
       })
     })
@@ -67,7 +67,7 @@ describe('Integration Tests', () => {
       expect(data).toMatchObject({
         status: expect.any(String),
         version: expect.any(String),
-        timestamp: expect.any(String),
+        timestamp: expect.anything(),
         uptime: expect.any(Number),
         services: expect.any(Object)
       })

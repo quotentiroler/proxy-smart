@@ -10,7 +10,6 @@ import nodeFetch from 'node-fetch'
 import {
   ErrorResponse,
   FhirServerResponse,
-  FhirServerListResponse,
   FhirServerInfoResponse,
   AddFhirServerRequest,
   UpdateFhirServerRequest,
@@ -22,27 +21,15 @@ import {
   CommonErrorResponses,
   FhirServerInfoResponseType,
   FhirServerListResponseType,
-  ErrorResponseType
-} from '../schemas'
+  ErrorResponseType,
+  type MtlsConfig,
+  FhirServerListResponse
+} from '@/schemas'
 
 /**
  * In-memory mTLS configuration storage
  * In production, this should be stored in a database
  */
-interface MtlsConfig {
-  enabled: boolean
-  clientCert?: string // base64 encoded certificate
-  clientKey?: string  // base64 encoded private key
-  caCert?: string     // base64 encoded CA certificate
-  certDetails?: {
-    subject: string
-    issuer: string
-    validFrom: string
-    validTo: string
-    fingerprint: string
-  }
-}
-
 const mtlsConfigs = new Map<string, MtlsConfig>()
 
 /**

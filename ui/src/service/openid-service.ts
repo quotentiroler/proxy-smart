@@ -121,48 +121,54 @@ class OpenIDService {
       };
     } catch (error) {
       console.error('Token exchange API call failed:', error);
-      
+
+      let enrichedError: Error | null = null;
+
       // Try to extract more detailed error information
       if (error && typeof error === 'object') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const errorObj = error as any;
-        
+
         // Check if it's a ResponseError with response details
         if (errorObj.response) {
           try {
             const responseText = await errorObj.response.text();
             console.error('🚨 Token exchange error response body:', responseText);
-            
+
             // Try to parse as JSON
             try {
               const errorDetails = JSON.parse(responseText);
               console.error('📋 Parsed error details:', errorDetails);
-              
+
               // Create a more descriptive error message
               if (errorDetails.error) {
                 const message = `OAuth error: ${errorDetails.error}${errorDetails.error_description ? ` - ${errorDetails.error_description}` : ''}`;
-                throw new Error(message);
+                enrichedError = new Error(message);
               }
             } catch (parseError) {
-              console.error('Could not parse error response as JSON:', parseError);
+              console.error('Could not parse error response as JSON (token exchange):', parseError);
             }
           } catch (textError) {
-            console.error('Could not read error response text:', textError);
+            console.error('Could not read error response text (token exchange):', textError);
           }
         }
-        
+
         // Log the error structure for debugging
-        console.error('🔍 Error object details:', {
-          name: errorObj.name,
-          message: errorObj.message,
-          status: errorObj.status,
-          statusText: errorObj.statusText,
-          url: errorObj.url,
-          keys: Object.keys(errorObj)
-        });
+        try {
+          console.error('🔍 Error object details:', {
+            name: errorObj.name,
+            message: errorObj.message,
+            status: errorObj.status,
+            statusText: errorObj.statusText,
+            url: errorObj.url,
+            keys: Object.keys(errorObj)
+          });
+        } catch {
+          // ignore structured log errors
+        }
       }
-      
-      throw error;
+
+      throw (enrichedError ?? error);
     }
   }
 
@@ -208,35 +214,37 @@ class OpenIDService {
       };
     } catch (error) {
       console.error('Token refresh API call failed:', error);
-      
+
+      let enrichedError: Error | null = null;
+
       // Try to extract more detailed error information for refresh token errors
       if (error && typeof error === 'object') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const errorObj = error as any;
-        
+
         if (errorObj.response) {
           try {
             const responseText = await errorObj.response.text();
             console.error('🚨 Token refresh error response body:', responseText);
-            
+
             try {
               const errorDetails = JSON.parse(responseText);
               console.error('📋 Parsed refresh error details:', errorDetails);
-              
+
               if (errorDetails.error) {
                 const message = `Token refresh failed: ${errorDetails.error}${errorDetails.error_description ? ` - ${errorDetails.error_description}` : ''}`;
-                throw new Error(message);
+                enrichedError = new Error(message);
               }
             } catch (parseError) {
-              console.error('Could not parse refresh error response as JSON:', parseError);
+              console.error('Could not parse refresh error response as JSON (token refresh):', parseError);
             }
           } catch (textError) {
-            console.error('Could not read refresh error response text:', textError);
+            console.error('Could not read refresh error response text (token refresh):', textError);
           }
         }
       }
-      
-      throw error;
+
+      throw (enrichedError ?? error);
     }
   }
 

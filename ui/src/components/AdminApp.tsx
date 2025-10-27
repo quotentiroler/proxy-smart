@@ -11,7 +11,7 @@ import { useAppStore } from '../stores/appStore';
 import { LoginForm } from './LoginForm';
 import { cn } from '../lib/utils';
 import { AlertDialogs } from './AlertDialogs';
-import { AIChatOverlay } from './AIChatOverlay';
+import { AIChatOverlay } from './ai/AIChatOverlay';
 import {
     AppShell,
     Panel,

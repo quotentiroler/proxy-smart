@@ -10,10 +10,12 @@
   "sortModelPropertiesByRequiredFlag": true,
   "ensureUniqueParams": true,
   "disallowAdditionalPropertiesIfNotPresent": false,
+  "packageUrl": "",
   "additionalProperties": {
     "packageName": "api_client",
     "projectName": "proxy-smart-api-client",
-    "packageVersion": "0.0.1"
+    "packageVersion": "0.0.1",
+    "packageUrl": ""
   },
   "globalProperties": {
     "skipFormModel": "false",

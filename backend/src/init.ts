@@ -346,14 +346,16 @@ export async function initializeServer(): Promise<void> {
       logger.keycloak.warn('Configure Keycloak settings in the admin UI to enable full functionality')
     }
     
-    // Check MCP server connection
-    if (config.ai.enabled) {
+    // Check MCP server connection (only needed when using remote/external MCP server)
+    if (!config.ai.useInternalAI && config.ai.enabled) {
       logger.server.info('Initializing MCP server connection...')
       logger.server.info(`MCP Server: ${config.ai.baseUrl}`)
       logger.server.info(`Chat Endpoint: ${config.ai.chatEndpoint}`)
       logger.server.info(`Health Endpoint: ${config.ai.healthEndpoint}`)
       
       await checkMcpServerConnection()
+    } else if (config.ai.useInternalAI) {
+      logger.server.info('Using internal AI (v2) - skipping external MCP server connection check')
     } else {
       logger.server.warn('MCP server not configured - AI assistant features will be unavailable')
     }
@@ -416,9 +418,11 @@ export async function displayServerEndpoints(): Promise<void> {
   logger.server.info(`API Documentation available at ${config.baseUrl}/swagger`)
   logger.server.info(`Server Discovery available at ${config.baseUrl}/fhir-servers`)
 
-  // Display AI endpoints if MCP server is accessible
-  if (mcpServerAccessible) {
-    logger.server.info(`AI Assistant available at ${config.baseUrl}/api/ai/chat`)
+  // Display AI endpoints based on mode
+  if (config.ai.useInternalAI) {
+    logger.server.info(`AI Assistant (v2) available at ${config.baseUrl}/admin/ai/chat`)
+  } else if (mcpServerAccessible) {
+    logger.server.info(`AI Assistant (v1/proxy) available at ${config.baseUrl}/api/ai/chat`)
   }
 
   // Get server info from store for display

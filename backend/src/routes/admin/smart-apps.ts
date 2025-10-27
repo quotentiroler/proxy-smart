@@ -393,21 +393,7 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
 
           // Re-fetch client details after key registration
           const updatedClient = await admin.clients.findOne({ id: createdClient.id })
-          logger.admin.debug('Client after key registration:', {
-            clientId: updatedClient?.clientId,
-            clientAuthenticatorType: updatedClient?.clientAuthenticatorType,
-            hasJwksString: !!updatedClient?.attributes?.['jwks.string']
-          })
-
-          // Debug: Log what we're about to return as HTTP response
           const finalResponse = updatedClient || finalClientForResponse
-          logger.admin.debug('HTTP Response for Backend Services client after key registration', {
-            fields: Object.keys(finalResponse),
-            clientId: finalResponse.clientId,
-            clientAuthenticatorType: finalResponse.clientAuthenticatorType,
-            serviceAccountsEnabled: finalResponse.serviceAccountsEnabled,
-            standardFlowEnabled: finalResponse.standardFlowEnabled
-          })
 
           return finalResponse
         } catch (keyError) {
@@ -417,15 +403,6 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
           return { error: 'Failed to register public key for Backend Services client', details: keyError }
         }
       }
-
-      // Debug: Log what we're about to return as HTTP response  
-      logger.admin.debug('HTTP Response for standard client creation', {
-        fields: Object.keys(finalClientForResponse),
-        clientId: finalClientForResponse.clientId,
-        clientAuthenticatorType: finalClientForResponse.clientAuthenticatorType,
-        serviceAccountsEnabled: finalClientForResponse.serviceAccountsEnabled,
-        standardFlowEnabled: finalClientForResponse.standardFlowEnabled
-      })
 
       return finalClientForResponse
     } catch (error) {
@@ -550,19 +527,6 @@ export const smartAppsRoutes = new Elysia({ prefix: '/smart-apps', tags: ['smart
       } catch (error) {
         logger.admin.warn('Failed to enrich individual client with scope details', { clientId: clients[0].clientId, error })
       }
-
-      // Debug: Log what we're about to return for individual client retrieval
-      logger.admin.debug('Individual Client Response', {
-        fields: Object.keys(enrichedClient),
-        clientId: enrichedClient.clientId,
-        clientAuthenticatorType: enrichedClient.clientAuthenticatorType,
-        serviceAccountsEnabled: enrichedClient.serviceAccountsEnabled,
-        standardFlowEnabled: enrichedClient.standardFlowEnabled,
-        defaultClientScopes: enrichedClient.defaultClientScopes,
-        optionalClientScopes: enrichedClient.optionalClientScopes,
-        hasDefaultScopes: !!enrichedClient.defaultClientScopes,
-        hasOptionalScopes: !!enrichedClient.optionalClientScopes
-      })
 
       return enrichedClient
     } catch (error) {

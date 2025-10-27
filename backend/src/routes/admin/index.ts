@@ -9,14 +9,17 @@ import { identityProvidersRoutes } from './identity-providers'
 import { smartConfigAdminRoutes } from './smart-config'
 import { clientRegistrationSettingsRoutes } from './client-registration-settings'
 import { keycloakConfigRoutes } from './keycloak-config'
-import { aiRoutes, aiPublicRoutes } from './ai'
+import { aiRoutes, aiPublicRoutes } from './ai-external'
+import { aiV2Routes, aiV2PublicRoutes } from './ai-internal'
+import { config } from '@/config'
+import { initializeToolRegistry } from '@/lib/ai/tool-registry'
 
 /**
  * Admin routes aggregator - combines all admin functionality
  */
 export const adminRoutes = new Elysia({ prefix: '/admin' })
   // Add public AI health check routes first (no auth required)
-  .use(aiPublicRoutes)
+  .use(config.ai.useInternalAI ? aiV2PublicRoutes : aiPublicRoutes)
   // Then add authentication guard for protected routes
   .guard({
     detail: {
@@ -79,4 +82,15 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
   .use(smartConfigAdminRoutes)
   .use(clientRegistrationSettingsRoutes)
   .use(keycloakConfigRoutes)
-  .use(aiRoutes) // AI assistant proxy endpoints - protected by admin guard
+  // Prefer internal Node AI in MONO_MODE; otherwise proxy to remote MCP AI
+  .use(config.ai.useInternalAI ? aiV2Routes : aiRoutes)
+
+// Initialize the tool registry once at startup if using internal AI
+if (config.ai.useInternalAI) {
+  initializeToolRegistry(adminRoutes, {
+    prefixes: [
+      '/admin/',        // Admin routes (healthcare users, SMART apps, etc.)
+      '/fhir-servers/', // FHIR server management
+    ]
+  })
+}

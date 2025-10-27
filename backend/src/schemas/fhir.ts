@@ -63,4 +63,3 @@ export const SmartConfigRefreshResponse = t.Object({
 }, { title: 'SmartConfigRefreshResponse' })
 
 export type SmartConfigRefreshResponseType = Static<typeof SmartConfigRefreshResponse>
-

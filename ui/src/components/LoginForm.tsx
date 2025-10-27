@@ -5,6 +5,7 @@ import { getSessionItem, removeSessionItem } from '@/lib/storage';
 import type { PublicIdentityProvider } from '../lib/api-client/models';
 import { KeycloakConfigForm } from './KeycloakConfigForm';
 import { AuthDebugPanel } from './AuthDebugPanel';
+import { logger } from '@/lib/logger';
 import { 
   Heart, 
   Shield, 
@@ -39,13 +40,16 @@ export function LoginForm() {
   const fetchAvailableIdps = useCallback(async () => {
     try {
       setLoadingIdps(true);
+      logger.info('LoginForm: fetching identity providers...');
       const idps = await clientApis.auth.getAuthIdentityProviders();
       
       // Filter to only show enabled identity providers
       const enabledIdps = idps.filter((idp: PublicIdentityProvider) => idp.enabled !== false);
+      logger.info('LoginForm: identity providers fetched', { count: enabledIdps.length });
       setAvailableIdps(enabledIdps);
     } catch (error) {
       console.warn('Could not fetch identity providers (this is normal for public access):', error);
+      logger.warn('LoginForm: failed to fetch identity providers', error);
       // Don't show this as an error to users - it's expected when not authenticated
       setAvailableIdps([]);
     } finally {
@@ -56,8 +60,10 @@ export function LoginForm() {
   // Check if authentication is configured
   const checkAuthAvailability = useCallback(async () => {
     try {
+      logger.info('LoginForm: checking authentication availability...');
       const available = await openidService.isAuthenticationAvailable();
       setAuthAvailable(available);
+      logger.info('LoginForm: auth availability', { available });
       if (!available) {
         setError('Keycloak is not configured. Please contact your administrator.');
         setLoadingIdps(false); // Stop loading IdPs if auth is not available
@@ -68,6 +74,7 @@ export function LoginForm() {
       }
     } catch (error) {
       console.error('Failed to check auth availability:', error);
+      logger.error('LoginForm: auth availability check failed', error);
       setAuthAvailable(false);
       setError('Unable to verify authentication configuration. Please try again later.');
       setLoadingIdps(false); // Stop loading IdPs on error
@@ -91,6 +98,7 @@ export function LoginForm() {
 
   // Load IdPs and check auth availability on component mount
   useEffect(() => {
+    logger.info('LoginForm mounted');
     checkAuthAvailability();
   }, [checkAuthAvailability]);
 
@@ -105,6 +113,7 @@ export function LoginForm() {
     setError(null);
 
     try {
+      logger.info('LoginForm: starting code exchange');
       // Get stored PKCE parameters
       const codeVerifier = getSessionItem('pkce_code_verifier');
       const storedState = getSessionItem('oauth_state');
@@ -124,10 +133,12 @@ export function LoginForm() {
       }
 
       await exchangeCodeForToken(code, codeVerifier);
+      logger.info('LoginForm: code exchange successful');
     } catch (err) {
       // Ensure session data is cleaned up on any error
       removeSessionItem('pkce_code_verifier');
       removeSessionItem('oauth_state');
+      logger.error('LoginForm: code exchange failed', err);
       setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
       setLoading(false);
@@ -138,6 +149,7 @@ export function LoginForm() {
   // Handle OAuth callback on component mount
   useEffect(() => {
     const currentUrl = window.location.href;
+    logger.debug('LoginForm: processing OAuth callback params');
     
     // Prevent processing the same URL multiple times
     if (processedUrl.current === currentUrl) {
@@ -158,12 +170,14 @@ export function LoginForm() {
     
     if (error) {
       console.error('OAuth error:', error, errorDescription);
+      logger.error('LoginForm: OAuth error present in URL', { error, errorDescription });
       setError(`Authentication failed: ${errorDescription || error}. Please try again or use the troubleshooting panel below.`);
       return;
     }
 
     if (code && state) {
       // Exchange code for token
+      logger.info('LoginForm: found code/state in URL – exchanging');
       handleCodeExchange(code, state);
     }
   }, [handleCodeExchange]);
@@ -179,9 +193,11 @@ export function LoginForm() {
     setError(null);
     
     try {
+      logger.info('LoginForm: initiating login', { idpAlias });
       // Pass the IdP alias as a hint to the authentication service
       await initiateLogin(idpAlias);
     } catch (err) {
+      logger.error('LoginForm: initiateLogin failed', err);
       setError(err instanceof Error ? err.message : 'Failed to initiate login');
       setLoading(false);
     }

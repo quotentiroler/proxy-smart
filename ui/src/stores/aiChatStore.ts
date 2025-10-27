@@ -10,6 +10,10 @@ interface AIChatState {
   isOpen: boolean;
   scrollPosition: number;
   
+  // Settings
+  streamingEnabled: boolean;
+  selectedModel: string;
+  
   // Actions
   addMessage: (message: ChatMessage) => void;
   updateMessage: (id: string, updates: Partial<ChatMessage>) => void;
@@ -18,6 +22,8 @@ interface AIChatState {
   setIsMinimized: (minimized: boolean) => void;
   setIsOpen: (open: boolean) => void;
   setScrollPosition: (position: number) => void;
+  setStreamingEnabled: (enabled: boolean) => void;
+  setSelectedModel: (model: string) => void;
   resetChat: () => void;
 }
 
@@ -49,6 +55,10 @@ export const useAIChatStore = create<AIChatState>()(
       isMinimized: false,
       isOpen: false,
       scrollPosition: 0,
+      
+      // Settings
+      streamingEnabled: true,
+      selectedModel: 'gpt-5-nano',
 
       // Actions
       addMessage: (message) => {
@@ -98,6 +108,14 @@ export const useAIChatStore = create<AIChatState>()(
         set({ scrollPosition: position });
       },
 
+      setStreamingEnabled: (enabled) => {
+        set({ streamingEnabled: enabled });
+      },
+
+      setSelectedModel: (model) => {
+        set({ selectedModel: model });
+      },
+
       resetChat: () => {
         set({
           messages: [getInitialMessage()],
@@ -120,6 +138,8 @@ export const useAIChatStore = create<AIChatState>()(
         isMinimized: state.isMinimized,
         isOpen: state.isOpen,
         scrollPosition: state.scrollPosition,
+        streamingEnabled: state.streamingEnabled,
+        selectedModel: state.selectedModel,
       }),
       // Deserialize dates back to Date objects
       onRehydrateStorage: () => (state) => {

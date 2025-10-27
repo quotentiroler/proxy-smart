@@ -16,7 +16,8 @@ import {
   TokenResponse,
   UserInfoHeader,
   UserInfoResponse,
-  UserInfoErrorResponse
+  UserInfoErrorResponse,
+  
 } from '@/schemas'
 
 interface TokenPayload {
@@ -275,7 +276,9 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       if (bodyObj.code_verifier || bodyObj.codeVerifier) formData.append('code_verifier', bodyObj.code_verifier || bodyObj.codeVerifier!)
       if (bodyObj.refresh_token || bodyObj.refreshToken) formData.append('refresh_token', bodyObj.refresh_token || bodyObj.refreshToken!)
       if (bodyObj.scope) formData.append('scope', bodyObj.scope)
-      if (bodyObj.audience) formData.append('audience', bodyObj.audience)
+  if (bodyObj.audience) formData.append('audience', bodyObj.audience)
+  // RFC 8707 Resource Indicators support
+  if (bodyObj.resource) formData.append('resource', bodyObj.resource)
 
       // Handle password grant fields
       if (bodyObj.username) formData.append('username', bodyObj.username)
@@ -284,6 +287,11 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       // Handle Backend Services (client_credentials with JWT authentication)
       if (bodyObj.client_assertion_type) formData.append('client_assertion_type', bodyObj.client_assertion_type)
       if (bodyObj.client_assertion) formData.append('client_assertion', bodyObj.client_assertion)
+
+      // Handle Token Exchange (RFC 8693)
+      if (bodyObj.subject_token) formData.append('subject_token', bodyObj.subject_token)
+      if (bodyObj.subject_token_type) formData.append('subject_token_type', bodyObj.subject_token_type)
+      if (bodyObj.requested_token_type) formData.append('requested_token_type', bodyObj.requested_token_type)
 
       const rawBody = formData.toString()
       logger.auth.debug('Sending form data to Keycloak', {
@@ -452,6 +460,10 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
   .get('/userinfo', async ({ headers, set }) => {
     if (!headers.authorization) {
       set.status = 401
+      // Advertise Protected Resource Metadata per RFC 9728 via WWW-Authenticate
+      const baseUrl = config.baseUrl || 'http://localhost:3001'
+      // Set RFC 9728 discovery hint
+      ;(set.headers as Record<string, string>)['WWW-Authenticate'] = `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource"`
       return { error: 'Unauthorized' }
     }
 
@@ -500,3 +512,4 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       security: [{ BearerAuth: [] }]
     }
   })
+  
