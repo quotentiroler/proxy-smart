@@ -2,7 +2,8 @@ import crypto from 'node:crypto'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import OpenAI from 'openai'
+import { openai } from '@ai-sdk/openai'
+import { embed, embedMany } from 'ai'
 import { logger } from '../logger'
 
 interface RagDocument {
@@ -59,13 +60,12 @@ const CACHE_PATH = join(BACKEND_ROOT, 'logs', 'rag-cache.json')
 let knowledgeBase: KnowledgeChunk[] = []
 let initializationPromise: Promise<void> | null = null
 
-function ensureOpenAI(): OpenAI | null {
+function ensureAPIKey(): boolean {
   if (!process.env.OPENAI_API_KEY) {
     logger.server.error('OPENAI_API_KEY is not configured; documentation search is disabled')
-    return null
+    return false
   }
-
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  return true
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -104,8 +104,7 @@ async function ensureInitialized(): Promise<void> {
 }
 
 async function buildKnowledgeBase(): Promise<void> {
-  const openai = ensureOpenAI()
-  if (!openai) {
+  if (!ensureAPIKey()) {
     knowledgeBase = []
     return
   }
@@ -133,7 +132,7 @@ async function buildKnowledgeBase(): Promise<void> {
         path: docPath,
         chunks: docChunks.length
       })
-      chunkEmbeddings = await generateEmbeddings(openai, docChunks)
+      chunkEmbeddings = await generateEmbeddings(docChunks)
     }
 
     updatedDocuments[docPath] = {
@@ -303,27 +302,29 @@ function splitLargeParagraph(paragraph: string): string[] {
   return parts
 }
 
-async function generateEmbeddings(openai: OpenAI, chunks: string[]): Promise<CacheChunk[]> {
-  const embeddings: CacheChunk[] = []
+async function generateEmbeddings(chunks: string[]): Promise<CacheChunk[]> {
+  const embeddingResults: CacheChunk[] = []
   const inputs = chunks.map((chunk) => chunk.replace(/\s+/g, ' ').trim())
 
+  // Process in batches
   for (let i = 0; i < inputs.length; i += MAX_BATCH_SIZE) {
     const batch = inputs.slice(i, i + MAX_BATCH_SIZE)
-    const response = await openai.embeddings.create({
-      model: EMBEDDING_MODEL,
-      input: batch,
-      encoding_format: 'float'
+    
+    // Use AI SDK's embedMany for batch processing
+    const { embeddings } = await embedMany({
+      model: openai.textEmbedding(EMBEDDING_MODEL),
+      values: batch
     })
 
-    response.data.forEach((item, idx) => {
-      embeddings.push({
+    embeddings.forEach((embedding, idx) => {
+      embeddingResults.push({
         text: chunks[i + idx],
-        embedding: item.embedding
+        embedding
       })
     })
   }
 
-  return embeddings
+  return embeddingResults
 }
 
 export async function searchDocumentation(query: string, limit = 5, category?: string): Promise<RagSearchResponse> {
@@ -337,19 +338,19 @@ export async function searchDocumentation(query: string, limit = 5, category?: s
     return { documents: [], query, total_results: 0 }
   }
 
-  const openai = ensureOpenAI()
-  if (!openai) {
+  const apiKey = ensureAPIKey()
+  if (!apiKey) {
     return { documents: [], query, total_results: 0 }
   }
 
   const sanitizedQuery = category ? `${category}: ${query}` : query
-  const queryEmbeddingResponse = await openai.embeddings.create({
-    model: EMBEDDING_MODEL,
-    input: sanitizedQuery.replace(/\s+/g, ' ').trim(),
-    encoding_format: 'float'
+  
+  // Use AI SDK's embed for single query
+  const { embedding: queryEmbedding } = await embed({
+    model: openai.textEmbedding(EMBEDDING_MODEL),
+    value: sanitizedQuery.replace(/\s+/g, ' ').trim()
   })
 
-  const queryEmbedding = queryEmbeddingResponse.data[0]?.embedding
   if (!queryEmbedding) {
     logger.server.warn('Failed to generate query embedding for documentation search', { query })
     return { documents: [], query, total_results: 0 }

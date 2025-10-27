@@ -88,11 +88,11 @@ export function ChatMessage({ message, isProcessing, onActionComplete }: ChatMes
                                         <div className="flex items-center justify-between">
                                             <span>{t('Tokens')}:</span>
                                             <div className="flex gap-2 font-mono text-foreground">
-                                                <span title={t('Prompt tokens')}>↓{message.tokensUsed.prompt || 0}</span>
-                                                <span title={t('Completion tokens')}>↑{message.tokensUsed.completion || 0}</span>
-                                                {message.tokensUsed.reasoning !== undefined && (
+                                                <span title={t('Prompt tokens')}>↓{message.tokensUsed.inputTokens || 0}</span>
+                                                <span title={t('Completion tokens')}>↑{message.tokensUsed.outputTokens || 0}</span>
+                                                {message.tokensUsed.reasoningTokens !== undefined && (
                                                     <span title={t('Reasoning tokens')}>
-                                                        🧠{message.tokensUsed.reasoning}
+                                                        🧠{message.tokensUsed.reasoningTokens}
                                                     </span>
                                                 )}
                                             </div>

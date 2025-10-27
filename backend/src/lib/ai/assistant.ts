@@ -4,25 +4,20 @@
  * This replaces the Python MCP server by implementing function calling
  * directly in Node.js with direct access to your database and APIs.
  * 
- * Uses OpenAI's Responses API with automatic function execution.
+ * Uses Vercel AI SDK with streaming and automatic function execution.
  */
 
-import OpenAI from 'openai'
+import { openai } from '@ai-sdk/openai'
+import { streamText, tool } from 'ai'
+import { z } from 'zod'
 import { createToolExecutor, type ToolMetadata } from './tool-registry'
 
-// Lazy initialization - only create client when needed
-let _openai: OpenAI | null = null
-
-function getOpenAI(): OpenAI {
-  if (!_openai) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY environment variable is required for AI assistant functionality')
-    }
-    _openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    })
+// Helper to ensure API key is configured
+function ensureAPIKey(): string {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY environment variable is required for AI assistant functionality')
   }
-  return _openai
+  return process.env.OPENAI_API_KEY
 }
 
 export interface AIContext {
@@ -42,7 +37,7 @@ export interface StreamChunk {
 }
 
 /**
- * Generate AI response with automatic function calling using Responses API
+ * Generate AI response with automatic function calling using AI SDK
  */
 export async function* generateAIResponse(
   message: string,
@@ -51,178 +46,110 @@ export async function* generateAIResponse(
   conversationId?: string,
   pageContext?: string
 ): AsyncGenerator<StreamChunk> {
+  ensureAPIKey()
+  
   // Create tool executor with user context
   const executor = createToolExecutor(tools, context)
   const toolDefinitions = executor.getToolDefinitions()
   
-  // Build system prompt (instructions in Responses API)
-  const instructions = buildSystemPrompt(pageContext)
+  // Build system prompt
+  const systemPrompt = buildSystemPrompt(pageContext)
   
-  // Build input for Responses API
-  const input = [{ role: 'user' as const, content: message }]
+  // Convert tool definitions to AI SDK format with execute functions
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const aiSdkTools: Record<string, any> = {}
+  
+  for (const toolDef of toolDefinitions) {
+    const td = toolDef as unknown as { name: string; description: string; input_schema: unknown }
+    
+    // Use passthrough schema to accept any properties
+    const schema = z.object({}).passthrough()
+    
+    // Create tool with execute function
+    const toolName = td.name
+    aiSdkTools[toolName] = tool({
+      description: td.description,
+      parameters: schema,
+      // @ts-expect-error - AI SDK types are complex, but this is the correct usage
+      execute: async (args: Record<string, unknown>) => {
+        return await executor.execute(toolName, args)
+      },
+    })
+  }
 
   let usedTools = false
-  const maxIterations = 5 // Prevent infinite loops
-  let iteration = 0
 
   try {
-    // Track all output items from first turn (needed for reasoning models)
-    let allOutputItems: unknown[] = []
-
-    while (iteration < maxIterations) {
-      iteration++
-
-      // Build API parameters
-      const apiParams: {
-        model: string
-        instructions: string
-        input: unknown[]
-        stream: boolean
-        tools?: unknown[]
-        reasoning?: { effort?: string; summary?: string }
-      } = {
-        model: process.env.OPENAI_MODEL || 'gpt-5-mini',
-        instructions,
-        input: iteration === 1 ? input : allOutputItems.concat([{ role: 'user' as const, content: message }]),
-        stream: true,
-      }
-
-      // Add tools if available
-      if (toolDefinitions.length > 0) {
-        apiParams.tools = toolDefinitions
-      }
-
-      // Add reasoning config for GPT-5 models
-      if (apiParams.model.toLowerCase().includes('gpt-5') || apiParams.model.toLowerCase().includes('o1')) {
-        apiParams.reasoning = {
-          effort: process.env.OPENAI_REASONING_EFFORT || 'medium',
+    const modelName = process.env.OPENAI_MODEL || 'gpt-5-mini'
+    
+    const result = await streamText({
+      model: openai(modelName),
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: message
         }
-        if (process.env.OPENAI_REASONING_SUMMARY !== 'none') {
-          apiParams.reasoning.summary = process.env.OPENAI_REASONING_SUMMARY || 'auto'
+      ],
+      tools: aiSdkTools,
+      maxRetries: 5,
+      onStepFinish: async (step) => {
+        // Track if tools were used
+        if (step.toolCalls && step.toolCalls.length > 0) {
+          usedTools = true
         }
       }
+    })
 
-      // Create streaming response
-      const openai = getOpenAI()
-      const stream = await openai.responses.create(apiParams as Parameters<typeof openai.responses.create>[0]) as AsyncIterable<unknown>
-
-      const functionCalls: Record<string, { name: string; call_id: string; arguments: string }> = {}
-      allOutputItems = []
-
-      // Process stream
-      for await (const rawEvent of stream) {
-        const event = rawEvent as { type?: string; [key: string]: unknown }
-        if (!event.type) continue
-
-        const eventType = event.type
-
-        // Collect all output items for next turn
-        if (eventType === 'response.output_item.added' && 'item' in event) {
-          // Store item for next API call (required for reasoning models)
-          allOutputItems.push(event.item)
-        }
-
-        // Stream reasoning summaries
-        if (eventType === 'response.reasoning.summary.delta' && 'delta' in event) {
+    // Stream the response
+    for await (const chunk of result.fullStream) {
+      switch (chunk.type) {
+        case 'text-delta':
           yield {
             type: 'content',
-            content: `[Reasoning: ${event.delta}]`,
+            content: chunk.text
           }
-        }
-
-        // Handle output item done
-        if (eventType === 'response.output_item.done' && 'item' in event) {
-          const item = event.item as { type?: string; name?: string; call_id?: string; arguments?: string }
+          break
           
-          // Track function calls
-          if (item.type === 'function_call' && item.name && item.call_id) {
-            functionCalls[item.call_id] = {
-              name: item.name,
-              call_id: item.call_id,
-              arguments: item.arguments || '{}',
-            }
-
-            yield {
-              type: 'tool_call_started',
-              toolName: item.name,
-              toolCallId: item.call_id,
-            }
-          }
-        }
-
-        // Stream text deltas
-        if (eventType === 'response.output_text.delta' && 'delta' in event) {
+        case 'tool-call':
           yield {
-            type: 'content',
-            content: event.delta as string,
+            type: 'tool_call_started',
+            toolName: chunk.toolName,
+            toolCallId: chunk.toolCallId
           }
-        }
-
-        // Response complete
-        if (eventType === 'response.completed') {
+          break
+          
+        case 'tool-result':
+          yield {
+            type: 'tool_call_completed',
+            toolName: chunk.toolName,
+            toolCallId: chunk.toolCallId,
+            success: true // AI SDK handles errors internally
+          }
+          break
+          
+        case 'error': {
+          const errorMessage = chunk.error && typeof chunk.error === 'object' && 'message' in chunk.error 
+            ? (chunk.error as Error).message 
+            : String(chunk.error)
+          yield {
+            type: 'error',
+            error: errorMessage
+          }
           break
         }
       }
-
-      // If no function calls, we're done
-      if (Object.keys(functionCalls).length === 0) {
-        break
-      }
-
-      usedTools = true
-
-      // Execute function calls
-      const functionOutputs: unknown[] = []
-      for (const [callId, fc] of Object.entries(functionCalls)) {
-        try {
-          const args = JSON.parse(fc.arguments)
-          const result = await executor.execute(fc.name, args)
-
-          functionOutputs.push({
-            type: 'function_call_output',
-            call_id: callId,
-            output: JSON.stringify(result),
-          })
-
-          yield {
-            type: 'tool_call_completed',
-            toolName: fc.name,
-            toolCallId: callId,
-            success: true,
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error)
-
-          functionOutputs.push({
-            type: 'function_call_output',
-            call_id: callId,
-            output: JSON.stringify({ error: errorMessage }),
-          })
-
-          yield {
-            type: 'tool_call_completed',
-            toolName: fc.name,
-            toolCallId: callId,
-            success: false,
-            error: errorMessage,
-          }
-        }
-      }
-
-      // Build input for next iteration (second turn)
-      // Include ALL output items from first turn (required for reasoning models)
-      allOutputItems = allOutputItems.concat(functionOutputs)
     }
 
     // Done
     yield {
       type: 'done',
-      usedTools,
+      usedTools
     }
   } catch (error) {
     yield {
       type: 'error',
-      error: error instanceof Error ? error.message : String(error),
+      error: error instanceof Error ? error.message : String(error)
     }
   }
 }
