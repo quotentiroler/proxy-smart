@@ -18,11 +18,6 @@ generated_mcp_path = Path(__file__).parent.parent / "generated_mcp"
 if str(generated_mcp_path) not in sys.path:
     sys.path.insert(0, str(generated_mcp_path))
 
-# Keep backward compatibility with old generated path
-generated_path = src_path / generated_openapi
-if str(generated_path) not in sys.path:
-    sys.path.insert(0, str(generated_path))
-
 
 @pytest.fixture(scope="session")
 def backend_api_url():

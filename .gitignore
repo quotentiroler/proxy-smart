@@ -15,7 +15,12 @@
 **/generated
 ui/src/lib/api-client
 **/generated_mcp
+**/generated_openapi
 **/openapi.json
+**openapitools.json
+**/.venv
+**/.pytest_cache
+**/.mypy_cache
 
 # AI Tools Cache
 .ai_tools_cache/

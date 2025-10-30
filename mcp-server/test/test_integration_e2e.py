@@ -9,6 +9,7 @@ import asyncio
 import uuid
 
 import pytest
+import pytest_asyncio
 
 from .test_utils import (
     MCPTestClient,
@@ -33,7 +34,7 @@ async def ensure_server_running(mcp_server_url):
         )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def mcp_client(mcp_server_url, test_token):
     """Create and initialize MCP test client."""
     async with MCPTestClient(mcp_server_url, auth_token=test_token) as client:

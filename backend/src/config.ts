@@ -109,6 +109,9 @@ export const config = {
     get timeoutMs() {
       return Number.parseInt(process.env.MCP_SERVER_TIMEOUT_MS || '30000', 10); // 30 seconds for reasoning models
     },
+    get openaiApiKey() {
+      return process.env.OPENAI_API_KEY || null;
+    },
     get enabled() {
       return !!this.baseUrl;
     }
