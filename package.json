@@ -66,6 +66,7 @@
     "test:beta": "cd testing/beta && bun run test",
     "test:production": "cd testing/production && bun run test",
     "test:all": "bun run test:alpha && bun run test:beta && bun run test:production",
+    "test:mcp": "cd mcp-server && uv run python test/run_tests.py",
     "lint": "concurrently \"bun run lint:backend\" \"bun run lint:ui\"",
     "lint:backend": "cd backend && bun run lint",
     "lint:ui": "cd ui && bun run lint",

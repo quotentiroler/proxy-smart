@@ -626,8 +626,8 @@ wheels = [
 
 [[package]]
 name = "mcp-generator"
-version = "2.0.0b0"
-source = { git = "https://github.com/quotentiroler/mcp-generator-2.0#61de9a847e3ccdedaeb2ec5bf36fdb6925b4e032" }
+version = "2.0.0rc1"
+source = { git = "https://github.com/quotentiroler/mcp-generator-2.0#92bf118ab1b577c7111759ad74e5da0917e1b6de" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },

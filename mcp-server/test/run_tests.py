@@ -63,12 +63,16 @@ def wait_for_server(url: str, timeout: int = 30) -> bool:
     return False
 
 
-def run_tests():
-    """Run the MCP server and execute tests."""
+def run_tests(test_filter: str | None = None):
+    """Run the MCP server and execute tests.
+
+    Args:
+        test_filter: Optional test file or pattern to run (e.g., 'test_tools', 'test_cache_generated.py::test_cache_hit_miss')
+    """
     # Paths
     project_root = Path(__file__).parent.parent
     generated_mcp_dir = project_root / "generated_mcp"
-    test_dir = project_root / "test"
+    test_dir = project_root / "test" / "generated"
 
     # Server configuration
     server_script = generated_mcp_dir / "proxy_smart_backend_mcp_generated.py"
@@ -212,15 +216,34 @@ def run_tests():
 
         # Run tests
         print("\n" + "="*60)
-        print("Running Test Suite")
+        if test_filter:
+            print(f"Running Test Suite (filter: {test_filter})")
+        else:
+            print("Running Test Suite")
         print("="*60 + "\n")
 
         test_env = os.environ.copy()
         test_env["MCP_SERVER_URL"] = server_url
 
+        # Build pytest command with optional filter
+        pytest_cmd = ["uv", "run", "pytest"]
+
+        if test_filter:
+            # If it's a test file pattern (contains .py or ::), use it directly
+            if ".py" in test_filter or "::" in test_filter:
+                test_path = str(test_dir / test_filter) if not test_filter.startswith("test/") else str(project_root / test_filter)
+                pytest_cmd.append(test_path)
+            else:
+                # Otherwise treat it as a -k pattern match
+                pytest_cmd.extend([str(test_dir), "-k", test_filter])
+        else:
+            pytest_cmd.append(str(test_dir))
+
+        pytest_cmd.extend(["-v", "--tb=short", "-rs"])
+
         # Use uv run to execute pytest with the correct environment
         result = subprocess.run(
-            ["uv", "run", "pytest", str(test_dir), "-v", "--tb=short"],
+            pytest_cmd,
             cwd=str(project_root),
             env=test_env
         )
@@ -239,22 +262,62 @@ def run_tests():
         return 130
 
     finally:
-        # Cleanup
+        # Cleanup - ensure server and all child processes are terminated
         print("\nShutting down server...")
-        server_process.terminate()
 
+        # First, try graceful shutdown
         try:
-            server_process.wait(timeout=5)
+            server_process.terminate()
+            server_process.wait(timeout=3)
             print("✓ Server stopped gracefully")
         except subprocess.TimeoutExpired:
             print("⚠️  Server didn't stop gracefully, forcing...")
             server_process.kill()
-            server_process.wait()
-            print("✓ Server stopped (forced)")
+            try:
+                server_process.wait(timeout=2)
+                print("✓ Server stopped (forced)")
+            except subprocess.TimeoutExpired:
+                print("⚠️  Server process may still be running")
+
+        # On Windows, ensure port is actually freed by killing any lingering processes
+        if sys.platform == 'win32':
+            time.sleep(0.5)  # Brief pause to let OS cleanup
+            try:
+                netstat_result = subprocess.run(
+                    ['netstat', '-ano'],
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+                for line in netstat_result.stdout.split('\n'):
+                    if f':{server_port}' in line and 'LISTENING' in line:
+                        pid = line.split()[-1]
+                        if pid != str(os.getpid()):  # Don't kill ourselves
+                            subprocess.run(['taskkill', '/F', '/PID', pid],
+                                         capture_output=True,
+                                         timeout=2)
+                            print(f"✓ Cleaned up lingering process {pid} on port {server_port}")
+            except Exception:
+                pass  # Best effort cleanup
 
 
 def main():
     """Main entry point."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Test runner for Proxy Smart Backend",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--test",
+        "-t",
+        help="Specific test file or test pattern to run (e.g., test_tools, test_cache_generated.py::test_cache_hit_miss)",
+        default=None
+    )
+
+    args = parser.parse_args()
+
     print("""
 +--------------------------------------------------------------+
 |          MCP Server Test Runner                              |
@@ -272,7 +335,7 @@ def main():
         print("   pip install pytest httpx")
         return 1
 
-    return run_tests()
+    return run_tests(test_filter=args.test)
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-mcp-generator = { git = "https://github.com/quotentiroler/mcp-generator-2.0" }
+mcp-generator = { git = "https://github.com/quotentiroler/mcp-generator-2.0"}
 openapi-client = { path = "generated_openapi", editable = true }
 
 [tool.pytest.ini_options]
