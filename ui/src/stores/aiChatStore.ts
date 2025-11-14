@@ -9,6 +9,7 @@ interface AIChatState {
   isMinimized: boolean;
   isOpen: boolean;
   scrollPosition: number;
+  isSummarizing: boolean; // New: indicates conversation is being summarized
   
   // Settings
   streamingEnabled: boolean;
@@ -24,6 +25,8 @@ interface AIChatState {
   setScrollPosition: (position: number) => void;
   setStreamingEnabled: (enabled: boolean) => void;
   setSelectedModel: (model: string) => void;
+  setIsSummarizing: (summarizing: boolean) => void;
+  replaceOldMessagesWithSummary: (keepRecentCount: number, summaryContent: string) => void;
   resetChat: () => void;
 }
 
@@ -55,6 +58,7 @@ export const useAIChatStore = create<AIChatState>()(
       isMinimized: false,
       isOpen: false,
       scrollPosition: 0,
+      isSummarizing: false,
       
       // Settings
       streamingEnabled: true,
@@ -116,12 +120,41 @@ export const useAIChatStore = create<AIChatState>()(
         set({ selectedModel: model });
       },
 
+      setIsSummarizing: (summarizing) => {
+        set({ isSummarizing: summarizing });
+      },
+
+      replaceOldMessagesWithSummary: (keepRecentCount, summaryContent) => {
+        const { messages } = get();
+        if (messages.length <= keepRecentCount) {
+          console.warn('[AIChatStore] Not enough messages to summarize');
+          return;
+        }
+
+        // Keep the initial greeting, summary, and recent messages
+        const initialMessage = messages[0];
+        const recentMessages = messages.slice(-keepRecentCount);
+        
+        const summaryMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          type: 'agent',
+          content: summaryContent,
+          timestamp: new Date(),
+          sources: []
+        };
+
+        set({ 
+          messages: [initialMessage, summaryMessage, ...recentMessages]
+        });
+      },
+
       resetChat: () => {
         set({
           messages: [getInitialMessage()],
           conversationId: null,
           isMinimized: false,
           scrollPosition: 0,
+          isSummarizing: false,
         });
       },
     }),
@@ -140,6 +173,7 @@ export const useAIChatStore = create<AIChatState>()(
         scrollPosition: state.scrollPosition,
         streamingEnabled: state.streamingEnabled,
         selectedModel: state.selectedModel,
+        isSummarizing: state.isSummarizing,
       }),
       // Deserialize dates back to Date objects
       onRehydrateStorage: () => (state) => {

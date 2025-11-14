@@ -14,7 +14,6 @@ import { adminRoutes } from './routes/admin'
 import { authRoutes } from './routes/auth'
 import { mcpMetadataRoutes } from './routes/auth/mcp-metadata'
 import { docsRoutes } from './routes/docs'
-import { mcpHttpRoutes } from './routes/mcp-http'
 
 export function createApp() {
     const app = new Elysia({
@@ -55,19 +54,25 @@ export function createApp() {
                     { name: 'smart-apps', description: 'SMART on FHIR configuration endpoints' },
                     { name: 'oauth-ws-monitoring', description: 'OAuth monitoring via WebSocket' },
                     { name: 'oauth-sse-monitoring', description: 'OAuth monitoring via Server-Sent Events' },
-                    { name: 'ai', description: 'AI assistant endpoints proxied to MCP server' },
+                    { name: 'ai', description: 'AI assistant endpoints with unified internal and MCP tools' },
+                    { name: 'mcp-management', description: 'MCP server management endpoints' },
                 ],
                 servers: [
                     { url: config.baseUrl, description: 'Development server' }
                 ]
             }
         }))
-        .use(staticPlugin({ assets: 'public', prefix: '/' }))
+        .use(staticPlugin({ 
+            assets: 'public', 
+            prefix: '/',
+            alwaysStatic: true,
+            indexHTML: false
+        }))
+        .get('/webapp', () => Bun.file('public/webapp/index.html'))
+        .get('/webapp/', () => Bun.file('public/webapp/index.html'))
         .use(keycloakPlugin)
         .use(docsRoutes)
         .use(mcpMetadataRoutes)
-        // Optional: HTTP MCP endpoints (legacy/alt transport) behind a flag
-        .use(process.env.MCP_HTTP_ENABLED === 'true' ? mcpHttpRoutes : (new Elysia()))
         .use(statusRoutes)
         .use(serverDiscoveryRoutes)
         .use(authRoutes)

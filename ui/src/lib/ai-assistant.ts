@@ -12,6 +12,41 @@ import { extractPageContext, summarizePageContext } from './page-context-extract
 import { getStoredToken } from './apiClient';
 
 /**
+ * Estimate token count for text (rough approximation)
+ * OpenAI uses ~4 characters per token on average
+ */
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/**
+ * Estimate total tokens for a conversation
+ */
+export function estimateConversationTokens(messages: Array<{ role: string; content: string }>): number {
+  return messages.reduce((total, msg) => {
+    // Add overhead for message structure (role, formatting, etc.)
+    const messageOverhead = 4;
+    return total + estimateTokens(msg.content) + messageOverhead;
+  }, 0);
+}
+
+/**
+ * Maximum tokens before we should summarize conversation history
+ * GPT-4 context is 128k tokens, but we want to leave room for:
+ * - Current message and response (est. 4k tokens)
+ * - Page context (est. 2k tokens)
+ * - Tool definitions (est. 10k tokens)
+ * So we'll summarize when conversation history exceeds ~100k tokens
+ */
+export const MAX_CONVERSATION_TOKENS = 100000;
+
+/**
+ * Keep recent messages unsummarized (last N messages)
+ * This ensures immediate context is preserved
+ */
+export const KEEP_RECENT_MESSAGES = 3;
+
+/**
  * UI-specific wrapper around ChatResponse that adds UI state
  * - Extends the API's ChatResponse with UI-specific fields
  * - Makes conversationId and model optional since user messages don't have them
@@ -99,14 +134,66 @@ class SmartOnFHIRAIAssistant {
   }
 
   /**
+   * Summarize conversation history when it gets too long
+   * Keeps recent messages intact and summarizes older ones
+   */
+  async summarizeConversation(
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+    keepRecentCount = KEEP_RECENT_MESSAGES
+  ): Promise<{ role: 'system'; content: string }> {
+    if (messages.length <= keepRecentCount) {
+      return {
+        role: 'system',
+        content: 'No conversation history to summarize.'
+      };
+    }
+
+    // Split into old (to summarize) and recent (to keep)
+    const oldMessages = messages.slice(0, -keepRecentCount);
+    const oldMessageText = oldMessages
+      .map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
+      .join('\n\n');
+
+    // Request AI to summarize the old messages
+    const summaryRequest: ChatRequest = {
+      message: `Please provide a concise summary of the following conversation history. Focus on key points, decisions made, and important context. Keep it under 500 words.\n\n${oldMessageText}`,
+      model: 'gpt-4o-mini' // Use faster/cheaper model for summarization
+    };
+
+    try {
+      const aiApi = await this.createAiApi();
+      const response = await aiApi.postAdminAiChat({ chatRequest: summaryRequest });
+      
+      return {
+        role: 'system',
+        content: `[Conversation Summary - ${oldMessages.length} messages]: ${response.answer}`
+      };
+    } catch (error) {
+      console.error('[AI Assistant] Failed to summarize conversation:', error);
+      // Fallback: create a simple summary
+      return {
+        role: 'system',
+        content: `[Conversation Summary - ${oldMessages.length} previous messages were exchanged]`
+      };
+    }
+  }
+
+  /**
    * Call backend AI API using generated client
    */
-  private async callBackendAI(message: string, conversationId?: string, pageContext?: string, model?: string): Promise<ChatResponse> {
-    const request: ChatRequest = {
+  private async callBackendAI(
+    message: string, 
+    conversationId?: string, 
+    pageContext?: string, 
+    model?: string,
+    conversationMessages?: Array<{ role: 'user' | 'assistant'; content: string }>
+  ): Promise<ChatResponse> {
+    const request: ChatRequest & { messages?: Array<{ role: 'user' | 'assistant'; content: string }> } = {
       message,
       conversationId,
       pageContext,
-      model
+      model,
+      messages: conversationMessages
     };
 
     try {
@@ -200,7 +287,12 @@ class SmartOnFHIRAIAssistant {
   /**
    * Generate AI response with streaming support
    */
-  async *generateResponseStream(userMessage: string, conversationId?: string, model?: string): AsyncGenerator<StreamChunk> {
+  async *generateResponseStream(
+    userMessage: string, 
+    conversationId?: string, 
+    model?: string,
+    conversationMessages?: Array<{ role: 'user' | 'assistant'; content: string }>
+  ): AsyncGenerator<StreamChunk> {
     // Check if backend is available
     const isBackendAvailable = await this.checkBackendAvailability();
 
@@ -222,9 +314,28 @@ class SmartOnFHIRAIAssistant {
       const pageContext = extractPageContext();
       const contextSummary = summarizePageContext(pageContext);
 
+      // Use provided conversation messages or empty array
+      const messages = conversationMessages || [];
+
+      // 🐛 DEBUG: Log what we're sending in detail
+      console.log('📤 [AI Assistant] Sending to backend:', {
+        userMessage,
+        messagesCount: messages.length,
+        messages: messages.map((m, i) => ({
+          index: i,
+          role: m.role,
+          contentLength: m.content.length,
+          contentPreview: m.content.substring(0, 100) + (m.content.length > 100 ? '...' : '')
+        })),
+        hasConversationId: !!conversationId,
+        hasPageContext: !!contextSummary,
+        hasModel: !!model
+      });
+
       // Log what we're sending
       const requestBody = {
         message: userMessage,
+        messages: messages, // Send full conversation history
         conversationId,
         pageContext: contextSummary,
         model
@@ -232,6 +343,7 @@ class SmartOnFHIRAIAssistant {
 
       console.log('[AI Assistant] Sending request with page context:', {
         messageLength: userMessage.length,
+        messagesCount: messages.length,
         contextLength: contextSummary.length,
         contextPreview: contextSummary.slice(0, 200),
         requestBody: requestBody

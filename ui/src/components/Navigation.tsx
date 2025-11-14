@@ -134,6 +134,12 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
       icon: Server
     },
     { 
+      id: 'mcp-servers', 
+      label: t('MCP Servers'), 
+      description: t('AI Tools'),
+      icon: Sparkles
+    },
+    { 
       id: 'idp', 
       label: t('Identity Providers'), 
       description: t('IdP Management'),

@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { aiAssistant, type ChatMessage } from '../../lib/ai-assistant';
+import { 
+    aiAssistant, 
+    type ChatMessage,
+    estimateConversationTokens,
+    MAX_CONVERSATION_TOKENS,
+    KEEP_RECENT_MESSAGES
+} from '../../lib/ai-assistant';
 import type { ChatResponseTokensUsed, DocumentChunk, ToolExecution } from '../../lib/api-client';
 import { useAIChatStore } from '../../stores/aiChatStore';
 import { Card } from '../ui/card';
@@ -27,6 +33,7 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
         scrollPosition,
         streamingEnabled,
         selectedModel,
+        isSummarizing,
         addMessage,
         updateMessage,
         setIsMinimized,
@@ -35,6 +42,8 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
         setScrollPosition,
         setStreamingEnabled,
         setSelectedModel,
+        setIsSummarizing,
+        replaceOldMessagesWithSummary,
         resetChat,
     } = useAIChatStore();
 
@@ -266,6 +275,42 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
 
         addMessage(userMessage);
         setCurrentMessage('');
+
+        // Prepare conversation messages INCLUDING the new user message
+        // (but excluding the upcoming agent message placeholder)
+        const allMessages = [...chatMessages, userMessage];
+        const conversationMessages = allMessages.map(m => ({
+            role: m.type === 'agent' ? 'assistant' as const : 'user' as const,
+            content: m.content
+        }));
+
+        // Check if we need to summarize due to token limit
+        const totalTokens = estimateConversationTokens(conversationMessages);
+        console.log('[AI Chat] Estimated conversation tokens:', totalTokens);
+
+        if (totalTokens > MAX_CONVERSATION_TOKENS) {
+            console.log('[AI Chat] Token limit exceeded, summarizing conversation...');
+            setIsSummarizing(true);
+
+            try {
+                // Summarize old messages, keep recent ones
+                const summary = await aiAssistant.summarizeConversation(
+                    conversationMessages,
+                    KEEP_RECENT_MESSAGES
+                );
+
+                // Replace old messages with summary in store
+                replaceOldMessagesWithSummary(KEEP_RECENT_MESSAGES, summary.content);
+                
+                console.log('[AI Chat] Conversation summarized successfully');
+            } catch (error) {
+                console.error('[AI Chat] Failed to summarize conversation:', error);
+                // Continue anyway - we'll send the full history
+            } finally {
+                setIsSummarizing(false);
+            }
+        }
+
         setIsProcessing(true);
 
         // Trigger scroll to show user's message
@@ -300,7 +345,23 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                 let totalDuration: number | undefined;
                 let conversationIdFromResponse: string | undefined;
 
-                for await (const chunk of aiAssistant.generateResponseStream(userMessage.content, conversationId || undefined, selectedModel)) {
+                // Get latest messages after potential summarization
+                // We need to fetch fresh from store since summarization may have modified it
+                // Include the user message, but exclude the empty agent placeholder
+                const currentMessages = useAIChatStore.getState().messages;
+                const latestMessages = currentMessages
+                    .filter(m => m.id !== agentMessageId) // Only exclude the empty agent placeholder
+                    .map(m => ({
+                        role: m.type === 'agent' ? 'assistant' as const : 'user' as const,
+                        content: m.content
+                    }));
+
+                for await (const chunk of aiAssistant.generateResponseStream(
+                    userMessage.content, 
+                    conversationId || undefined, 
+                    selectedModel,
+                    latestMessages
+                )) {
                     if (chunk.type === 'sources' && chunk.sources) {
                         sources = chunk.sources;
                     } else if (chunk.type === 'reasoning' && chunk.content) {
@@ -660,6 +721,7 @@ export function AIChatOverlay({ isOpen: externalIsOpen, onClose: externalOnClose
                                 isProcessing={isProcessing}
                                 isReasoning={isReasoning}
                                 reasoningText={reasoningText}
+                                isSummarizing={isSummarizing}
                                 isListening={isListening}
                                 currentMessage={currentMessage}
                                 messagesContainerRef={messagesContainerRef}

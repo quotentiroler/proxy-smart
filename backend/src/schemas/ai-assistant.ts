@@ -3,14 +3,25 @@ import { t, type Static } from 'elysia'
 /**
  * AI Assistant schemas for chat and documentation assistance
  * 
- * Aligned with v2 function calling schemas
  */
+
+export const ChatMessage = t.Object({
+  role: t.Union([
+    t.Literal('user'),
+    t.Literal('assistant'),
+    t.Literal('system')
+  ], { description: 'Message role' }),
+  content: t.String({ description: 'Message content' })
+}, { title: 'ChatMessage' })
 
 export const ChatRequest = t.Object({
   message: t.String({ 
     minLength: 1, 
     description: 'User message/question' 
   }),
+  messages: t.Optional(t.Array(ChatMessage, {
+    description: 'Full conversation history (optional, for multi-turn conversations)'
+  })),
   conversationId: t.Optional(t.String({ 
     description: 'Conversation ID for multi-turn context' 
   })),

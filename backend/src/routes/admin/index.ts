@@ -9,9 +9,8 @@ import { identityProvidersRoutes } from './identity-providers'
 import { smartConfigAdminRoutes } from './smart-config'
 import { clientRegistrationSettingsRoutes } from './client-registration-settings'
 import { keycloakConfigRoutes } from './keycloak-config'
-import { aiRoutes, aiPublicRoutes } from './ai-external'
-import { aiV2Routes, aiV2PublicRoutes } from './ai-internal'
-import { config } from '@/config'
+import { aiRoutes, aiPublicRoutes } from './ai'
+import { mcpServersRoutes } from './mcp-servers'
 import { initializeToolRegistry } from '@/lib/ai/tool-registry'
 
 /**
@@ -19,7 +18,7 @@ import { initializeToolRegistry } from '@/lib/ai/tool-registry'
  */
 export const adminRoutes = new Elysia({ prefix: '/admin' })
   // Add public AI health check routes first (no auth required)
-  .use(config.ai.useInternalAI ? aiV2PublicRoutes : aiPublicRoutes)
+  .use(aiPublicRoutes)
   // Then add authentication guard for protected routes
   .guard({
     detail: {
@@ -82,15 +81,15 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
   .use(smartConfigAdminRoutes)
   .use(clientRegistrationSettingsRoutes)
   .use(keycloakConfigRoutes)
-  // Prefer internal Node AI in MONO_MODE; otherwise proxy to remote MCP AI
-  .use(config.ai.useInternalAI ? aiV2Routes : aiRoutes)
+  // MCP servers management
+  .use(mcpServersRoutes)
+  // AI assistant routes with internal tool execution
+  .use(aiRoutes)
 
-// Initialize the tool registry once at startup if using internal AI
-if (config.ai.useInternalAI) {
-  initializeToolRegistry(adminRoutes, {
-    prefixes: [
-      '/admin/',        // Admin routes (healthcare users, SMART apps, etc.)
-      '/fhir-servers/', // FHIR server management
-    ]
-  })
-}
+// Initialize the tool registry once at startup
+initializeToolRegistry(adminRoutes, {
+  prefixes: [
+    '/admin/',        // Admin routes (healthcare users, SMART apps, etc.)
+    '/fhir-servers/', // FHIR server management
+  ]
+})

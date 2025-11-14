@@ -7,6 +7,7 @@ import {
   HealthcareUsersApi,
   IdentityProvidersApi,
   LaunchContextsApi,
+  McpManagementApi,
   OauthMonitoringApi,
   RolesApi,
   SmartAppsApi,
@@ -106,6 +107,7 @@ export const createAuthApi = (token?: string) => new AuthenticationApi(createCon
 export const createHealthcareUsersApi = (token?: string) => new HealthcareUsersApi(createConfig(token));
 export const createIdentityProvidersApi = (token?: string) => new IdentityProvidersApi(createConfig(token));
 export const createLaunchContextsApi = (token?: string) => new LaunchContextsApi(createConfig(token));
+export const createMcpManagementApi = (token?: string) => new McpManagementApi(createConfig(token));
 export const createOauthMonitoringApi = (token?: string) => new OauthMonitoringApi(createConfig(token));
 export const createRolesApi = (token?: string) => new RolesApi(createConfig(token));
 export const createSmartAppsApi = (token?: string) => new SmartAppsApi(createConfig(token));
@@ -157,6 +159,7 @@ export const createClientApis = (token?: string) => ({
   healthcareUsers: wrapApiClient(createHealthcareUsersApi(token)),
   identityProviders: wrapApiClient(createIdentityProvidersApi(token)),
   launchContexts: wrapApiClient(createLaunchContextsApi(token)),
+  mcpManagement: wrapApiClient(createMcpManagementApi(token)),
   oauthMonitoring: wrapApiClient(createOauthMonitoringApi(token)),
   roles: wrapApiClient(createRolesApi(token)),
   smartApps: wrapApiClient(createSmartAppsApi(token)),

@@ -10,7 +10,7 @@ import { oauthMonitoringRoutes } from './routes/oauth-monitoring'
 import { oauthWebSocket } from './routes/oauth-websocket'
 import { adminRoutes } from './routes/admin'
 import { authRoutes } from './routes/auth'
-import { aiRoutes, aiPublicRoutes } from './routes/admin/ai-external'
+import { aiRoutes, aiPublicRoutes } from './routes/admin/ai'
 import { writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 
@@ -80,7 +80,8 @@ const app = new Elysia({
         { name: 'smart-apps', description: 'SMART on FHIR configuration endpoints' },
         { name: 'oauth-ws-monitoring', description: 'OAuth monitoring via WebSocket' },
         { name: 'oauth-sse-monitoring', description: 'OAuth monitoring via Server-Sent Events' },
-        { name: 'ai', description: 'AI assistant endpoints proxied to MCP server' },
+        { name: 'ai', description: 'AI assistant endpoints with unified internal and MCP tools' },
+        { name: 'mcp-management', description: 'MCP server management endpoints' },
       ],
       components: {
         securitySchemes: {
@@ -187,13 +188,12 @@ const exportSpec = async () => {
     
     const spec = await response.json()
     
-    // Add custom OpenAPI extensions for MCP server generation
-    // These help the MCP generator extract authentication configuration
+    // Add custom OpenAPI extensions for authentication configuration
     spec['x-jwks-uri'] = exportConfig.keycloak.jwksUri || `${exportConfig.baseUrl}/.well-known/jwks.json`
     spec['x-issuer'] = exportConfig.keycloak.serverUrl ? 
       `${exportConfig.keycloak.serverUrl}/realms/${exportConfig.keycloak.realm}` : 
       exportConfig.baseUrl
-    spec['x-audience'] = config.mcp.audience
+    spec['x-audience'] = process.env.JWT_AUDIENCE || exportConfig.baseUrl
     spec['x-token-endpoint'] = `${exportConfig.baseUrl}/auth/token`
     spec['x-authorization-endpoint'] = `${exportConfig.baseUrl}/auth/authorize`
     spec['x-userinfo-endpoint'] = `${exportConfig.baseUrl}/auth/userinfo`

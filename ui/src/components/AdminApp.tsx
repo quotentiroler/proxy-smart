@@ -3,6 +3,7 @@ import { FhirServersManager } from './FhirServersManager/FhirServersManager';
 import { ScopeManager } from './ScopeManager';
 import { LaunchContextManager } from './LaunchContextManager';
 import { SmartProxyOverview } from './SmartProxyOverview';
+import { McpServersManager } from './McpServersManager';
 import { useState, useEffect } from 'react';
 import { Navigation } from './Navigation';
 import { HealthcareUsersManager } from './HealthcareUsersManager/HealthcareUsersManager';
@@ -30,6 +31,7 @@ const VALID_TABS = [
     'smart-apps',
     'users',
     'fhir-servers',
+    'mcp-servers',
     'idp',
     'scopes',
     'launch-context',
@@ -159,6 +161,7 @@ export function AdminApp() {
                             {currentTab === 'smart-apps' && <SmartAppsManager />}
                             {currentTab === 'users' && <HealthcareUsersManager />}
                             {currentTab === 'fhir-servers' && <FhirServersManager />}
+                            {currentTab === 'mcp-servers' && <McpServersManager />}
                             {currentTab === 'idp' && <IdPManager />}
                             {currentTab === 'scopes' && <ScopeManager />}
                             {currentTab === 'launch-context' && <LaunchContextManager />}

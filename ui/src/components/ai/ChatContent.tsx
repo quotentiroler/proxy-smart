@@ -13,6 +13,7 @@ interface ChatContentProps {
     isProcessing: boolean;
     isReasoning: boolean;
     reasoningText: string;
+    isSummarizing: boolean;
     isListening: boolean;
     currentMessage: string;
     messagesContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -28,6 +29,7 @@ export function ChatContent({
     isProcessing,
     isReasoning,
     reasoningText,
+    isSummarizing,
     isListening,
     currentMessage,
     messagesContainerRef,
@@ -130,10 +132,15 @@ export function ChatContent({
                 ))}
 
                 {/* Processing indicator */}
-                {(isProcessing || isReasoning) && (
+                {(isProcessing || isReasoning || isSummarizing) && (
                     <div className="flex justify-start">
                         <div className="bg-muted text-foreground p-3 rounded-lg rounded-bl-sm text-sm max-w-xl">
-                            {isReasoning && reasoningText ? (
+                            {isSummarizing ? (
+                                <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span className="font-medium">{t('Summarizing conversation')}...</span>
+                                </div>
+                            ) : isReasoning && reasoningText ? (
                                 <div className="space-y-2">
                                     <div className="flex items-center space-x-2 text-amber-600 dark:text-amber-400">
                                         <Brain className="w-4 h-4 animate-pulse" />
