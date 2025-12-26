@@ -171,8 +171,8 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
         <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
           {/* Logo and Dashboard Button */}
           <div className="flex items-center space-x-3 flex-shrink-0 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-              <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 border border-border rounded-lg flex items-center justify-center">
+              <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" />
             </div>
             <div className="hidden md:block">
               <Button
@@ -180,8 +180,8 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
                 onClick={() => onTabChange('dashboard')}
                 className={`group flex items-center space-x-2 h-9 px-3 rounded-lg transition-all duration-300 ${
                   activeTab === 'dashboard' 
-                    ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg shadow-blue-500/25' 
-                    : 'hover:bg-muted/80 text-foreground hover:shadow-md'
+                    ? 'bg-foreground text-background' 
+                    : 'hover:bg-muted text-foreground'
                 }`}
               >
                 <LayoutDashboard className={`w-4 h-4 flex-shrink-0 ${
@@ -206,8 +206,8 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
                         onClick={() => onTabChange(tab.id)}
                         className={`group flex items-center space-x-1 h-9 px-2 lg:px-3 rounded-lg transition-all duration-300 ${
                           activeTab === tab.id 
-                            ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg shadow-blue-500/25' 
-                            : 'hover:bg-muted/80 text-foreground hover:shadow-md'
+                            ? 'bg-foreground text-background' 
+                            : 'hover:bg-muted text-foreground'
                         }`}
                       >
                         <IconComponent className={`w-4 h-4 flex-shrink-0 ${
@@ -231,14 +231,14 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
                   >
                     <div className="flex items-center space-x-2">
                       {activeTab === 'dashboard' ? (
-                        <div className="w-6 h-6 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-md flex items-center justify-center">
-                          <LayoutDashboard className="w-3 h-3 text-white" />
+                        <div className="w-6 h-6 bg-foreground rounded-md flex items-center justify-center">
+                          <LayoutDashboard className="w-3 h-3 text-background" />
                         </div>
                       ) : (
                         tabs.find(tab => tab.id === activeTab)?.icon && (
-                          <div className="w-6 h-6 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-md flex items-center justify-center">
+                          <div className="w-6 h-6 bg-foreground rounded-md flex items-center justify-center">
                             {React.createElement(tabs.find(tab => tab.id === activeTab)!.icon, {
-                              className: "w-3 h-3 text-white"
+                              className: "w-3 h-3 text-background"
                             })}
                           </div>
                         )
@@ -264,8 +264,8 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
                       onClick={() => onTabChange('dashboard')}
                       className={`flex items-center space-x-3 p-3 rounded-xl cursor-pointer transition-all duration-300 ${
                         activeTab === 'dashboard'
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-                          : 'hover:bg-muted/80 text-foreground'
+                          ? 'bg-foreground text-background'
+                          : 'hover:bg-muted text-foreground'
                       }`}
                     >
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300 ${
@@ -278,7 +278,7 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
                       <div className="flex-1">
                         <div className="font-semibold text-sm">{t('Dashboard')}</div>
                         <div className={`text-xs ${
-                          activeTab === 'dashboard' ? 'text-blue-100' : 'text-muted-foreground'
+                          activeTab === 'dashboard' ? 'text-background/70' : 'text-muted-foreground'
                         }`}>
                           {t('Overview')}
                         </div>
@@ -292,13 +292,13 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
                           onClick={() => onTabChange(tab.id)}
                           className={`flex items-center space-x-3 p-3 rounded-xl cursor-pointer transition-all duration-300 ${
                             activeTab === tab.id
-                              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-                              : 'hover:bg-muted/80 text-foreground'
+                              ? 'bg-foreground text-background'
+                              : 'hover:bg-muted text-foreground'
                           }`}
                         >
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300 ${
                             activeTab === tab.id
-                              ? 'bg-white/20'
+                              ? 'bg-background/20'
                               : 'bg-muted'
                           }`}>
                             <IconComponent className="w-4 h-4" />
@@ -306,7 +306,7 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
                           <div className="flex-1">
                             <div className="font-semibold text-sm">{tab.label}</div>
                             <div className={`text-xs ${
-                              activeTab === tab.id ? 'text-blue-100' : 'text-muted-foreground'
+                              activeTab === tab.id ? 'text-background/70' : 'text-muted-foreground'
                             }`}>
                               {tab.description}
                             </div>
@@ -332,7 +332,7 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
                 >
                   <Badge 
                     variant="secondary" 
-                    className="bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 px-2 py-1 rounded-full border border-green-200/60 flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer hover:scale-105"
+                    className="bg-secondary text-secondary-foreground px-2 py-1 rounded-md border border-border flex items-center justify-center cursor-pointer hover:bg-accent transition-colors"
                   >
                     <Sparkles className="w-3 h-3 animate-pulse" />
                   </Badge>
@@ -362,7 +362,7 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
                 <Button variant="ghost" className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-full ring-2 ring-border/60 hover:ring-primary/60 transition-all duration-300 hover:shadow-lg flex-shrink-0">
                   <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
                     <AvatarImage src={undefined} alt={getDisplayName(profile)} />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white font-bold text-xs">
+                    <AvatarFallback className="bg-foreground text-background font-medium text-xs">
                       {getInitials(profile)}
                     </AvatarFallback>
                   </Avatar>
@@ -372,7 +372,7 @@ export function Navigation({ activeTab, onTabChange, profile }: NavigationProps)
                 <div className="flex items-center justify-start gap-3 p-4 bg-muted/80 rounded-t-2xl backdrop-blur-sm">
                   <Avatar className="h-12 w-12 ring-2 ring-border/60 shadow-lg">
                     <AvatarImage src={undefined} alt={getDisplayName(profile)} />
-                    <AvatarFallback className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white font-bold">
+                    <AvatarFallback className="bg-foreground text-background font-medium">
                       {getInitials(profile)}
                     </AvatarFallback>
                   </Avatar>

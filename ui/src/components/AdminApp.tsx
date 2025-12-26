@@ -13,14 +13,8 @@ import { LoginForm } from './LoginForm';
 import { cn } from '../lib/utils';
 import { AlertDialogs } from './AlertDialogs';
 import { AIChatOverlay } from './ai/AIChatOverlay';
-import {
-    AppShell,
-    Panel,
-    Loading
-} from '@medplum/react';
-import {
-    Stethoscope
-} from 'lucide-react';
+import { Panel } from './ui/panel';
+import { Spinner } from './ui/spinner';
 import { useTranslation } from 'react-i18next';
 import { OAuthMonitoringDashboard } from './OAuthMonitoringDashboard';
 import { IdPManager } from './IdPManager/IdPManager';
@@ -112,7 +106,7 @@ export function AdminApp() {
             <div className="min-h-screen bg-background flex items-center justify-center">
                 <Panel className="max-w-md mx-auto">
                     <div className="text-center p-8">
-                        <Loading />
+                        <Spinner size="lg" />
                         <h2 className="mt-4 text-lg font-semibold text-foreground">
                             {t('Loading Admin Panel...')}
                         </h2>
@@ -131,29 +125,13 @@ export function AdminApp() {
     }
 
     return (
-        <div className="min-h-screen flex flex-col bg-background [&_.mantine-AppShell-main]:!pt-2 md:[&_.mantine-AppShell-main]:!pt-4">
+        <div className="min-h-screen flex flex-col bg-background">
             <Navigation 
                 activeTab={currentTab} 
                 onTabChange={handleTabChange} 
                 profile={profile} 
             />
-            <AppShell
-                logo={
-                    <div className="flex items-center space-x-3 animate-fade-in">
-                        <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center shadow-2xl border border-primary/20">
-                            <Stethoscope className="w-7 h-7 text-primary-foreground" />
-                        </div>
-                        <div>
-                            <span className="font-bold text-xl text-foreground tracking-tight">
-                                {t('Healthcare Administration')}
-                            </span>
-                            <div className="text-xs text-muted-foreground font-medium tracking-wide">
-                                {t('Proxy Smart')}
-                            </div>
-                        </div>
-                    </div>
-                }
-            >
+            <main className="flex-1 pt-2 md:pt-4">
                 <div className="flex-1 px-4 sm:px-6 lg:px-8 py-8">
                     <div className="w-full lg:w-[90%] max-w-none mx-auto">
                         <Panel className={cn("min-h-[600px] shadow-2xl border-0 bg-background backdrop-blur-sm rounded-3xl overflow-hidden border border-border/20 animate-fade-in w-full max-w-none", "max-w-none w-full")}>
@@ -169,7 +147,7 @@ export function AdminApp() {
                         </Panel>
                     </div>
                 </div>
-            </AppShell>
+            </main>
 
             {/* Alert Dialogs */}
             <AlertDialogs />

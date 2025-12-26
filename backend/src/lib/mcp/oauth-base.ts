@@ -6,7 +6,7 @@ export type OAuthTokenGrant =
 
 export const WwwAuthenticateChallenge = z.object({
   scheme: z.string(),
-  params: z.record(z.string()).optional(),
+  params: z.record(z.string(), z.string()).optional(),
 })
 export type WwwAuthenticateChallengeType = z.infer<typeof WwwAuthenticateChallenge>
 

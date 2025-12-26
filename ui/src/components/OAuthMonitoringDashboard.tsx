@@ -950,7 +950,7 @@ export function OAuthMonitoringDashboard() {
                           <YAxis allowDecimals={false} className="text-muted-foreground" />
                           <Tooltip
                             labelFormatter={(hour) => format(new Date(hour), 'PPpp')}
-                            formatter={(value: number) => [value, t('flows')]}
+                            formatter={(value) => [value ?? 0, t('flows')]}
                             contentStyle={{
                               backgroundColor: 'hsl(var(--card))',
                               border: '1px solid hsl(var(--border))',
@@ -1220,7 +1220,7 @@ export function OAuthMonitoringDashboard() {
                             outerRadius={100}
                             fill="hsl(var(--primary))"
                             dataKey="count"
-                            label={({ clientName, count }) => `${clientName}: ${count}`}
+                            label={({ payload }) => `${payload?.clientName}: ${payload?.count}`}
                           >
                             {clientDistributionData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={`hsl(${(index * 45) % 360}, 70%, 50%)`} />

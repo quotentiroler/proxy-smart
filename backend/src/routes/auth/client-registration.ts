@@ -263,10 +263,48 @@ export const clientRegistrationRoutes = new Elysia({ tags: ['authentication'] })
         }
       }
 
-      // Configure scopes if provided
-      if (body.scope) {
+      // Configure scopes if provided - map SMART scopes to Keycloak client scopes
+      if (body.scope && createdClient.id) {
         logger.admin.debug('Configuring client scopes', { clientId, scope: body.scope })
-        // TODO: Map SMART scopes to Keycloak client scopes
+        
+        try {
+          const requestedScopes = body.scope.split(' ')
+          const allClientScopes = await admin.clientScopes.find()
+          
+          // Standard OIDC scopes that should be default
+          const defaultOidcScopes = ['openid', 'profile', 'email']
+          // SMART scopes that should be optional (user can request them)
+          const smartOptionalScopes = ['offline_access', 'launch', 'launch/patient', 'launch/encounter', 'fhirUser']
+          
+          for (const scopeName of requestedScopes) {
+            const matchingScope = allClientScopes.find(s => s.name === scopeName)
+            if (matchingScope?.id) {
+              try {
+                if (defaultOidcScopes.includes(scopeName)) {
+                  await admin.clients.addDefaultClientScope({ 
+                    id: createdClient.id, 
+                    clientScopeId: matchingScope.id 
+                  })
+                } else {
+                  // All SMART/FHIR scopes go to optional so user must explicitly request them
+                  await admin.clients.addOptionalClientScope({ 
+                    id: createdClient.id, 
+                    clientScopeId: matchingScope.id 
+                  })
+                }
+                logger.admin.debug('Assigned scope to client', { clientId, scopeName })
+              } catch (scopeError) {
+                logger.admin.warn('Failed to assign scope to client', { clientId, scopeName, error: scopeError })
+              }
+            } else {
+              // Scope doesn't exist in Keycloak - log but continue
+              // SMART FHIR scopes like patient/*.read may need custom scope creation
+              logger.admin.debug('Scope not found in Keycloak, skipping', { clientId, scopeName })
+            }
+          }
+        } catch (scopeError) {
+          logger.admin.warn('Failed to configure client scopes', { clientId, error: scopeError })
+        }
       }
 
       // Send notification if configured

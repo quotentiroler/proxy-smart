@@ -53,8 +53,8 @@ async function proxyFHIR({ params, request, set }: any) {
     }
 
     // Check if mTLS is configured for this server
-    const mtlsConfig = getMtlsConfig(serverInfo.identifier)
-    const useMtls = mtlsConfig?.enabled && target.startsWith('https://')
+    const mtlsConfig = await getMtlsConfig(serverInfo.identifier)
+    const useMtls = mtlsConfig?.enabled === true && target.startsWith('https://')
 
     // Use appropriate fetch method based on mTLS configuration
     const resp = useMtls

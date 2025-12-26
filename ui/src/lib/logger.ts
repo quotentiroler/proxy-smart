@@ -62,7 +62,7 @@ export const logger = {
   getLogs: (): LogEntry[] => [...getBuffer()],
   clear: () => {
     window.__DEBUG_LOGS__ = [];
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore storage errors */ }
   },
   enable: () => { window.__DEBUG_ENABLED__ = true; },
   disable: () => { window.__DEBUG_ENABLED__ = false; },
@@ -76,7 +76,7 @@ try {
     window.__DEBUG_ENABLED__ = true;
     logger.info('Debug mode enabled via query param');
   }
-} catch {}
+} catch { /* ignore errors in SSR or restricted environments */ }
 
 // Global error hooks (can be imported early in main)
 export function installGlobalErrorHooks() {

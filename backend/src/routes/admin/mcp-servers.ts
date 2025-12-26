@@ -209,6 +209,81 @@ async function checkServerHealth(url: string, timeout = 5000): Promise<{
 
 export const mcpServersRoutes = new Elysia({ prefix: '/mcp-servers', tags: ['mcp-management'] })
   /**
+   * Get MCP server templates catalog
+   */
+  .get('/templates', async ({ headers }) => {
+    // Validate authentication
+    const authHeader = headers['authorization']
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new Error('Unauthorized')
+    }
+    
+    const token = authHeader.substring(7)
+    await validateToken(token)
+    
+    try {
+      const fs = await import('fs/promises')
+      const path = await import('path')
+      
+      // Try multiple possible paths for the templates file
+      const possiblePaths = [
+        path.join(process.cwd(), 'mcp-server-templates.json'),
+        path.join(process.cwd(), 'backend', 'mcp-server-templates.json'),
+        path.join(__dirname, '..', '..', '..', 'mcp-server-templates.json'),
+        path.join(__dirname, '..', '..', 'mcp-server-templates.json'),
+      ]
+      
+      let templatesContent: string | null = null
+      let usedPath: string | null = null
+      
+      for (const templatesPath of possiblePaths) {
+        try {
+          templatesContent = await fs.readFile(templatesPath, 'utf-8')
+          usedPath = templatesPath
+          logger.server.debug('Found MCP templates at', { path: templatesPath })
+          break
+        } catch {
+          // Try next path
+          continue
+        }
+      }
+      
+      if (!templatesContent) {
+        throw new Error('Templates file not found in any expected location')
+      }
+      
+      const templates = JSON.parse(templatesContent)
+      
+      return templates
+    } catch (error) {
+      logger.server.error('Failed to load MCP server templates', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+      // Return empty template structure if file not found
+      return {
+        templates: [],
+        categories: {},
+        version: '1.0.0'
+      }
+    }
+  }, {
+    detail: {
+      summary: 'Get MCP server templates',
+      description: 'Get catalog of pre-configured MCP server templates for quick setup',
+      tags: ['mcp-management']
+    },
+    response: {
+      200: t.Object({
+        templates: t.Array(t.Any()),
+        categories: t.Record(t.String(), t.Any()),
+        version: t.String()
+      }),
+      401: ErrorResponse,
+      500: ErrorResponse
+    }
+  })
+
+  /**
    * List all configured MCP servers
    */
   .get('/', async ({ headers }): Promise<McpServersListResponseType> => {

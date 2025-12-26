@@ -7,11 +7,38 @@ import React, { useState } from 'react';
 
 type Check = { id: string; ok: boolean; message: string };
 
+type FHIRExtension = {
+  url?: string;
+  valueUri?: string;
+  valueUrl?: string;
+  extension?: FHIRExtension[];
+};
+
+type FHIRSecurityComponent = {
+  extension?: FHIRExtension[];
+};
+
+type FHIRRestComponent = {
+  mode?: string;
+  security?: FHIRSecurityComponent;
+};
+
+type CapabilityStatement = {
+  resourceType?: string;
+  rest?: FHIRRestComponent[];
+};
+
+type SMARTConfiguration = {
+  authorization_endpoint?: string;
+  token_endpoint?: string;
+  grant_types_supported?: string[];
+};
+
 type ValidationResult = {
   ok: boolean;
   checks: Check[];
-  raw?: any;
-  smartConfig?: any;
+  raw?: CapabilityStatement;
+  smartConfig?: SMARTConfiguration;
 };
 
 async function fetchJson(url: string) {
@@ -40,14 +67,14 @@ export const FHIRMetadataValidator: React.FC = () => {
       checks.push({ id: 'resourceType', ok: json.resourceType === 'CapabilityStatement', message: `resourceType=${json.resourceType}` });
 
       const rest = Array.isArray(json.rest) ? json.rest : [];
-      const restServer = rest.find((r: any) => r.mode === 'server') || rest[0];
+      const restServer = rest.find((r: FHIRRestComponent) => r.mode === 'server') || rest[0];
       const security = restServer?.security;
       checks.push({ id: 'security', ok: !!security, message: security ? 'security present' : 'security missing' });
 
       // SMART OAuth URIs extension per spec https://www.hl7.org/fhir/smart-app-launch/conformance.html
-      let oauthUrisExt: any | undefined;
+      let oauthUrisExt: FHIRExtension | undefined;
       if (security?.extension) {
-        oauthUrisExt = security.extension.find((ext: any) =>
+        oauthUrisExt = security.extension.find((ext: FHIRExtension) =>
           typeof ext?.url === 'string' && /smart-configuration|oauth-uris/i.test(ext.url)
         );
       }
@@ -57,7 +84,7 @@ export const FHIRMetadataValidator: React.FC = () => {
       if (oauthUrisExt?.extension && Array.isArray(oauthUrisExt.extension)) {
         for (const sub of oauthUrisExt.extension) {
           if (sub.url && (sub.valueUri || sub.valueUrl)) {
-            endpoints[sub.url] = sub.valueUri || sub.valueUrl;
+            endpoints[sub.url] = (sub.valueUri || sub.valueUrl) as string;
           }
         }
       }
@@ -68,29 +95,31 @@ export const FHIRMetadataValidator: React.FC = () => {
       checks.push({ id: 'token-endpoint', ok: hasToken, message: hasToken ? `found (${Object.keys(endpoints).filter((k) => /token/i.test(k)).map((k) => endpoints[k]).join(', ')})` : 'token endpoint missing' });
 
       // Try .well-known/smart-configuration if same origin; may fail due to CORS
-      let smartConfig: any | undefined;
+      let smartConfig: SMARTConfiguration | undefined;
       try {
         const smartWellKnown = baseUrl + '/.well-known/smart-configuration';
         smartConfig = await fetchJson(smartWellKnown);
         checks.push({ id: 'smart-well-known', ok: true, message: 'smart-configuration fetched' });
-        if (smartConfig.authorization_endpoint) {
+        if (smartConfig?.authorization_endpoint) {
           checks.push({ id: 'smart-authorize', ok: true, message: `authorization_endpoint=${smartConfig.authorization_endpoint}` });
         }
-        if (smartConfig.token_endpoint) {
+        if (smartConfig?.token_endpoint) {
           checks.push({ id: 'smart-token', ok: true, message: `token_endpoint=${smartConfig.token_endpoint}` });
         }
-        if (Array.isArray(smartConfig.grant_types_supported)) {
+        if (smartConfig && Array.isArray(smartConfig.grant_types_supported)) {
           const supportsAuthCode = smartConfig.grant_types_supported.includes('authorization_code');
           checks.push({ id: 'grant-types', ok: supportsAuthCode, message: supportsAuthCode ? 'authorization_code supported' : 'authorization_code not listed' });
         }
-      } catch (e: any) {
-        checks.push({ id: 'smart-well-known', ok: false, message: `smart-configuration not available (${e?.message || 'fetch failed'})` });
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : 'fetch failed';
+        checks.push({ id: 'smart-well-known', ok: false, message: `smart-configuration not available (${message})` });
       }
 
       const ok = checks.every((c) => c.ok);
       setResult({ ok, checks, raw: json, smartConfig });
-    } catch (err: any) {
-      setError(String(err?.message || err));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
     } finally {
       setLoading(false);
     }

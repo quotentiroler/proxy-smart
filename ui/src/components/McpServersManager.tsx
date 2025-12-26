@@ -12,7 +12,12 @@ import {
     Zap,
     Plus,
     Edit,
-    Trash2
+    Trash2,
+    Sparkles,
+    Shield,
+    ShieldAlert,
+    ShieldCheck,
+    ExternalLink
 } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -25,11 +30,39 @@ import {
 } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Badge } from './ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import type {
     GetAdminMcpServers200ResponseServersInner,
     GetAdminMcpServersByNameHealth200Response,
     GetAdminMcpServersByNameTools200ResponseToolsInner
 } from '../lib/api-client';
+
+interface McpTemplate {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    url: string | null;
+    transport: string;
+    auth: {
+        type: string;
+        required: boolean;
+        provider?: string;
+    };
+    icon: string;
+    isRemote: boolean;
+    isPublic: boolean;
+    enabled: boolean;
+    securityNote?: string;
+    installCommand?: string;
+}
+
+interface McpTemplatesData {
+    templates: McpTemplate[];
+    categories: Record<string, { name: string; description: string; icon: string }>;
+    version: string;
+}
 
 export function McpServersManager() {
     const { clientApis } = useAuth();
@@ -40,6 +73,10 @@ export function McpServersManager() {
     const [expandedServer, setExpandedServer] = useState<string | null>(null);
     const [serverTools, setServerTools] = useState<Record<string, GetAdminMcpServersByNameTools200ResponseToolsInner[]>>({});
     const [serverHealth, setServerHealth] = useState<Record<string, GetAdminMcpServersByNameHealth200Response>>({});
+    
+    // Templates state
+    const [templates, setTemplates] = useState<McpTemplatesData | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string>('all');
     
     // Dialog states
     const [showAddDialog, setShowAddDialog] = useState(false);
@@ -55,6 +92,25 @@ export function McpServersManager() {
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
+
+    const fetchTemplates = useCallback(async () => {
+        try {
+            const response = await fetch('/admin/mcp-servers/templates', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load templates');
+            }
+            
+            const data = await response.json();
+            setTemplates(data);
+        } catch (err) {
+            console.error('Failed to fetch templates:', err);
+        }
+    }, []);
 
     const fetchServers = useCallback(async () => {
         setLoading(true);
@@ -101,6 +157,43 @@ export function McpServersManager() {
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to refresh servers');
             console.error('Failed to refresh MCP servers:', err);
+        }
+    };
+
+    const handleInstallTemplate = async (template: McpTemplate) => {
+        setSubmitting(true);
+        setFormErrors({});
+        
+        try {
+            // For remote servers, use the template URL directly
+            if (template.isRemote && template.url) {
+                await clientApis.mcpManagement.postAdminMcpServers({
+                    postAdminMcpServersRequest: {
+                        name: template.id,
+                        url: template.url,
+                        description: template.description
+                    }
+                });
+            } else {
+                // For local servers, show error - they need manual installation
+                setFormErrors({
+                    submit: t('Local MCP servers must be installed manually using: {{command}}', { 
+                        command: template.installCommand || 'npm install'
+                    })
+                });
+                return;
+            }
+            
+            // Refresh server list
+            await fetchServers();
+            
+        } catch (err) {
+            setFormErrors({
+                submit: err instanceof Error ? err.message : 'Failed to install template'
+            });
+            console.error('Failed to install template:', err);
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -231,7 +324,8 @@ export function McpServersManager() {
 
     useEffect(() => {
         fetchServers();
-    }, [fetchServers]);
+        fetchTemplates();
+    }, [fetchServers, fetchTemplates]);
 
     const getStatusIcon = (status: string) => {
         switch (status) {
@@ -311,6 +405,124 @@ export function McpServersManager() {
                     </div>
                 </div>
             </div>
+
+            {/* Quick Setup Templates */}
+            {templates && templates.templates.length > 0 && (
+                <div className="bg-card/70 backdrop-blur-sm p-4 sm:p-6 lg:p-8 rounded-2xl border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center">
+                            <div className="w-14 h-14 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl flex items-center justify-center mr-4 shadow-sm">
+                                <Sparkles className="w-7 h-7 text-purple-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-foreground tracking-tight">{t('Quick Setup Templates')}</h3>
+                                <p className="text-sm text-muted-foreground">{t('One-click setup for popular MCP servers')}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Category Tabs */}
+                    <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
+                        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap mb-6">
+                            <TabsTrigger value="all" className="px-4 py-2">
+                                {t('All')} ({templates.templates.length})
+                            </TabsTrigger>
+                            {Object.entries(templates.categories).map(([key, category]) => {
+                                const count = templates.templates.filter(t => t.category === key).length;
+                                if (count === 0) return null;
+                                return (
+                                    <TabsTrigger key={key} value={key} className="px-4 py-2">
+                                        <span className="mr-2">{category.icon}</span>
+                                        {category.name} ({count})
+                                    </TabsTrigger>
+                                );
+                            })}
+                        </TabsList>
+
+                        <TabsContent value={selectedCategory} className="mt-0">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {templates.templates
+                                    .filter(template => selectedCategory === 'all' || template.category === selectedCategory)
+                                    .map(template => {
+                                        const isInstalled = servers.some(s => s.name === template.id);
+                                        const securityLevel = template.securityNote?.includes('DANGER') ? 'danger' : 
+                                                             template.securityNote?.includes('CAUTION') ? 'caution' : 'safe';
+                                        
+                                        return (
+                                            <div key={template.id} className="bg-muted/30 rounded-xl p-4 border border-border/50 hover:border-primary/30 transition-all duration-200 hover:shadow-md">
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className="text-2xl">{template.icon}</span>
+                                                        <div>
+                                                            <h4 className="font-semibold text-foreground text-sm">{template.name}</h4>
+                                                            <div className="flex items-center space-x-1 mt-1">
+                                                                <Badge variant={template.isRemote ? 'default' : 'secondary'} className="text-xs">
+                                                                    {template.isRemote ? (
+                                                                        <><ExternalLink className="w-3 h-3 mr-1" />{t('Remote')}</>
+                                                                    ) : (
+                                                                        <>{t('Local')}</>
+                                                                    )}
+                                                                </Badge>
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    {template.transport.toUpperCase()}
+                                                                </Badge>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {securityLevel === 'danger' && (
+                                                        <ShieldAlert className="w-5 h-5 text-red-500" />
+                                                    )}
+                                                    {securityLevel === 'caution' && (
+                                                        <Shield className="w-5 h-5 text-yellow-500" />
+                                                    )}
+                                                    {securityLevel === 'safe' && (
+                                                        <ShieldCheck className="w-5 h-5 text-green-500" />
+                                                    )}
+                                                </div>
+                                                
+                                                <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                                                    {template.description}
+                                                </p>
+                                                
+                                                {template.securityNote && (
+                                                    <div className={`text-xs p-2 rounded-lg mb-3 ${
+                                                        securityLevel === 'danger' ? 'bg-red-500/10 text-red-600 dark:text-red-400' :
+                                                        securityLevel === 'caution' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
+                                                        'bg-green-500/10 text-green-600 dark:text-green-400'
+                                                    }`}>
+                                                        {template.securityNote}
+                                                    </div>
+                                                )}
+                                                
+                                                {template.auth.required && (
+                                                    <div className="text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 p-2 rounded-lg mb-3">
+                                                        🔐 {t('Requires')} {template.auth.type === 'oauth' ? 'OAuth' : template.auth.type}
+                                                    </div>
+                                                )}
+                                                
+                                                <Button
+                                                    onClick={() => handleInstallTemplate(template)}
+                                                    disabled={isInstalled || submitting || !template.isRemote}
+                                                    size="sm"
+                                                    className="w-full"
+                                                    variant={isInstalled ? 'secondary' : 'default'}
+                                                >
+                                                    {isInstalled ? (
+                                                        <><CheckCircle className="w-4 h-4 mr-2" />{t('Installed')}</>
+                                                    ) : !template.isRemote ? (
+                                                        <>{t('Manual Install Required')}</>
+                                                    ) : (
+                                                        <><Plus className="w-4 h-4 mr-2" />{t('Add to AI Agent')}</>
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                </div>
+            )}
 
             {/* Server List */}
             <div className="bg-card/70 backdrop-blur-sm p-4 sm:p-6 lg:p-8 rounded-2xl border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">

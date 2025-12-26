@@ -3,8 +3,8 @@ import { Elysia } from 'elysia'
 import { treaty } from '@elysiajs/eden'
 
 // Mock app that simulates the main application structure
-const createMockApp = () => {
-  return new Elysia()
+const createMockApp = () =>
+  new Elysia()
     .get('/', () => 'Proxy Smart Backend')
     .get('/health', () => ({
       status: 'healthy',
@@ -36,20 +36,14 @@ const createMockApp = () => {
         .get('/users', () => ({ users: [] }))
         .post('/users', ({ body }) => ({ ...(body as object), id: 'test-id' }))
     )
-}
 
 describe('Integration Tests', () => {
-  let app: Elysia
-  let api: ReturnType<typeof treaty>
-
-  beforeAll(() => {
-    app = createMockApp()
-    api = treaty(app)
-  })
+  const app = createMockApp()
+  const api = treaty(app)
 
   describe('Core Endpoints', () => {
     it('should respond to root endpoint', async () => {
-      const { data } = await api.index.get()
+      const { data } = await api.get()
       expect(data).toBe('Proxy Smart Backend')
     })
 
@@ -78,7 +72,7 @@ describe('Integration Tests', () => {
     it('should handle user listing', async () => {
       const { data } = await api.api.v1.users.get()
       expect(data).toHaveProperty('users')
-      expect(Array.isArray(data.users)).toBe(true)
+      expect(Array.isArray(data?.users)).toBe(true)
     })
 
     it('should handle user creation', async () => {

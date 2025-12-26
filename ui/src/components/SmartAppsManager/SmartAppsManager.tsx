@@ -162,6 +162,7 @@ export function SmartAppsManager() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingApp, setEditingApp] = useState<SmartApp | null>(null);
+  const [editFormData, setEditFormData] = useState<{ name: string; description: string }>({ name: '', description: '' });
   const [notification, setNotification] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -663,7 +664,12 @@ export function SmartAppsManager() {
       </Dialog>
 
       {/* Edit App Details Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+      <Dialog open={showEditDialog} onOpenChange={(open) => {
+        setShowEditDialog(open);
+        if (!open) {
+          setEditFormData({ name: '', description: '' });
+        }
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Application Details</DialogTitle>
@@ -677,24 +683,51 @@ export function SmartAppsManager() {
                 <label className="text-sm font-medium">Application Name</label>
                 <input
                   type="text"
-                  defaultValue={editingApp.name}
+                  value={editFormData.name || editingApp.name || ''}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full mt-1 rounded-xl border border-input bg-background px-3 py-2"
                 />
               </div>
               <div>
                 <label className="text-sm font-medium">Description</label>
                 <textarea
-                  defaultValue={editingApp.description}
+                  value={editFormData.description || editingApp.description || ''}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
                   className="w-full mt-1 rounded-xl border border-input bg-background px-3 py-2"
                 />
               </div>
               <div className="flex justify-end space-x-2 pt-4">
                 <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-                <Button onClick={() => {
-                  // TODO: Implement save functionality
-                  alert('Save functionality coming soon!');
-                  setShowEditDialog(false);
+                <Button onClick={async () => {
+                  if (!editingApp?.clientId) return;
+                  try {
+                    await clientApis.smartApps.putAdminSmartAppsByClientId({
+                      clientId: editingApp.clientId,
+                      updateSmartAppRequest: {
+                        name: editFormData.name || editingApp.name,
+                        description: editFormData.description || editingApp.description,
+                      }
+                    });
+                    // Refresh apps list
+                    const updatedApps = await clientApis.smartApps.getAdminSmartApps();
+                    if (Array.isArray(updatedApps)) {
+                      setBackendApps(updatedApps);
+                      setApps(updatedApps.map((app: SmartApp) => ({
+                        ...app,
+                        status: app.enabled ? 'active' : 'inactive',
+                        lastUsed: new Date().toISOString().split('T')[0],
+                        appType: app.appType || (app.serviceAccountsEnabled ? 'backend-service' : 'standalone-app'),
+                        serverAccessType: 'all-servers',
+                      })));
+                    }
+                    setNotification({ type: 'success', message: 'Application updated successfully' });
+                    setShowEditDialog(false);
+                    setEditFormData({ name: '', description: '' });
+                  } catch (error) {
+                    console.error('Failed to update app:', error);
+                    setNotification({ type: 'error', message: 'Failed to update application' });
+                  }
                 }}>Save Changes</Button>
               </div>
             </div>
@@ -784,7 +817,7 @@ export function SmartAppsManager() {
           <DialogHeader>
             <DialogTitle>Authentication Settings</DialogTitle>
             <DialogDescription>
-              Configure authentication method for {editingApp?.name}
+              View authentication configuration for {editingApp?.name}
             </DialogDescription>
           </DialogHeader>
           {editingApp && (
@@ -813,13 +846,16 @@ export function SmartAppsManager() {
                 </CardContent>
               </Card>
 
+              <div className="bg-muted/50 p-4 rounded-xl border border-border">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Note:</strong> Changing authentication type requires re-registering the application 
+                  to ensure proper key/secret generation. To change the auth method, delete this app and 
+                  create a new one with the desired configuration.
+                </p>
+              </div>
+
               <div className="flex justify-end space-x-2 pt-4">
                 <Button variant="outline" onClick={() => setShowAuthDialog(false)}>Close</Button>
-                <Button onClick={() => {
-                  // TODO: Implement auth settings update
-                  alert('Authentication settings update coming soon!');
-                  setShowAuthDialog(false);
-                }}>Update Settings</Button>
               </div>
             </div>
           )}
