@@ -72,10 +72,12 @@ async function getTestGroups(suiteId) {
 async function runTestGroup(sessionId, groupId, inputs) {
   console.log(`Starting test group: ${groupId}`);
   
-  const response = await fetch(`${INFERNO_URL}/api/test_sessions/${sessionId}/test_runs`, {
+  // Note: The Inferno API endpoint is /api/test_runs, not /api/test_sessions/{id}/test_runs
+  const response = await fetch(`${INFERNO_URL}/api/test_runs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      test_session_id: sessionId,
       test_group_id: groupId,
       inputs: inputs
     })
