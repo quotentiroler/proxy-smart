@@ -266,26 +266,45 @@ jobs:
         id: inferno-tests
         continue-on-error: true
         run: |
+          set +e  # Disable exit on error for robust handling
+          
           echo "=== Checking Inferno API ==="
           
+          # Check if Inferno is responding
+          echo "Testing Inferno health..."
+          curl -v http://localhost:4567/ 2>&1 | head -20
+          
           # List available test suites
-          SUITES=$(curl -s "http://localhost:4567/api/test_suites" || echo "[]")
-          echo "Available suites: $SUITES"
+          echo "Fetching test suites..."
+          SUITES=$(curl -s "http://localhost:4567/api/test_suites" 2>&1)
+          if [ $? -ne 0 ]; then
+            echo "::error::Failed to connect to Inferno API"
+            exit 1
+          fi
+          echo "Available suites count: $(echo "$SUITES" | jq 'length' 2>/dev/null || echo 'N/A')"
           
           # Create test session
           echo "Creating test session for $TEST_SUITE..."
-          SESSION_RESPONSE=$(curl -s -X POST "http://localhost:4567/api/test_sessions" \
+          SESSION_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:4567/api/test_sessions" \
             -H "Content-Type: application/json" \
-            -d "{\"test_suite_id\": \"$TEST_SUITE\"}" || echo "{}")
+            -d "{\"test_suite_id\": \"$TEST_SUITE\"}" 2>&1)
           
-          echo "Session response: $SESSION_RESPONSE"
-          SESSION=$(echo "$SESSION_RESPONSE" | jq -r '.id // empty')
+          HTTP_CODE=$(echo "$SESSION_RESPONSE" | tail -1)
+          BODY=$(echo "$SESSION_RESPONSE" | sed '$d')
           
-          if [ -z "$SESSION" ]; then
-            echo "::warning::Could not create test session. Inferno API may not be ready."
+          echo "Session creation HTTP code: $HTTP_CODE"
+          echo "Session response body: $BODY"
+          
+          # Parse session ID from body (not full response)
+          SESSION=$(echo "$BODY" | jq -r '.id // empty' 2>/dev/null || echo "")
+          
+          if [ -z "$SESSION" ] || [ "$SESSION" = "null" ]; then
+            echo "::warning::Could not create test session. HTTP: $HTTP_CODE"
+            echo "Response was: $BODY"
             echo "## SMART Compliance Tests" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Could not run automated tests - Inferno API not responding as expected." >> $GITHUB_STEP_SUMMARY
+            echo "HTTP Code: $HTTP_CODE" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
           
@@ -293,18 +312,23 @@ jobs:
           echo "session_id=$SESSION" >> $GITHUB_OUTPUT
           
           # Get test suite info
-          SUITE_INFO=$(curl -s "http://localhost:4567/api/test_suites/$TEST_SUITE")
-          FIRST_GROUP=$(echo "$SUITE_INFO" | jq -r '.test_groups[0].id // empty')
+          echo "Fetching test suite info..."
+          SUITE_INFO=$(curl -s "http://localhost:4567/api/test_suites/$TEST_SUITE" 2>&1)
+          echo "Suite info response: ${SUITE_INFO:0:200}..."
           
-          if [ -z "$FIRST_GROUP" ]; then
-            echo "::warning::Could not find test groups"
+          FIRST_GROUP=$(echo "$SUITE_INFO" | jq -r '.test_groups[0].id // empty' 2>/dev/null || echo "")
+          
+          if [ -z "$FIRST_GROUP" ] || [ "$FIRST_GROUP" = "null" ]; then
+            echo "::warning::Could not find test groups in suite"
+            echo "Full suite info: $SUITE_INFO"
             exit 0
           fi
           
           echo "Running test group: $FIRST_GROUP"
           
           # Run tests with inputs
-          RUN_RESPONSE=$(curl -s -X POST "http://localhost:4567/api/test_runs" \
+          echo "Starting test run..."
+          RUN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:4567/api/test_runs" \
             -H "Content-Type: application/json" \
             -d "{
               \"test_session_id\": \"$SESSION\",
@@ -315,13 +339,18 @@ jobs:
                 {\"name\": \"smart_token_url\", \"value\": \"http://localhost:8080/realms/proxy-smart/protocol/openid-connect/token\"},
                 {\"name\": \"client_id\", \"value\": \"inferno-test-client\"}
               ]
-            }")
+            }" 2>&1)
           
-          echo "Run response: $RUN_RESPONSE"
-          RUN=$(echo "$RUN_RESPONSE" | jq -r '.id // empty')
+          RUN_HTTP=$(echo "$RUN_RESPONSE" | tail -1)
+          RUN_BODY=$(echo "$RUN_RESPONSE" | sed '$d')
           
-          if [ -z "$RUN" ]; then
-            echo "::warning::Could not start test run"
+          echo "Run HTTP code: $RUN_HTTP"
+          echo "Run response: $RUN_BODY"
+          
+          RUN=$(echo "$RUN_BODY" | jq -r '.id // empty' 2>/dev/null || echo "")
+          
+          if [ -z "$RUN" ] || [ "$RUN" = "null" ]; then
+            echo "::warning::Could not start test run. HTTP: $RUN_HTTP"
             exit 0
           fi
           
@@ -330,10 +359,10 @@ jobs:
           
           # Poll for completion (max 10 minutes)
           for i in {1..120}; do
-            STATUS=$(curl -s "http://localhost:4567/api/test_runs/$RUN" | jq -r '.status // "unknown"')
-            echo "Test status: $STATUS"
+            STATUS=$(curl -s "http://localhost:4567/api/test_runs/$RUN" 2>/dev/null | jq -r '.status // "unknown"' 2>/dev/null || echo "error")
+            echo "Test status ($i/120): $STATUS"
             
-            if [ "$STATUS" = "done" ]; then
+            if [ "$STATUS" = "done" ] || [ "$STATUS" = "error" ]; then
               break
             fi
             
@@ -341,12 +370,13 @@ jobs:
           done
           
           # Get results
-          RESULTS=$(curl -s "http://localhost:4567/api/test_runs/$RUN/results")
+          RESULTS=$(curl -s "http://localhost:4567/api/test_runs/$RUN/results" 2>/dev/null || echo "[]")
+          echo "Results: ${RESULTS:0:500}..."
           
-          PASSED=$(echo "$RESULTS" | jq '[.[] | select(.result == "pass")] | length')
-          FAILED=$(echo "$RESULTS" | jq '[.[] | select(.result == "fail")] | length')
-          SKIPPED=$(echo "$RESULTS" | jq '[.[] | select(.result == "skip")] | length')
-          ERRORS=$(echo "$RESULTS" | jq '[.[] | select(.result == "error")] | length')
+          PASSED=$(echo "$RESULTS" | jq '[.[] | select(.result == "pass")] | length' 2>/dev/null || echo 0)
+          FAILED=$(echo "$RESULTS" | jq '[.[] | select(.result == "fail")] | length' 2>/dev/null || echo 0)
+          SKIPPED=$(echo "$RESULTS" | jq '[.[] | select(.result == "skip")] | length' 2>/dev/null || echo 0)
+          ERRORS=$(echo "$RESULTS" | jq '[.[] | select(.result == "error")] | length' 2>/dev/null || echo 0)
           
           echo "## SMART Compliance Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
