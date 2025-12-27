@@ -73,6 +73,7 @@ jobs:
           --health-retries 5
       
       # HAPI FHIR Server - standard R4 test server
+      # Note: HAPI takes ~35 seconds to start. We use a simple TCP check.
       hapi-fhir:
         image: hapiproject/hapi:v8.6.0-1
         ports:
@@ -80,12 +81,6 @@ jobs:
         env:
           hapi.fhir.default_encoding: json
           hapi.fhir.fhir_version: R4
-        options: >-
-          --health-cmd "wget -q -O /dev/null http://localhost:8080/fhir/metadata || exit 1"
-          --health-interval 15s
-          --health-timeout 10s
-          --health-retries 10
-          --health-start-period 45s
 
     steps:
       - name: Checkout repository
@@ -157,6 +152,22 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{"realm": "proxy-smart", "enabled": true}'
           fi
+
+      # Wait for HAPI FHIR to be ready (takes ~35 seconds to start)
+      - name: Wait for HAPI FHIR
+        run: |
+          echo "Waiting for HAPI FHIR server to be ready..."
+          for i in {1..60}; do
+            if curl -sf http://localhost:8081/fhir/metadata > /dev/null 2>&1; then
+              echo "✓ HAPI FHIR is ready!"
+              curl -s http://localhost:8081/fhir/metadata | jq -r '.fhirVersion' | xargs -I{} echo "  FHIR Version: {}"
+              exit 0
+            fi
+            echo "Attempt $i/60 - waiting for HAPI FHIR..."
+            sleep 2
+          done
+          echo "ERROR: HAPI FHIR failed to start in time"
+          exit 1
 
       # Start the application
       - name: Start Application
