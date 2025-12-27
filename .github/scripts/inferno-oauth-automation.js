@@ -215,7 +215,7 @@ async function runStandalonePatientTests(browser, sessionId) {
 }
 
 async function runWellKnownTests(sessionId) {
-  console.log('\n=== Running SMART Discovery Tests ===\n');
+  console.log('\n=== Running Well-Known Configuration Tests ===\n');
   
   const inputs = [
     { name: 'url', value: FHIR_SERVER_URL }
@@ -223,70 +223,43 @@ async function runWellKnownTests(sessionId) {
   
   try {
     const groups = await getTestGroups(TEST_SUITE);
+    const wellKnownGroup = groups.find(g => 
+      g.id.includes('well_known') || 
+      g.id.includes('discovery') ||
+      g.title?.toLowerCase().includes('well-known') ||
+      g.title?.toLowerCase().includes('discovery')
+    );
     
-    // List all available test groups for debugging
-    console.log('Available test groups:');
-    groups.forEach(g => console.log(`  - ${g.id}: ${g.title || 'No title'}`));
-    console.log('');
-    
-    // Look for discovery/well-known tests - in SMART 2.2 it might be named differently
-    const discoveryGroup = groups.find(g => {
-      const id = (g.id || '').toLowerCase();
-      const title = (g.title || '').toLowerCase();
-      return id.includes('discovery') || 
-             id.includes('well_known') ||
-             id.includes('smart_configuration') ||
-             title.includes('discovery') ||
-             title.includes('well-known') ||
-             title.includes('smart configuration');
-    });
-    
-    if (!discoveryGroup) {
-      // If no specific discovery group, try to run the first available group
-      if (groups.length > 0) {
-        console.log(`No discovery test group found, trying first group: ${groups[0].id}`);
-        const run = await runTestGroup(sessionId, groups[0].id, inputs);
-        return await waitForSimpleTestCompletion(sessionId, run.id);
-      }
-      console.log('No test groups available');
+    if (!wellKnownGroup) {
+      console.log('No well-known/discovery test group found');
       return null;
     }
     
-    console.log(`Found test group: ${discoveryGroup.id} - ${discoveryGroup.title}`);
+    console.log(`Found test group: ${wellKnownGroup.id} - ${wellKnownGroup.title}`);
     
-    const run = await runTestGroup(sessionId, discoveryGroup.id, inputs);
-    return await waitForSimpleTestCompletion(sessionId, run.id);
+    const run = await runTestGroup(sessionId, wellKnownGroup.id, inputs);
     
+    // Well-known tests don't need OAuth, just wait for completion
+    const maxWait = 60000;
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < maxWait) {
+      const response = await fetch(`${INFERNO_URL}/api/test_sessions/${sessionId}/test_runs/${run.id}`);
+      const runStatus = await response.json();
+      
+      if (runStatus.status === 'done' || runStatus.status === 'error') {
+        console.log(`Test completed with status: ${runStatus.status}`);
+        return runStatus;
+      }
+      
+      await sleep(1000);
+    }
+    
+    throw new Error('Well-known tests timed out');
   } catch (error) {
-    console.error('Discovery tests error:', error.message);
+    console.error('Well-known tests error:', error.message);
     return null;
   }
-}
-
-async function waitForSimpleTestCompletion(sessionId, runId) {
-  const maxWait = 120000; // 2 minutes
-  const startTime = Date.now();
-  
-  while (Date.now() - startTime < maxWait) {
-    const response = await fetch(`${INFERNO_URL}/api/test_sessions/${sessionId}/test_runs/${runId}`);
-    const runStatus = await response.json();
-    
-    if (runStatus.status === 'done' || runStatus.status === 'error' || runStatus.status === 'cancelled') {
-      console.log(`Test completed with status: ${runStatus.status}`);
-      return runStatus;
-    }
-    
-    // Log current progress
-    if (runStatus.results && runStatus.results.length > 0) {
-      const passed = runStatus.results.filter(r => r.result === 'pass').length;
-      const failed = runStatus.results.filter(r => r.result === 'fail').length;
-      console.log(`  Progress: ${passed} passed, ${failed} failed, ${runStatus.results.length} total`);
-    }
-    
-    await sleep(2000);
-  }
-  
-  throw new Error('Test run timed out');
 }
 
 async function getSessionResults(sessionId) {
