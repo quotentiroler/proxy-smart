@@ -100,8 +100,7 @@ async function waitForTestResult(sessionId, runId, browser, page) {
   const startTime = Date.now();
   
   while (Date.now() - startTime < maxWait) {
-    // The correct API endpoint is /api/test_runs/:id?include_results=true
-    const response = await fetch(`${INFERNO_URL}/api/test_runs/${runId}?include_results=true`);
+    const response = await fetch(`${INFERNO_URL}/api/test_sessions/${sessionId}/test_runs/${runId}`);
     if (!response.ok) {
       throw new Error(`Failed to get test run status: ${response.status}`);
     }
@@ -292,11 +291,7 @@ async function waitForSimpleTestCompletion(sessionId, runId) {
   const startTime = Date.now();
   
   while (Date.now() - startTime < maxWait) {
-    // The correct API endpoint is /api/test_runs/:id?include_results=true
-    const response = await fetch(`${INFERNO_URL}/api/test_runs/${runId}?include_results=true`);
-    if (!response.ok) {
-      throw new Error(`Failed to get test run status: ${response.status} - ${response.statusText}`);
-    }
+    const response = await fetch(`${INFERNO_URL}/api/test_sessions/${sessionId}/test_runs/${runId}`);
     const runStatus = await response.json();
     
     if (runStatus.status === 'done' || runStatus.status === 'error' || runStatus.status === 'cancelled') {
