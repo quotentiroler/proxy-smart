@@ -216,11 +216,32 @@ async function runStandalonePatientTests(browser, sessionId) {
   }
 }
 
+/**
+ * Build the standalone_smart_auth_info JSON input for Inferno
+ * This is a serialized AuthInfo object used by Inferno to configure SMART authorization
+ */
+function buildStandaloneSmartAuthInfo() {
+  return JSON.stringify({
+    auth_type: 'public',
+    use_discovery: 'true',
+    client_id: CLIENT_ID,
+    requested_scopes: 'launch/patient openid fhirUser offline_access patient/*.read',
+    pkce_support: 'enabled',
+    pkce_code_challenge_method: 'S256',
+    auth_request_method: 'GET'
+  });
+}
+
 async function runWellKnownTests(sessionId) {
   console.log('\n=== Running SMART Discovery Tests ===\n');
   
+  // The Standalone Launch group expects url and standalone_smart_auth_info inputs
+  const standaloneAuthInfo = buildStandaloneSmartAuthInfo();
+  console.log('Auth info:', standaloneAuthInfo);
+  
   const inputs = [
-    { name: 'url', value: FHIR_SERVER_URL }
+    { name: 'url', value: FHIR_SERVER_URL },
+    { name: 'standalone_smart_auth_info', value: standaloneAuthInfo }
   ];
   
   try {
@@ -244,7 +265,7 @@ async function runWellKnownTests(sessionId) {
     });
     
     if (!discoveryGroup) {
-      // If no specific discovery group, try to run the first available group
+      // If no specific discovery group, try to run the first available group (Standalone Launch)
       if (groups.length > 0) {
         console.log(`No discovery test group found, trying first group: ${groups[0].id}`);
         const run = await runTestGroup(sessionId, groups[0].id, inputs);
