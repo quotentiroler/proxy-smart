@@ -327,7 +327,7 @@ jobs:
           
           echo "Running test group: $FIRST_GROUP"
           
-          # Run tests with inputs
+          # Run tests with inputs - Note: standalone_smart_auth_info is a complex auth object
           echo "Starting test run..."
           RUN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:4567/api/test_runs" \
             -H "Content-Type: application/json" \
@@ -336,9 +336,7 @@ jobs:
               \"test_group_id\": \"$FIRST_GROUP\",
               \"inputs\": [
                 {\"name\": \"url\", \"value\": \"http://localhost:8445/fhir\"},
-                {\"name\": \"smart_authorization_url\", \"value\": \"http://localhost:8080/realms/proxy-smart/protocol/openid-connect/auth\"},
-                {\"name\": \"smart_token_url\", \"value\": \"http://localhost:8080/realms/proxy-smart/protocol/openid-connect/token\"},
-                {\"name\": \"client_id\", \"value\": \"inferno-test-client\"}
+                {\"name\": \"standalone_smart_auth_info\", \"value\": \"{\\\"auth_type\\\": \\\"public\\\", \\\"requested_scopes\\\": \\\"launch/patient openid fhirUser offline_access patient/*.rs\\\", \\\"pkce_support\\\": \\\"enabled\\\", \\\"pkce_code_challenge_method\\\": \\\"S256\\\", \\\"auth_request_method\\\": \\\"GET\\\", \\\"use_discovery\\\": \\\"true\\\"}\"}
               ]
             }" 2>&1)
           
