@@ -71,6 +71,20 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
+      
+      # HAPI FHIR Server - standard R4 test server
+      hapi-fhir:
+        image: hapiproject/hapi:latest
+        ports:
+          - 8081:8080
+        env:
+          hapi.fhir.default_encoding: json
+          hapi.fhir.fhir_version: R4
+        options: >-
+          --health-cmd "curl -sf http://localhost:8080/fhir/metadata || exit 1"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 10
 
     steps:
       - name: Checkout repository
@@ -164,6 +178,8 @@ jobs:
         env:
           NODE_ENV: production
           KEYCLOAK_URL: http://localhost:8080
+          # Point to HAPI FHIR server running in GitHub Actions service container
+          FHIR_SERVER_BASE: http://localhost:8081/fhir
 
       # Setup Ruby and Inferno
       - name: Setup Ruby
