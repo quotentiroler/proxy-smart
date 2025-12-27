@@ -194,6 +194,17 @@ jobs:
           FHIR_SERVER_BASE: http://localhost:8081/fhir
 
       # Setup Ruby and Inferno
+      # Setup Node.js for Playwright
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm install playwright
+          npx playwright install chromium --with-deps
+
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -289,221 +300,114 @@ jobs:
             echo "$BODY"
           fi
 
-      # Run Inferno tests via API
+      # Run Inferno tests via Playwright automation
       - name: Run SMART Compliance Tests
         id: inferno-tests
         continue-on-error: true
         run: |
           set +e  # Disable exit on error for robust handling
           
-          echo "=== SMART 2.2.0 Compliance Verification ==="
+          echo "=== SMART 2.2.0 Compliance Testing with Inferno ==="
           echo ""
           
-          # First, discover the available FHIR servers
+          # Get FHIR server URL from our proxy
           echo "### Step 0: Discovering FHIR Servers ###"
-          echo ""
-          
-          # Get the list of FHIR servers from our proxy
           SERVERS=$(curl -s "http://localhost:8445/fhir-servers" 2>&1)
           echo "Available FHIR servers:"
           echo "$SERVERS" | jq '.' 2>/dev/null || echo "$SERVERS"
           
-          # Get the first server's SMART config URL
+          # Get the first server's endpoints
           SMART_CONFIG_URL=$(echo "$SERVERS" | jq -r '.servers[0].endpoints.smartConfig // empty' 2>/dev/null)
+          BASE_FHIR_URL=$(echo "$SERVERS" | jq -r '.servers[0].endpoints.base // empty' 2>/dev/null)
           
           if [ -z "$SMART_CONFIG_URL" ] || [ "$SMART_CONFIG_URL" = "null" ]; then
             echo "::warning::No FHIR servers configured - cannot test SMART configuration"
             echo "## SMART Compliance Tests - SKIPPED" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "No FHIR servers configured. The proxy requires at least one FHIR server to test." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Note:** This is expected if no external FHIR server is available in CI." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # List available endpoints
-            echo "### Available Proxy Endpoints" >> $GITHUB_STEP_SUMMARY
-            echo "- Health: http://localhost:8445/health" >> $GITHUB_STEP_SUMMARY  
-            echo "- Swagger: http://localhost:8445/swagger" >> $GITHUB_STEP_SUMMARY
-            echo "- FHIR Servers Discovery: http://localhost:8445/fhir-servers" >> $GITHUB_STEP_SUMMARY
-            
-            # Test that the proxy is at least responding
-            echo ""
-            echo "Testing proxy health..."
-            HEALTH=$(curl -s "http://localhost:8445/health" 2>&1)
-            echo "Health response: $HEALTH"
-            
-            if echo "$HEALTH" | jq -e '.status' > /dev/null 2>&1; then
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### Proxy Status" >> $GITHUB_STEP_SUMMARY
-              echo "✓ Proxy is running and healthy" >> $GITHUB_STEP_SUMMARY
-              echo "passed=1" >> $GITHUB_OUTPUT
-              echo "failed=0" >> $GITHUB_OUTPUT
-              exit 0
-            else
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### Proxy Status" >> $GITHUB_STEP_SUMMARY
-              echo "✗ Proxy health check failed" >> $GITHUB_STEP_SUMMARY
-              echo "passed=0" >> $GITHUB_OUTPUT
-              echo "failed=1" >> $GITHUB_OUTPUT
-              exit 1
-            fi
+            echo "No FHIR servers configured." >> $GITHUB_STEP_SUMMARY
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
+            exit 0
           fi
           
           echo ""
           echo "Using SMART config URL: $SMART_CONFIG_URL"
+          echo "Using FHIR base URL: $BASE_FHIR_URL"
           
-          # First, directly verify our SMART configuration without Inferno
-          # This tests the critical requirements that Inferno would test
-          echo "### Step 1: Direct SMART Configuration Validation ###"
+          # Step 1: Quick validation of SMART configuration
           echo ""
-          
-          # Test .well-known/smart-configuration endpoint
-          echo "Fetching $SMART_CONFIG_URL..."
+          echo "### Step 1: Quick SMART Configuration Validation ###"
           SMART_CONFIG=$(curl -s "$SMART_CONFIG_URL" 2>&1)
+          echo "$SMART_CONFIG" | jq '.'
           
-          if [ -z "$SMART_CONFIG" ] || [ "$SMART_CONFIG" = "null" ]; then
-            echo "::error::Failed to fetch .well-known/smart-configuration"
+          # Check required fields
+          AUTH_EP=$(echo "$SMART_CONFIG" | jq -r '.authorization_endpoint // empty')
+          TOKEN_EP=$(echo "$SMART_CONFIG" | jq -r '.token_endpoint // empty')
+          
+          if [ -z "$AUTH_EP" ] || [ -z "$TOKEN_EP" ]; then
+            echo "::error::Missing required SMART endpoints"
             echo "## SMART Compliance Tests - FAILED" >> $GITHUB_STEP_SUMMARY
-            echo "Could not fetch .well-known/smart-configuration" >> $GITHUB_STEP_SUMMARY
+            echo "Missing authorization_endpoint or token_endpoint" >> $GITHUB_STEP_SUMMARY
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=1" >> $GITHUB_OUTPUT
             exit 1
           fi
           
-          echo "SMART Configuration Response:"
-          echo "$SMART_CONFIG" | jq '.' 2>/dev/null || echo "$SMART_CONFIG"
+          echo "✓ authorization_endpoint: $AUTH_EP"
+          echo "✓ token_endpoint: $TOKEN_EP"
           
-          # Validate required SMART 2.2.0 fields
+          # Step 2: Run Inferno tests with Playwright OAuth automation
           echo ""
-          echo "Validating SMART 2.2.0 required fields..."
+          echo "### Step 2: Running Inferno Tests with Playwright ###"
           
-          VALIDATION_PASSED=true
-          VALIDATION_RESULTS=""
+          # Run the Playwright-automated Inferno test script
+          node .github/scripts/inferno-oauth-automation.js 2>&1 | tee inferno-output.log
+          INFERNO_EXIT_CODE=${PIPESTATUS[0]}
           
-          # Required fields per SMART App Launch 2.2.0
-          REQUIRED_FIELDS="authorization_endpoint token_endpoint capabilities"
-          
-          for field in $REQUIRED_FIELDS; do
-            value=$(echo "$SMART_CONFIG" | jq -r ".$field // empty" 2>/dev/null)
-            if [ -n "$value" ] && [ "$value" != "null" ]; then
-              echo "✓ $field: present"
-              VALIDATION_RESULTS="$VALIDATION_RESULTS\n| $field | ✓ Present |"
-            else
-              echo "✗ $field: MISSING"
-              VALIDATION_RESULTS="$VALIDATION_RESULTS\n| $field | ✗ Missing |"
-              VALIDATION_PASSED=false
-            fi
-          done
-          
-          # Check capabilities array
-          echo ""
-          echo "Checking SMART capabilities..."
-          CAPABILITIES=$(echo "$SMART_CONFIG" | jq -r '.capabilities[]?' 2>/dev/null)
-          
-          # Key SMART 2.2.0 capabilities to check
-          SMART_CAPS="launch-standalone permission-v2 context-standalone-patient client-public sso-openid-connect"
-          
-          for cap in $SMART_CAPS; do
-            if echo "$CAPABILITIES" | grep -q "^$cap$"; then
-              echo "✓ capability: $cap"
-              VALIDATION_RESULTS="$VALIDATION_RESULTS\n| capability: $cap | ✓ Present |"
-            else
-              echo "○ capability: $cap (optional, not present)"
-              VALIDATION_RESULTS="$VALIDATION_RESULTS\n| capability: $cap | ○ Optional |"
-            fi
-          done
-          
-          # Check code_challenge_methods_supported (required for PKCE)
-          echo ""
-          echo "Checking PKCE support..."
-          PKCE_METHODS=$(echo "$SMART_CONFIG" | jq -r '.code_challenge_methods_supported[]?' 2>/dev/null)
-          if echo "$PKCE_METHODS" | grep -q "S256"; then
-            echo "✓ PKCE S256 supported"
-            VALIDATION_RESULTS="$VALIDATION_RESULTS\n| PKCE S256 | ✓ Supported |"
+          # Parse results from the log
+          if grep -q "PASS:" inferno-output.log; then
+            PASSED=$(grep -c "✓ PASS:" inferno-output.log || echo "0")
+            FAILED=$(grep -c "✗ FAIL:" inferno-output.log || echo "0")
           else
-            echo "○ PKCE S256 not listed (may still work)"
-            VALIDATION_RESULTS="$VALIDATION_RESULTS\n| PKCE S256 | ○ Not Listed |"
+            PASSED=0
+            FAILED=0
           fi
           
           # Write summary
-          echo ""
-          echo "## SMART 2.2.0 Configuration Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## SMART 2.2.0 Compliance Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ "$VALIDATION_PASSED" = "true" ]; then
-            echo "**Status: ✓ PASSED** - All required fields present" >> $GITHUB_STEP_SUMMARY
+          if [ "$INFERNO_EXIT_CODE" -eq 0 ]; then
+            echo "**Status: ✓ PASSED**" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**Status: ✗ FAILED** - Missing required fields" >> $GITHUB_STEP_SUMMARY
+            echo "**Status: ✗ FAILED**" >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Configuration Fields" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo -e "$VALIDATION_RESULTS" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
+          echo "- Failed: $FAILED" >> $GITHUB_STEP_SUMMARY
           
-          # Also test metadata endpoint
-          echo ""
-          echo "### Step 2: FHIR Capability Statement Validation ###"
-          echo ""
-          echo "Fetching FHIR metadata..."
-          
-          METADATA=$(curl -s "http://localhost:8445/fhir/metadata" 2>&1)
-          FHIR_VERSION=$(echo "$METADATA" | jq -r '.fhirVersion // empty' 2>/dev/null)
-          
+          # Include FHIR server info
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### FHIR Server" >> $GITHUB_STEP_SUMMARY
+          echo "### FHIR Server Configuration" >> $GITHUB_STEP_SUMMARY
+          FHIR_VERSION=$(echo "$SMART_CONFIG" | jq -r '.fhirVersion // "R4"')
+          echo "- FHIR Version: $FHIR_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- Authorization Endpoint: $AUTH_EP" >> $GITHUB_STEP_SUMMARY
+          echo "- Token Endpoint: $TOKEN_EP" >> $GITHUB_STEP_SUMMARY
           
-          if [ -n "$FHIR_VERSION" ]; then
-            echo "FHIR Version: $FHIR_VERSION"
-            echo "- FHIR Version: $FHIR_VERSION" >> $GITHUB_STEP_SUMMARY
-            
-            # Check for SMART security extension
-            SMART_SECURITY=$(echo "$METADATA" | jq '.rest[0].security.extension[]? | select(.url | contains("smart-capabilities"))' 2>/dev/null)
-            if [ -n "$SMART_SECURITY" ]; then
-              echo "✓ SMART security extension present in CapabilityStatement"
-              echo "- ✓ SMART security extension present" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "○ SMART security extension not in CapabilityStatement (may be in .well-known instead)"
-              echo "- ○ SMART security via .well-known/smart-configuration" >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "Could not fetch FHIR metadata"
-            echo "- Could not verify FHIR version" >> $GITHUB_STEP_SUMMARY
-          fi
+          # Set outputs
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
           
-          echo ""
-          echo "### Step 3: Inferno Test Suite Status ###"
-          echo ""
-          
-          # Document Inferno status
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Inferno Test Suite" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The Inferno SMART App Launch test suite requires interactive OAuth authorization." >> $GITHUB_STEP_SUMMARY
-          echo "Full automated testing would require browser automation (e.g., Playwright)." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Available test groups:**" >> $GITHUB_STEP_SUMMARY
-          
-          # List available test suites from Inferno
-          echo "Fetching Inferno test suites..."
-          SUITE_INFO=$(curl -s "http://localhost:4567/api/test_suites/$TEST_SUITE" 2>&1)
-          echo "$SUITE_INFO" | jq -r '.test_groups[]? | "- **\(.title)**: `\(.id)`"' 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Could not fetch test groups" >> $GITHUB_STEP_SUMMARY
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "For interactive testing, visit the Inferno web UI at the deployed test instance." >> $GITHUB_STEP_SUMMARY
-          
-          # Set outputs based on validation
-          if [ "$VALIDATION_PASSED" = "true" ]; then
-            echo "passed=1" >> $GITHUB_OUTPUT
-            echo "failed=0" >> $GITHUB_OUTPUT
-            echo ""
-            echo "=== SMART Configuration Validation PASSED ==="
-          else
-            echo "passed=0" >> $GITHUB_OUTPUT
-            echo "failed=1" >> $GITHUB_OUTPUT
-            echo ""
-            echo "=== SMART Configuration Validation FAILED ==="
-            exit 1
-          fi
+          exit $INFERNO_EXIT_CODE
+        env:
+          INFERNO_URL: http://localhost:4567
+          FHIR_SERVER_URL: http://localhost:8445/proxy-smart-backend/hapi-fhir-server/R4
+          TEST_SUITE: ${{ env.TEST_SUITE }}
+          CLIENT_ID: inferno-test-client
+          KC_USERNAME: doctor
+          KC_PASSWORD: doctor123
 
       # Save test results
       - name: Save Test Results
@@ -532,6 +436,12 @@ jobs:
           else
             echo "{\"note\": \"No FHIR servers configured\"}" > test-results/fhir-metadata.json
           fi
+          
+          # Save Inferno test output
+          cp inferno-output.log test-results/inferno-output.log 2>/dev/null || true
+          
+          # Save Playwright screenshots if any
+          cp oauth-error.png test-results/oauth-error.png 2>/dev/null || true
           
           # Also save service logs
           docker logs keycloak > test-results/keycloak.log 2>&1 || true
