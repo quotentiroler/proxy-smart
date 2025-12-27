@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { keycloakPlugin } from '../../lib/keycloak-plugin'
+import { keycloakPlugin } from '@/lib/keycloak-plugin'
 import { 
   CommonErrorResponses, 
   CreateRoleRequest, 
@@ -9,8 +9,8 @@ import {
   type RoleResponseType,
   type SuccessResponseType,
   type ErrorResponseType
-} from '../../schemas'
-import { handleAdminError } from '../../lib/admin-error-handler'
+} from '@/schemas'
+import { handleAdminError } from '@/lib/admin-error-handler'
 
 /**
  * Healthcare Roles & Permissions Management

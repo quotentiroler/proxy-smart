@@ -19,18 +19,12 @@
       "enabled": true,
       "clientAuthenticatorType": "client-dummy",
       "redirectUris": [
-        "http://localhost:5173/*",
-        "http://localhost:3000/*",
-        "http://localhost:8445/*",
-        "https://proxy-smart-alpha.fly.dev/*",
-        "https://proxy-smart.fly.dev/*"
+        "http://localhost:*",
+        "https://p02--proxy-smart-alpha--776jg9nwd8rw.code.run/*"
       ],
       "webOrigins": [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://localhost:8445",
-        "https://proxy-smart-alpha.fly.dev",
-        "https://proxy-smart-alpha.fly.dev"
+        "http://localhost:*",
+        "https://p02--proxy-smart-alpha--776jg9nwd8rw.code.run"
       ],
       "protocol": "openid-connect",
       "publicClient": true,
@@ -62,7 +56,20 @@
         "backchannel.logout.revoke.offline.tokens": "false",
         "use.refresh.tokens": "true",
         "exclude.session.state.from.auth.response": "false"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "mcp-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "http://localhost:8445/mcp",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "clientId": "admin-service",
@@ -95,7 +102,20 @@
       ],
       "attributes": {
         "access.token.lifespan": "3600"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "mcp-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "http://localhost:8445/mcp",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "clientId": "ai-assistant-agent",
@@ -135,10 +155,23 @@
         "agent_scope": "identity-management,fhir-resource-linking,smart-app-administration,clinical-workflow-orchestration",
         "access_pattern": "hybrid-admin-clinical",
         "use.jwks.string": "true",
-        "jwks.string": "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS384\",\"kid\":\"ai-assistant-key-1\",\"n\":\"6DDWa6c-jE5aL2a_I5udMB7O4M7T-OI9VIl1qDh9OhSIejv8dgnVYQ3oY6Pgg9e_049E5W6P40ZSwN3Zi2UngqZIo0-TvSTVvti1QVYaiKS1JfE7OcW7iM3aOCMJYO1XL6xiOXkvCdsPE8I9YfaCxH2RerClEHNpGF0rJ5cgIaHmkBTO9gxNWkjfrdwUODqtzgRaZbwz3zHYq-zuV07ipWzPEQa_2Zb8RQEDf3rUx9aglQH-xCr9Kmc6itY0-frchGAdtthvv3YlXffIQqkNf3DAJZkg1ikOU2llUVpmHitNJZF1HjQUWm-Lfwk3JxRp-SpdU-jbdpiSa3pkmE2s0w\",\"e\":\"AQAB\"}]}",
+        "jwks.string": "{\"keys\":[{\"kty\":\"RSA\",\"use\":\"sig\",\"alg\":\"RS384\",\"kid\":\"ai-assistant-key-1\",\"n\":\"hi42aDhXpggFq5PS0J35VoPfaGgs7osJut8wbi1ZaMbVWnKnRsdYg1_JnNZp85L2UiAi8EzmMBISriURVPzJKdRSqIfidUq3NSp3ejJQsvPafKx775INIgUab0JVIb3rXT4-CjVVr6uEK_d44DhNbhW1b9CPE9U3qXVNoqd0sTXAlw8_aBhCJe_AZ3DQjGcggP21EL7--MIKbVkcxiODUhKDztf7esIVBeGc_ukIATIyLRKnFbx2Bp8x9COR0cqb3_WqNLsqVl8HU6nSeyU0jcCXarBWVy_muUEYm8ahgF2_4mkYUJ0Il-pcdXTciDzzYTQvN-OAe_AOVMB1nidc8Q\",\"e\":\"AQAB\"}]}",
         "token.endpoint.auth.signing.alg": "RS384",
         "access.token.lifespan": "3600"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "mcp-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "http://localhost:8445/mcp",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [

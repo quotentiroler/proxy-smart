@@ -3,7 +3,7 @@
 
 **Secure any FHIR server in minutes!** A comprehensive healthcare platform that transforms unsecured FHIR servers into SMART-compliant, OAuth 2.0 protected endpoints with enterprise-grade security, user management, and AI-powered administration.
 
-[![Version](https://img.shields.io/badge/v0.0.1-RELEASE-blue.svg)](https://github.com/quotentiroler/proxy-smart)
+[![Version](https://img.shields.io/badge/v0.0.1-alpha-blue.svg)](https://github.com/quotentiroler/proxy-smart)
 [![SMART App Launch](https://img.shields.io/badge/SMART%20App%20Launch-2.2.0-green.svg)](http://hl7.org/fhir/smart-app-launch/)
 [![FHIR](https://img.shields.io/badge/FHIR-R4%2FR4B-orange.svg)](https://hl7.org/fhir/R4/)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
@@ -264,119 +264,6 @@ graph TB
 ## 🤖 AI Assistant
 
 The platform includes an intelligent AI assistant powered by RAG (Retrieval Augmented Generation) technology through a dedicated **Model Context Protocol (MCP)** server.
-
-### Architecture
-
-```
-UI (React) → Backend (Elysia/Node.js) → MCP Server (Python/FastAPI) → OpenAI GPT-4
-                                              ↓
-                                    RAG Knowledge Base
-                                    (Platform Documentation)
-```
-
-The AI assistant is built on a **three-tier architecture**:
-
-1. **Frontend Layer** (`ui/src/components/AIChatOverlay.tsx`): Streaming chat interface with SSE
-2. **Proxy Layer** (`backend/src/routes/ai.ts`): Authentication & request forwarding
-3. **MCP Server** (`mcp-server/`): Python-based FastAPI server with RAG capabilities
-
-### 🔌 MCP (Model Context Protocol) Server
-
-The **MCP server** is a standalone Python service that handles AI interactions:
-
-- **RAG Implementation**: Vector-based semantic search over platform documentation
-- **OpenAI Integration**: Uses GPT-4 with function calling for intelligent responses
-- **Knowledge Base**: Pre-loaded chunks of SMART on FHIR platform documentation
-- **Streaming Support**: Server-Sent Events (SSE) for real-time response streaming
-- **Keycloak Authentication**: Uses SMART Backend Services (JWT) to call backend APIs
-
-**Why MCP?** Separating the AI logic into a dedicated Python server enables:
-- Better AI/ML library ecosystem (OpenAI, LangChain, vector databases)
-- Independent scaling and deployment
-- Easier integration with Claude Desktop and other MCP clients
-- Clear separation between Node.js business logic and Python AI capabilities
-
-### 🧠 Capabilities
-
-- **Navigation Guidance**: Help finding the right administrative sections
-- **Configuration Assistance**: Step-by-step setup guidance with function calling
-- **SMART on FHIR Expertise**: Deep knowledge of specifications and best practices
-- **Troubleshooting Support**: Context-aware solutions with source citations
-- **Real-time Documentation**: RAG ensures responses reflect current platform state
-- **Function Execution**: Can call backend APIs to fetch live data (users, apps, servers)
-- **Streaming Responses**: Real-time generation with reasoning transparency
-
-### 💬 Example Queries
-
-```
-"How do I register a new SMART app?"
-"What scopes do I need for patient data access?"
-"Show me the OAuth monitoring dashboard"
-"List all healthcare users in the system"  (calls backend API)
-"How do I configure launch contexts for my app?"
-"What are the security best practices?"
-"Explain the OAuth flow for EHR launch"
-```
-
-### 🔧 MCP Server Setup
-
-See [`mcp-server/README.md`](mcp-server/README.md) for detailed setup instructions.
-
-**Quick Start:**
-```bash
-cd mcp-server
-uv venv && uv sync
-uv run python src/main.py
-```
-
-**Requirements:**
-- Python 3.11+
-- OpenAI API key
-- Keycloak credentials (for backend API access)
-
-The MCP server runs on `localhost:8081` and is proxied by the backend at `/api/ai/*` endpoints.
-
-## 🛠️ Development
-
-### Project Structure
-
-```
-proxy-smart/
-├── backend/          # Node.js backend API
-├── ui/               # React admin interface
-├── test/             # Comprehensive test suites
-├── keycloak/         # Identity provider configuration
-├── docs/             # Complete documentation
-├── .github/          # CI/CD workflows
-└── scripts/          # Development and deployment scripts
-```
-
-### Development Commands
-
-```bash
-# Development
-bun run dev              # Start all development servers
-bun run dev:backend      # Backend only
-bun run dev:ui           # Frontend only
-
-# Building
-bun run build            # Build all projects
-bun run build:backend    # Build backend
-bun run build:ui         # Build frontend
-
-# Testing
-bun run test                    # Run all tests
-bun run test:smart-flows        # SMART App Launch tests
-bun run test:backend-services   # Backend API tests
-
-# API Generation
-bun run generate                # Generate client APIs
-bun run validate-api            # Validate OpenAPI specs
-
-# Version Management
-bun run version:sync            # Sync all package.json versions
-bun run version:bump patch      # Bump patch version
-```
 
 ### Docker Commands
 

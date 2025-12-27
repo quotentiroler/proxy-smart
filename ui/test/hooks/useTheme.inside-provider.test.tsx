@@ -30,8 +30,6 @@ describe('useTheme (inside ThemeProvider)', () => {
     const themeNode = screen.getByLabelText('theme')
     expect(themeNode).toBeInTheDocument()
 
-    const initial = themeNode.textContent
-
     await user.click(screen.getByRole('button', { name: /Set Dark/i }))
     expect(themeNode).toHaveTextContent('dark')
 

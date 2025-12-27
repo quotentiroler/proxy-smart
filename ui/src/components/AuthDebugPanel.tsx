@@ -22,7 +22,8 @@ export const AuthDebugPanel: React.FC = () => {
     hasOAuthState: false,
   });
 
-  const updateStorageInfo = async () => {
+  // Helper to gather storage info without causing synchronous state updates in effects
+  const getStorageInfo = async () => {
     try {
       // Check encrypted storage (new system)
       const encryptedTokenStorage = await getItem<TokenData>('openid_tokens');
@@ -36,12 +37,12 @@ export const AuthDebugPanel: React.FC = () => {
       const pkceVerifier = getSessionItem('pkce_code_verifier');
       const oauthState = getSessionItem('oauth_state');
 
-      setStorageInfo({
+      return {
         hasTokens: !!(encryptedTokenStorage || localTokenStorage),
         hasAuthState: !!(encryptedAuthStorage || localAuthStorage),
         hasPKCE: !!pkceVerifier,
         hasOAuthState: !!oauthState,
-      });
+      };
     } catch (error) {
       console.error('Failed to check storage:', error);
       // Fallback to localStorage only
@@ -50,17 +51,32 @@ export const AuthDebugPanel: React.FC = () => {
       const pkceVerifier = getSessionItem('pkce_code_verifier');
       const oauthState = getSessionItem('oauth_state');
 
-      setStorageInfo({
+      return {
         hasTokens: !!localTokenStorage,
         hasAuthState: !!localAuthStorage,
         hasPKCE: !!pkceVerifier,
         hasOAuthState: !!oauthState,
-      });
+      };
     }
   };
 
+  // Public updater for handlers/buttons
+  const updateStorageInfo = async () => {
+    const info = await getStorageInfo();
+    setStorageInfo(info);
+  };
+
   useEffect(() => {
-    updateStorageInfo();
+    let active = true;
+    // Defer state update to async callback to avoid synchronous setState in effect
+    (async () => {
+      const info = await getStorageInfo();
+      if (active) setStorageInfo(info);
+    })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleClearSessionOnly = async () => {

@@ -5,16 +5,22 @@
 **/__pycache__
 .vscode
 
+
+/backend/public/webapp
+
 # OpenAPI Generator Cache
 .openapi-generator/
 
 # OpenAPI Generator auto-generated files we don't want
-**/generated/**/.github/
-**/generated/**/.gitlab-ci.yml
-**/generated/**/.travis.yml
-**/generated/**/appveyor.yml
-**/generated/**/git_push.sh
-**/generated/**/tox.ini
+**/generated
+ui/src/lib/api-client
+**/generated_mcp
+**/generated_openapi
+**/openapi.json
+**openapitools.json
+**/.venv
+**/.pytest_cache
+**/.mypy_cache
 
 # AI Tools Cache
 .ai_tools_cache/

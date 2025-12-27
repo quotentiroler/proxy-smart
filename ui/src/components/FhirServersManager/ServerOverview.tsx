@@ -1,5 +1,5 @@
 import { ServerCard } from './ServerCard';
-import type { FhirServerWithState } from '../../lib/types/api';
+import type { FhirServerWithState } from '@/lib/types/api';
 
 interface ServerOverviewProps {
   servers: FhirServerWithState[];

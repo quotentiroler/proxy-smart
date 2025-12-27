@@ -48,21 +48,9 @@ jobs:
       uses: ./.github/actions/setup-bun-version
 
     # Install Dependencies
-    - name: Install Root Dependencies
+    - name: Install Dependencies (Workspace)
       run: |
-        echo "📦 Installing root dependencies..."
-        bun install
-
-    - name: Install Backend Dependencies
-      run: |
-        echo "📦 Installing backend dependencies..."
-        cd backend
-        bun install
-
-    - name: Install Frontend Dependencies
-      run: |
-        echo "📦 Installing frontend dependencies..."
-        cd ui
+        echo "📦 Installing all dependencies via workspace..."
         bun install
 
     # Backend Build
@@ -72,10 +60,17 @@ jobs:
         echo "🔨 Building backend..."
         cd backend
         bun run build
+    
+    - name: Generate Client APIs
+      run: |
+        echo "🔨 Generating client APIs..."
+        bun run generate:ui
 
     # Frontend Build  
-    - name: Build Frontend
+    - name: Build Frontend  
       id: frontend-build
+      env:
+        TAILWIND_DISABLE_LIGHTNINGCSS: "1"
       run: |
         echo "🔨 Building frontend..."
         cd ui
@@ -96,6 +91,8 @@ jobs:
       if: ${{ inputs.run_tests == true || inputs.run_tests == null }}
       id: frontend-test
       continue-on-error: ${{ !inputs.fail_on_test_failure }}
+      env:
+        TAILWIND_DISABLE_LIGHTNINGCSS: "1"
       run: |
         echo "🧪 Testing frontend..."
         cd ui

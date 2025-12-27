@@ -1,6 +1,10 @@
 import js from '@eslint/js'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default tseslint.config(
   // Global ignores
@@ -23,24 +27,13 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.node,
+      parserOptions: {
+        tsconfigRootDir: __dirname
+      }
     },
     rules: {
       "no-console": "warn",
       "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     },
-  },
-
-  // Backend specific config
-  {
-    files: ['backend/**/*.{js,ts}', 'ui/**/*.{js,ts}'],
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    languageOptions: {
-      ecmaVersion: 2022,
-      globals: globals.node,
-    },
-    rules: {
-      "no-console": "off", // Allow console in backend
-      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-    },
-  },
+  }
 )

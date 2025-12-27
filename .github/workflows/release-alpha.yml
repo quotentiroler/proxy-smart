@@ -34,30 +34,20 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
-  # Deploy after successful release
-  deploy-alpha:
-    name: Deploy Alpha to Fly.io
-    needs: [alpha-release]
-    uses: ./.github/workflows/deployment-strategy.yml
-    with:
-      deployment_stage: 'alpha'
-      app_version: ${{ needs.alpha-release.outputs.version }}
-      source_branch: 'develop'
-    secrets:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-      ALPHA_DB_PASSWORD: ${{ secrets.ALPHA_DB_PASSWORD }}
-      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+  # Note: Deployment is handled automatically by Northflank
+  # When code is pushed to 'develop', Northflank detects the commit and deploys automatically
+  # No explicit deploy step needed!
 
   # Test the deployed alpha application
-  test-alpha-deployment:
-    name: Test Alpha Deployment
-    needs: [alpha-release, deploy-alpha]
-    uses: ./.github/workflows/testing-strategy.yml
-    with:
-      test_stage: 'alpha'
-      deployment_target: ${{ needs.deploy-alpha.outputs.deployment_target }}
-      fhir_server_url: ${{ needs.deploy-alpha.outputs.fhir_server_url }}
-      keycloak_url: ${{ needs.deploy-alpha.outputs.keycloak_url }}
-      app_version: ${{ needs.alpha-release.outputs.version }}
-    secrets:
-      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+  #test-alpha-deployment:
+  #  name: Test Alpha Deployment
+  #  needs: [alpha-release]
+  #  uses: ./.github/workflows/testing-strategy.yml
+  #  with:
+  #    test_stage: 'alpha'
+   #   deployment_target: 'northflank'
+    #  fhir_server_url: 'https://p02--proxy-smart-alpha--776jg9nwd8rw.code.run/proxy-smart-backend/hapi-fhir-server/R4'
+    #  keycloak_url: 'https://p01--keycloak-alpha--776jg9nwd8rw.code.run'
+    #  app_version: ${{ needs.alpha-release.outputs.version }}
+    #secrets:
+    #  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}

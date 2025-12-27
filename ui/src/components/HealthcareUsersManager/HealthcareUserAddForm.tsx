@@ -14,6 +14,7 @@ import type {
   FhirServer,
   HealthcareUserFormData
 } from '@/lib/types/api';
+import { createPersonResource } from '@/services/fhirService';
 
 interface HealthcareUserAddFormProps {
   isOpen: boolean;
@@ -72,7 +73,7 @@ export function HealthcareUserAddForm({
     setFormData(prev => ({
       ...prev,
       fhirPersons: [...(prev.fhirPersons || []), {
-        serverName: '',
+        serverId: '',
         personId: '',
         display: '',
         created: new Date().toISOString()
@@ -96,11 +97,25 @@ export function HealthcareUserAddForm({
     }));
   };
 
-  const createPersonInFhir = async (serverName: string, userData: { firstName: string; lastName: string; email: string }) => {
-    // Mock implementation - generate ID at execution time, not render time
-    const mockPersonId = `Person/${crypto.randomUUID()}`;
-    console.log(`Creating Person resource in ${serverName}:`, userData);
-    return mockPersonId;
+  const createPersonInFhir = async (serverId: string, userData: { firstName: string; lastName: string; email: string }) => {
+    try {
+      // Find the server to get its FHIR version
+      const server = fhirServers.find(s => s.id === serverId);
+      if (!server) {
+        throw new Error(`Server not found: ${serverId}`);
+      }
+      
+      const result = await createPersonResource(serverId, server.fhirVersion, {
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email
+      });
+      
+      return result.id;
+    } catch (error) {
+      console.error(`Failed to create Person resource in ${serverId}:`, error);
+      throw error;
+    }
   };
 
   if (!isOpen) return null;
@@ -203,15 +218,15 @@ export function HealthcareUserAddForm({
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground">FHIR Server</Label>
                       <Select
-                        value={association.serverName}
-                        onValueChange={(value) => updateFhirPersonAssociation(index, 'serverName', value)}
+                        value={association.serverId}
+                        onValueChange={(value) => updateFhirPersonAssociation(index, 'serverId', value)}
                       >
                         <SelectTrigger className="rounded-lg">
                           <SelectValue placeholder="Select FHIR server" />
                         </SelectTrigger>
                         <SelectContent>
                           {fhirServers.map(server => (
-                            <SelectItem key={server.name} value={server.name}>
+                            <SelectItem key={server.id} value={server.id}>
                               <div className="flex items-center space-x-2">
                                 <Server className="w-4 h-4" />
                                 <span>{server.name}</span>
@@ -237,8 +252,8 @@ export function HealthcareUserAddForm({
                           variant="outline"
                           size="sm"
                           onClick={async () => {
-                            if (association.serverName) {
-                              const personId = await createPersonInFhir(association.serverName, {
+                            if (association.serverId) {
+                              const personId = await createPersonInFhir(association.serverId, {
                                 firstName: formData.firstName,
                                 lastName: formData.lastName,
                                 email: formData.email
@@ -246,7 +261,7 @@ export function HealthcareUserAddForm({
                               updateFhirPersonAssociation(index, 'personId', personId);
                             }
                           }}
-                          disabled={!association.serverName}
+                          disabled={!association.serverId}
                           className="rounded-lg"
                         >
                           <Database className="w-4 h-4 mr-1" />

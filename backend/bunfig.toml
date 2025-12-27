@@ -1,0 +1,11 @@
+# Bun Configuration for Backend
+# https://bun.sh/docs/runtime/configuration
+
+[loader]
+# Don't analyze HTML files for imports
+".html" = "file"
+
+[test]
+# Test configuration
+concurrentTestGlob = "**/test/**/*.test.ts"
+concurrent = true

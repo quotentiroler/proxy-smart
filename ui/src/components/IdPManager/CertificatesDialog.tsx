@@ -8,17 +8,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { FileText, Key, Shield, CheckCircle, AlertCircle } from 'lucide-react';
-
-interface IdP {
-  id: string;
-  name: string;
-}
+import type { IdentityProviderWithStats } from '@/lib/types/api';
 
 interface CertificatesDialogProps {
   isOpen: boolean;
   onClose: () => void;
   showCertificates: string | null;
-  idps: IdP[];
+  idps: IdentityProviderWithStats[];
 }
 
 export function CertificatesDialog({ 
@@ -27,7 +23,7 @@ export function CertificatesDialog({
   showCertificates, 
   idps 
 }: CertificatesDialogProps) {
-  const idp = idps.find(i => i.id === showCertificates);
+  const idp = idps.find((i) => (i.alias ?? '') === showCertificates);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -42,7 +38,7 @@ export function CertificatesDialog({
                 Identity Provider Certificates
               </DialogTitle>
               <DialogDescription className="text-muted-foreground font-medium mt-1">
-                View and manage certificates for {idp?.name}
+                View and manage certificates for {idp?.displayName ?? idp?.alias ?? 'the selected provider'}
               </DialogDescription>
             </div>
           </div>

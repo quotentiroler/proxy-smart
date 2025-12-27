@@ -9,25 +9,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Edit, Shield } from 'lucide-react';
-
-interface IdP {
-  id: string;
-  name: string;
-  type: string;
-  provider: string;
-  entityId: string;
-  ssoUrl: string;
-  status: 'active' | 'inactive';
-  userCount: number;
-  lastUsed: string;
-}
+import type { IdentityProviderFormData } from '@/lib/types/api';
 
 interface IdPEditDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpdate: (idp: IdP) => Promise<void>;
-  editingIdp: IdP | null;
-  setEditingIdp: (idp: IdP | null) => void;
+  onUpdate: (idp: IdentityProviderFormData) => Promise<void>;
+  editingIdp: IdentityProviderFormData | null;
+  setEditingIdp: (
+    idp: IdentityProviderFormData | null
+      | ((previous: IdentityProviderFormData | null) => IdentityProviderFormData | null)
+  ) => void;
 }
 
 export function IdPEditDialog({ 
@@ -38,6 +30,22 @@ export function IdPEditDialog({
   setEditingIdp 
 }: IdPEditDialogProps) {
   if (!editingIdp) return null;
+
+  const updateConfig = <K extends keyof IdentityProviderFormData['config']>(
+    key: K,
+    value: IdentityProviderFormData['config'][K]
+  ) => {
+    setEditingIdp((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        config: {
+          ...prev.config,
+          [key]: value,
+        },
+      };
+    });
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -52,7 +60,7 @@ export function IdPEditDialog({
                 Edit Identity Provider
               </DialogTitle>
               <DialogDescription className="text-muted-foreground font-medium mt-1">
-                Modify the configuration for {editingIdp.name}
+                Modify the configuration for {editingIdp.displayName ?? editingIdp.alias}
               </DialogDescription>
             </div>
           </div>
@@ -70,32 +78,41 @@ export function IdPEditDialog({
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
-                <Label htmlFor="edit-name" className="text-sm font-semibold text-foreground">Provider Name</Label>
+                <Label htmlFor="edit-displayName" className="text-sm font-semibold text-foreground">Display Name</Label>
                 <Input
-                  id="edit-name"
-                  value={editingIdp.name}
-                  onChange={(e) => setEditingIdp({ ...editingIdp, name: e.target.value })}
+                  id="edit-displayName"
+                  value={editingIdp.displayName ?? ''}
+                  onChange={(e) => setEditingIdp({ ...editingIdp, displayName: e.target.value })}
                   className="rounded-xl border-border focus:border-ring focus:ring-ring shadow-sm"
                 />
               </div>
               <div className="space-y-3">
-                <Label htmlFor="edit-provider" className="text-sm font-semibold text-foreground">Provider Type</Label>
+                <Label htmlFor="edit-alias" className="text-sm font-semibold text-foreground">Alias</Label>
                 <Input
-                  id="edit-provider"
-                  value={editingIdp.provider}
-                  onChange={(e) => setEditingIdp({ ...editingIdp, provider: e.target.value })}
-                  className="rounded-xl border-border focus:border-ring focus:ring-ring shadow-sm"
+                  id="edit-alias"
+                  value={editingIdp.alias}
+                  readOnly
+                  className="rounded-xl border-border focus:border-ring focus:ring-ring shadow-sm bg-muted"
                 />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <div className="space-y-3">
+                <Label htmlFor="edit-vendor" className="text-sm font-semibold text-foreground">Provider Vendor</Label>
+                <Input
+                  id="edit-vendor"
+                  value={editingIdp.vendorName ?? ''}
+                  onChange={(e) => setEditingIdp({ ...editingIdp, vendorName: e.target.value })}
+                  className="rounded-xl border-border focus:border-ring focus:ring-ring shadow-sm"
+                />
+              </div>
+              <div className="space-y-3">
                 <Label htmlFor="edit-type" className="text-sm font-semibold text-foreground">Authentication Type</Label>
                 <select
                   id="edit-type"
                   className="flex h-12 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm shadow-sm focus:border-ring focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-all duration-200"
-                  value={editingIdp.type}
-                  onChange={(e) => setEditingIdp({ ...editingIdp, type: e.target.value })}
+                  value={(editingIdp.providerId ?? 'saml').toUpperCase()}
+                  onChange={(e) => setEditingIdp({ ...editingIdp, providerId: e.target.value.toLowerCase() })}
                 >
                   <option value="SAML">SAML 2.0</option>
                   <option value="OAuth2">OAuth 2.0</option>
@@ -107,8 +124,8 @@ export function IdPEditDialog({
                 <Label htmlFor="edit-entityId" className="text-sm font-semibold text-foreground">Entity ID / Client ID</Label>
                 <Input
                   id="edit-entityId"
-                  value={editingIdp.entityId}
-                  onChange={(e) => setEditingIdp({ ...editingIdp, entityId: e.target.value })}
+                  value={editingIdp.config.entityId ?? ''}
+                  onChange={(e) => updateConfig('entityId', e.target.value)}
                   className="rounded-xl border-border focus:border-ring focus:ring-ring shadow-sm"
                 />
               </div>
@@ -117,10 +134,24 @@ export function IdPEditDialog({
               <Label htmlFor="edit-ssoUrl" className="text-sm font-semibold text-foreground">SSO URL / Authorization Endpoint</Label>
               <Input
                 id="edit-ssoUrl"
-                value={editingIdp.ssoUrl}
-                onChange={(e) => setEditingIdp({ ...editingIdp, ssoUrl: e.target.value })}
+                value={editingIdp.config.singleSignOnServiceUrl ?? ''}
+                onChange={(e) => updateConfig('singleSignOnServiceUrl', e.target.value)}
                 className="rounded-xl border-border focus:border-ring focus:ring-ring shadow-sm"
               />
+            </div>
+          </div>
+
+          {/* Security Toggle */}
+          <div className="bg-card/50 p-6 rounded-xl border border-border">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="edit-enabled"
+                checked={editingIdp.enabled ?? true}
+                onChange={(e) => setEditingIdp({ ...editingIdp, enabled: e.target.checked })}
+                className="rounded border-border"
+              />
+              <Label htmlFor="edit-enabled" className="text-sm text-foreground">Enabled</Label>
             </div>
           </div>
 
