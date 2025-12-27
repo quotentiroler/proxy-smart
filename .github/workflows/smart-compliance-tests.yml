@@ -33,7 +33,7 @@ jobs:
     
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: keycloak
           POSTGRES_PASSWORD: keycloak
@@ -48,7 +48,7 @@ jobs:
       
       # Inferno's postgres
       inferno-db:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: inferno
           POSTGRES_PASSWORD: inferno
@@ -63,7 +63,7 @@ jobs:
       
       # Redis for Inferno
       redis:
-        image: redis:7-alpine
+        image: redis:8-alpine
         ports:
           - 6379:6379
         options: >-
@@ -74,17 +74,18 @@ jobs:
       
       # HAPI FHIR Server - standard R4 test server
       hapi-fhir:
-        image: hapiproject/hapi:latest
+        image: hapiproject/hapi:v8.6.0-1
         ports:
           - 8081:8080
         env:
           hapi.fhir.default_encoding: json
           hapi.fhir.fhir_version: R4
         options: >-
-          --health-cmd "curl -sf http://localhost:8080/fhir/metadata || exit 1"
-          --health-interval 10s
+          --health-cmd "wget -q -O /dev/null http://localhost:8080/fhir/metadata || exit 1"
+          --health-interval 15s
           --health-timeout 10s
           --health-retries 10
+          --health-start-period 45s
 
     steps:
       - name: Checkout repository
