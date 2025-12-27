@@ -293,10 +293,11 @@ jobs:
           BODY=$(echo "$SESSION_RESPONSE" | sed '$d')
           
           echo "Session creation HTTP code: $HTTP_CODE"
-          echo "Session response body: $BODY"
+          echo "Session response (first 500 chars): ${BODY:0:500}"
           
           # Parse session ID from body (not full response)
-          SESSION=$(echo "$BODY" | jq -r '.id // empty' 2>/dev/null || echo "")
+          SESSION=$(echo "$BODY" | jq -r '.id // empty' 2>/dev/null)
+          echo "Parsed session ID: $SESSION"
           
           if [ -z "$SESSION" ] || [ "$SESSION" = "null" ]; then
             echo "::warning::Could not create test session. HTTP: $HTTP_CODE"
