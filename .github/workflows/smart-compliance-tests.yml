@@ -80,7 +80,9 @@ jobs:
         uses: ./.github/actions/setup-bun-version
 
       - name: Install dependencies
-        run: bun install
+        run: |
+          rm -rf node_modules */node_modules || true
+          bun install --no-cache
 
       - name: Build Backend
         run: |
