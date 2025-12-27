@@ -232,7 +232,7 @@ function buildStandaloneSmartAuthInfo() {
   });
 }
 
-async function runWellKnownTests(sessionId, browser) {
+async function runWellKnownTests(sessionId) {
   console.log('\n=== Running SMART Discovery Tests ===\n');
   
   // The Standalone Launch group expects url and standalone_smart_auth_info inputs
@@ -269,7 +269,7 @@ async function runWellKnownTests(sessionId, browser) {
       if (groups.length > 0) {
         console.log(`No discovery test group found, trying first group: ${groups[0].id}`);
         const run = await runTestGroup(sessionId, groups[0].id, inputs);
-        return await waitForSimpleTestCompletion(sessionId, run.id, browser);
+        return await waitForSimpleTestCompletion(sessionId, run.id);
       }
       console.log('No test groups available');
       return null;
@@ -278,7 +278,7 @@ async function runWellKnownTests(sessionId, browser) {
     console.log(`Found test group: ${discoveryGroup.id} - ${discoveryGroup.title}`);
     
     const run = await runTestGroup(sessionId, discoveryGroup.id, inputs);
-    return await waitForSimpleTestCompletion(sessionId, run.id, browser);
+    return await waitForSimpleTestCompletion(sessionId, run.id);
     
   } catch (error) {
     console.error('Discovery tests error:', error.message);
@@ -286,115 +286,29 @@ async function runWellKnownTests(sessionId, browser) {
   }
 }
 
-async function waitForSimpleTestCompletion(sessionId, runId, browser = null) {
-  const maxWait = 180000; // 3 minutes
+async function waitForSimpleTestCompletion(sessionId, runId) {
+  const maxWait = 120000; // 2 minutes
   const startTime = Date.now();
-  let page = null;
   
   while (Date.now() - startTime < maxWait) {
     const response = await fetch(`${INFERNO_URL}/api/test_sessions/${sessionId}/test_runs/${runId}`);
     const runStatus = await response.json();
     
-    console.log(`  Test run status: ${runStatus.status}`);
-    
     if (runStatus.status === 'done' || runStatus.status === 'error' || runStatus.status === 'cancelled') {
       console.log(`Test completed with status: ${runStatus.status}`);
-      if (page) await page.close();
       return runStatus;
-    }
-    
-    // Handle OAuth waiting status
-    if (runStatus.status === 'waiting' && browser) {
-      console.log('Test is waiting for OAuth - looking for authorization URL...');
-      
-      // Log the full waiting result for debugging
-      const results = runStatus.results || [];
-      const waitingResults = results.filter(r => r.result === 'wait');
-      console.log(`Found ${waitingResults.length} waiting results`);
-      
-      for (const result of waitingResults) {
-        console.log(`Wait result: ${JSON.stringify(result, null, 2).substring(0, 1000)}`);
-        
-        // Check for authorization URL in result messages or inputs
-        // Inferno stores the authorization link in the result
-        if (result.messages) {
-          for (const msg of result.messages) {
-            const msgText = msg.message || '';
-            // Look for URLs in the message text
-            const urlMatch = msgText.match(/https?:\/\/[^\s<>"]+(?:authorize|\/auth\/)[^\s<>"]+/);
-            if (urlMatch) {
-              console.log(`Found OAuth URL in message: ${urlMatch[0]}`);
-              if (!page) {
-                page = await browser.newPage();
-              }
-              await handleOAuthFlow(page, urlMatch[0]);
-              break;
-            }
-          }
-        }
-        
-        // Also check requests
-        const requests = result.requests || [];
-        for (const req of requests) {
-          if (req.direction === 'outgoing' && req.url && 
-              (req.url.includes('authorize') || req.url.includes('/auth/'))) {
-            console.log(`Found OAuth authorization URL in request: ${req.url}`);
-            if (!page) {
-              page = await browser.newPage();
-            }
-            await handleOAuthFlow(page, req.url);
-            break;
-          }
-        }
-        
-        // Check if there's an inputs field with redirect_uri or authorization_uri
-        if (result.inputs) {
-          for (const input of result.inputs) {
-            if (input.name && input.name.includes('auth') && input.value && input.value.startsWith('http')) {
-              console.log(`Found OAuth URL in inputs: ${input.value}`);
-              if (!page) {
-                page = await browser.newPage();
-              }
-              await handleOAuthFlow(page, input.value);
-              break;
-            }
-          }
-        }
-      }
-      
-      // If we still haven't found the URL, try to visit Inferno's UI to find it
-      if (!page) {
-        console.log('No OAuth URL found in API response, checking Inferno UI...');
-        page = await browser.newPage();
-        // Visit the test session page to find the authorization link
-        const sessionUrl = `${INFERNO_URL}/${TEST_SUITE}/${sessionId}`;
-        console.log(`Visiting: ${sessionUrl}`);
-        await page.goto(sessionUrl, { waitUntil: 'networkidle', timeout: 30000 });
-        
-        // Look for a link containing "authorize" or the redirect endpoint
-        const authLink = await page.$('a[href*="authorize"], a[href*="/redirect"]');
-        if (authLink) {
-          const href = await authLink.getAttribute('href');
-          console.log(`Found auth link in UI: ${href}`);
-          await handleOAuthFlow(page, href);
-        } else {
-          console.log('No authorization link found in Inferno UI');
-        }
-      }
     }
     
     // Log current progress
     if (runStatus.results && runStatus.results.length > 0) {
       const passed = runStatus.results.filter(r => r.result === 'pass').length;
       const failed = runStatus.results.filter(r => r.result === 'fail').length;
-      const waiting = runStatus.results.filter(r => r.result === 'wait').length;
-      console.log(`  Progress: ${passed} passed, ${failed} failed, ${waiting} waiting, ${runStatus.results.length} total`);
+      console.log(`  Progress: ${passed} passed, ${failed} failed, ${runStatus.results.length} total`);
     }
     
-    await sleep(3000);
+    await sleep(2000);
   }
   
-  if (page) await page.close();
   throw new Error('Test run timed out');
 }
 
@@ -480,8 +394,8 @@ async function main() {
     // Create test session
     const session = await createTestSession();
     
-    // Run well-known configuration tests (may require OAuth for standalone launch)
-    const wellKnownResult = await runWellKnownTests(session.id, browser);
+    // Run well-known configuration tests (no OAuth needed)
+    const wellKnownResult = await runWellKnownTests(session.id);
     
     // Run standalone patient tests (requires OAuth)
     // const standaloneResult = await runStandalonePatientTests(browser, session.id);
