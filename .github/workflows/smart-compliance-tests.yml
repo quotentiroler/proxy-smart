@@ -317,26 +317,33 @@ jobs:
           SUITE_INFO=$(curl -s "http://localhost:4567/api/test_suites/$TEST_SUITE" 2>&1)
           echo "Suite info response: ${SUITE_INFO:0:200}..."
           
-          FIRST_GROUP=$(echo "$SUITE_INFO" | jq -r '.test_groups[0].id // empty' 2>/dev/null || echo "")
+          # List all test groups
+          echo "Available test groups:"
+          echo "$SUITE_INFO" | jq -r '.test_groups[] | "  - \(.id): \(.title)"' 2>/dev/null || echo "Could not list groups"
           
-          if [ -z "$FIRST_GROUP" ] || [ "$FIRST_GROUP" = "null" ]; then
-            echo "::warning::Could not find test groups in suite"
-            echo "Full suite info: $SUITE_INFO"
-            exit 0
-          fi
+          # For CI, we run the discovery tests which don't require interactive OAuth
+          # The full OAuth flows (Standalone Launch, EHR Launch) require user interaction
+          # and cannot be automated in CI without browser automation
+          #
+          # Test groups available:
+          # - smart_stu2_2-smart_full_standalone_launch: Requires interactive OAuth (NOT for CI)
+          # - smart_stu2_2-smart_full_ehr_launch: Requires interactive OAuth (NOT for CI)  
+          # - smart_stu2_2-smart_backend_services: Uses client_credentials (CI-compatible with backend client)
+          # - smart_discovery_stu2_2: Tests .well-known endpoints only (CI-compatible)
           
-          echo "Running test group: $FIRST_GROUP"
+          # Find the discovery test group nested inside standalone launch
+          DISCOVERY_GROUP="${TEST_SUITE}-smart_full_standalone_launch-smart_discovery_stu2_2"
+          echo "Running Discovery tests: $DISCOVERY_GROUP"
           
-          # Run tests with inputs - Note: standalone_smart_auth_info is a complex auth object
-          echo "Starting test run..."
+          # Run discovery tests which verify .well-known/smart-configuration
+          echo "Starting test run for discovery tests..."
           RUN_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:4567/api/test_runs" \
             -H "Content-Type: application/json" \
             -d "{
               \"test_session_id\": \"$SESSION\",
-              \"test_group_id\": \"$FIRST_GROUP\",
+              \"test_group_id\": \"$DISCOVERY_GROUP\",
               \"inputs\": [
-                {\"name\": \"url\", \"value\": \"http://localhost:8445/fhir\"},
-                {\"name\": \"standalone_smart_auth_info\", \"value\": \"{\\\"auth_type\\\": \\\"public\\\", \\\"requested_scopes\\\": \\\"launch/patient openid fhirUser offline_access patient/*.rs\\\", \\\"pkce_support\\\": \\\"enabled\\\", \\\"pkce_code_challenge_method\\\": \\\"S256\\\", \\\"auth_request_method\\\": \\\"GET\\\", \\\"use_discovery\\\": \\\"true\\\"}\"}
+                {\"name\": \"url\", \"value\": \"http://localhost:8445/fhir\"}
               ]
             }" 2>&1)
           
@@ -356,12 +363,19 @@ jobs:
           echo "Started test run: $RUN"
           echo "run_id=$RUN" >> $GITHUB_OUTPUT
           
-          # Poll for completion (max 10 minutes)
-          for i in {1..120}; do
+          # Poll for completion (max 2 minutes - discovery tests should complete quickly)
+          for i in {1..24}; do
             STATUS=$(curl -s "http://localhost:4567/api/test_runs/$RUN" 2>/dev/null | jq -r '.status // "unknown"' 2>/dev/null || echo "error")
-            echo "Test status ($i/120): $STATUS"
+            echo "Test status ($i/24): $STATUS"
             
             if [ "$STATUS" = "done" ] || [ "$STATUS" = "error" ]; then
+              break
+            fi
+            
+            # Check if tests are waiting for user input (they shouldn't for discovery)
+            WAITING=$(curl -s "http://localhost:4567/api/test_runs/$RUN" 2>/dev/null | jq -r '.status' 2>/dev/null || echo "")
+            if [ "$WAITING" = "waiting" ]; then
+              echo "::warning::Tests are waiting for user input - this test group may require interactive OAuth"
               break
             fi
             
