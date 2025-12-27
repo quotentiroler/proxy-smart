@@ -193,7 +193,6 @@ jobs:
           # Point to HAPI FHIR server running in GitHub Actions service container
           FHIR_SERVER_BASE: http://localhost:8081/fhir
 
-      # Setup Ruby and Inferno
       # Setup Node.js for Playwright
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -202,8 +201,15 @@ jobs:
 
       - name: Install Playwright
         run: |
+          # Install Playwright in a separate directory to avoid workspace package.json issues
+          mkdir -p /tmp/playwright-setup
+          cd /tmp/playwright-setup
+          npm init -y
           npm install playwright
           npx playwright install chromium --with-deps
+          # Copy playwright to workspace node_modules for script access
+          mkdir -p $GITHUB_WORKSPACE/node_modules
+          cp -r node_modules/playwright* $GITHUB_WORKSPACE/node_modules/ || true
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -359,9 +365,12 @@ jobs:
           echo ""
           echo "### Step 2: Running Inferno Tests with Playwright ###"
           
-          # Run the Playwright-automated Inferno test script
-          node .github/scripts/inferno-oauth-automation.js 2>&1 | tee inferno-output.log
+          # Copy the script to the Playwright directory and run it from there
+          cp .github/scripts/inferno-oauth-automation.js /tmp/playwright-setup/
+          cd /tmp/playwright-setup
+          node inferno-oauth-automation.js 2>&1 | tee $GITHUB_WORKSPACE/inferno-output.log
           INFERNO_EXIT_CODE=${PIPESTATUS[0]}
+          cd $GITHUB_WORKSPACE
           
           # Parse results from the log
           if grep -q "PASS:" inferno-output.log; then
