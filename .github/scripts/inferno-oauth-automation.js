@@ -288,30 +288,47 @@ async function runWellKnownTests(sessionId) {
 }
 
 async function waitForSimpleTestCompletion(sessionId, runId) {
-  const maxWait = 120000; // 2 minutes
+  const maxWait = 180000; // 3 minutes
   const startTime = Date.now();
+  let pollCount = 0;
+  
+  console.log(`Waiting for test run ${runId} to complete (timeout: 3 minutes)...`);
   
   while (Date.now() - startTime < maxWait) {
+    pollCount++;
     // The correct API endpoint is /api/test_runs/:id?include_results=true
     const response = await fetch(`${INFERNO_URL}/api/test_runs/${runId}?include_results=true`);
     if (!response.ok) {
+      console.log(`  [Poll #${pollCount}] API error: ${response.status} - ${response.statusText}`);
       throw new Error(`Failed to get test run status: ${response.status} - ${response.statusText}`);
     }
     const runStatus = await response.json();
+    
+    console.log(`  [Poll #${pollCount}] Status: ${runStatus.status}`);
     
     if (runStatus.status === 'done' || runStatus.status === 'error' || runStatus.status === 'cancelled') {
       console.log(`Test completed with status: ${runStatus.status}`);
       return runStatus;
     }
     
+    // Handle waiting status (OAuth required)
+    if (runStatus.status === 'waiting') {
+      console.log(`  Test is waiting for user action (OAuth flow)...`);
+      const waitResults = (runStatus.results || []).filter(r => r.result === 'wait');
+      if (waitResults.length > 0) {
+        console.log(`  Found ${waitResults.length} waiting result(s)`);
+      }
+    }
+    
     // Log current progress
     if (runStatus.results && runStatus.results.length > 0) {
       const passed = runStatus.results.filter(r => r.result === 'pass').length;
       const failed = runStatus.results.filter(r => r.result === 'fail').length;
-      console.log(`  Progress: ${passed} passed, ${failed} failed, ${runStatus.results.length} total`);
+      const waiting = runStatus.results.filter(r => r.result === 'wait').length;
+      console.log(`  Progress: ${passed} passed, ${failed} failed, ${waiting} waiting, ${runStatus.results.length} total`);
     }
     
-    await sleep(2000);
+    await sleep(3000); // Poll every 3 seconds
   }
   
   throw new Error('Test run timed out');
