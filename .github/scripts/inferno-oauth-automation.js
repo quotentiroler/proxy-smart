@@ -283,7 +283,7 @@ async function runWellKnownTests(sessionId) {
     
   } catch (error) {
     console.error('Discovery tests error:', error.message);
-    return null;
+    throw error; // Propagate error to fail the workflow
   }
 }
 
@@ -434,10 +434,13 @@ async function main() {
       fs.appendFileSync(process.env.GITHUB_OUTPUT, `total=${summary.total}\n`);
     }
     
-    // Exit with error if any tests failed
-    if (summary.failed > 0 || summary.errors > 0) {
+    // Exit with error if any tests failed OR no tests ran
+    if (summary.failed > 0 || summary.errors > 0 || summary.total === 0) {
+      console.error('\n❌ Tests failed: ' + (summary.total === 0 ? 'No tests completed' : `${summary.failed} failed, ${summary.errors} errors`));
       process.exit(1);
     }
+    
+    console.log('\n✅ All tests passed!');
     
   } catch (error) {
     console.error('Test execution failed:', error.message);
