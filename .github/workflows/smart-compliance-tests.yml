@@ -715,7 +715,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Add and commit report
+          # Checkout develop branch to push report (workflow runs on detached HEAD from tag)
+          git fetch origin develop
+          git checkout develop
+          
+          # Re-add report directory after branch switch
           git add "$REPORT_DIR"
           git diff --staged --quiet || git commit -m "chore(testing): update ${TEST_STAGE} SMART compliance report [skip ci]
           
@@ -724,8 +728,8 @@ jobs:
           Failed: ${{ steps.inferno-tests.outputs.failed || 0 }}
           Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
-          # Push changes
-          git push || echo "Failed to push report - may require write permissions"
+          # Push changes to develop
+          git push origin develop || echo "Failed to push report - may require write permissions"
         env:
           TEST_STAGE: ${{ env.TEST_STAGE }}
           TEST_SUITE: ${{ env.TEST_SUITE }}
