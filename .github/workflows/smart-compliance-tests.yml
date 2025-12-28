@@ -124,8 +124,18 @@ jobs:
           hapi.fhir.fhir_version: R4
 
     steps:
+      # Generate GitHub App token to bypass branch protection for committing reports
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Load test configuration
         id: config
