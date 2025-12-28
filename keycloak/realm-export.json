@@ -15,7 +15,14 @@
   "offlineSessionIdleTimeout": 2592000,
   "offlineSessionMaxLifespan": 5184000,
   "offlineSessionMaxLifespanEnabled": false,
-  "defaultRoles": ["user", "offline_access"],
+  "defaultRole": {
+    "name": "default-roles-proxy-smart",
+    "description": "${role_default-roles}",
+    "composite": true,
+    "composites": {
+      "realm": ["offline_access", "user"]
+    }
+  },
   "clientScopes": [
     {
       "name": "launch/patient",
