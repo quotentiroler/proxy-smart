@@ -315,18 +315,12 @@ jobs:
               -d '{"realm": "proxy-smart", "enabled": true}'
           fi
           
-          # Create SMART/FHIR client scopes for the realm
-          echo "Creating SMART client scopes..."
-          SMART_SCOPES=("launch/patient" "patient/*.read" "patient/*.write" "user/*.read" "user/*.write" "fhirUser" "launch" "online_access")
-          for SCOPE in "${SMART_SCOPES[@]}"; do
-            echo "  Creating scope: $SCOPE"
-            curl -s -X POST "http://localhost:8080/admin/realms/proxy-smart/client-scopes" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "{\"name\": \"$SCOPE\", \"protocol\": \"openid-connect\", \"attributes\": {\"include.in.token.scope\": \"true\", \"display.on.consent.screen\": \"true\"}}" > /dev/null 2>&1 || true
-          done
+          # Note: SMART scopes like launch/patient, patient/*.read are NOT created in Keycloak.
+          # The proxy-smart backend handles SMART scope translation automatically:
+          # - /auth/authorize translates SMART scopes to OIDC scopes for Keycloak
+          # - /auth/token restores SMART scopes in the token response
           
-          # Create client
+          # Create client with standard OIDC scopes (proxy handles SMART scopes)
           echo "Creating Inferno client..."
           RESULT=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:8080/admin/realms/proxy-smart/clients" \
             -H "Authorization: Bearer $TOKEN" \
@@ -346,7 +340,7 @@ jobs:
               ],
               "webOrigins": ["http://localhost:4567", "*"],
               "defaultClientScopes": ["openid", "profile", "email", "web-origins", "acr", "roles"],
-              "optionalClientScopes": ["offline_access", "address", "phone", "microprofile-jwt", "launch/patient", "patient/*.read", "fhirUser", "launch", "online_access"],
+              "optionalClientScopes": ["offline_access", "address", "phone", "microprofile-jwt"],
               "attributes": {
                 "pkce.code.challenge.method": "S256",
                 "oauth2.device.authorization.grant.enabled": "false",
@@ -388,6 +382,25 @@ jobs:
             echo "Test user created (or already exists)"
           else
             echo "User creation response: $USER_HTTP"
+          fi
+          
+          # Assign offline_access role to the user for refresh token support
+          echo "Assigning offline_access role to test user..."
+          USER_ID=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users?username=testuser" \
+            -H "Authorization: Bearer $TOKEN" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data[0]['id'] if data else '')")
+          
+          if [ -n "$USER_ID" ]; then
+            OFFLINE_ROLE=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/roles/offline_access" \
+              -H "Authorization: Bearer $TOKEN" 2>/dev/null || echo "")
+            if [ -n "$OFFLINE_ROLE" ]; then
+              curl -s -X POST "http://localhost:8080/admin/realms/proxy-smart/users/$USER_ID/role-mappings/realm" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "[$OFFLINE_ROLE]" > /dev/null 2>&1
+              echo "Offline access role assigned to user"
+            else
+              echo "offline_access role not found, skipping"
+            fi
           fi
 
       # Run Inferno tests via Playwright automation

@@ -20,6 +20,66 @@ import {
   
 } from '@/schemas'
 
+// OIDC scopes that Keycloak understands natively
+const OIDC_SCOPES = new Set([
+  'openid',
+  'profile', 
+  'email',
+  'address',
+  'phone',
+  'offline_access',
+  'roles',
+  'web-origins',
+  'microprofile-jwt',
+  'acr'
+])
+
+/**
+ * Separate SMART scopes from OIDC scopes
+ * Returns { oidcScopes: string[], smartScopes: string[] }
+ */
+function separateScopes(scopeString: string): { oidcScopes: string[], smartScopes: string[] } {
+  const scopes = scopeString.split(' ').filter(s => s.length > 0)
+  const oidcScopes: string[] = []
+  const smartScopes: string[] = []
+  
+  for (const scope of scopes) {
+    if (OIDC_SCOPES.has(scope)) {
+      oidcScopes.push(scope)
+    } else {
+      smartScopes.push(scope)
+    }
+  }
+  
+  // Always include openid for OIDC compliance
+  if (!oidcScopes.includes('openid')) {
+    oidcScopes.unshift('openid')
+  }
+  
+  return { oidcScopes, smartScopes }
+}
+
+/**
+ * Extract original SMART scopes from augmented state parameter
+ * State format: originalState|base64url(originalScopes)
+ */
+function extractScopesFromState(state: string | undefined): { originalState: string | undefined, scopes: string | undefined } {
+  if (!state || !state.includes('|')) {
+    return { originalState: state, scopes: undefined }
+  }
+  
+  const pipeIndex = state.lastIndexOf('|')
+  const originalState = state.substring(0, pipeIndex)
+  const encodedScopes = state.substring(pipeIndex + 1)
+  
+  try {
+    const scopes = Buffer.from(encodedScopes, 'base64url').toString('utf-8')
+    return { originalState, scopes }
+  } catch {
+    return { originalState: state, scopes: undefined }
+  }
+}
+
 interface TokenPayload {
   sub?: string
   smart_patient?: string
@@ -99,17 +159,50 @@ async function generateAuthorizationDetailsFromToken(
  * OAuth2/OIDC proxy routes - handles token exchange and introspection
  */
 export const oauthRoutes = new Elysia({ tags: ['authentication'] })
-  // redirect into Keycloak's /auth endpoint
+  // redirect into Keycloak's /auth endpoint with SMART scope translation
   .get('/authorize', ({ query, redirect }) => {
     const url = new URL(
       `${config.keycloak.publicUrl}/realms/${config.keycloak.realm}/protocol/openid-connect/auth`
     )
 
-    // Add all query parameters to the Keycloak URL
+    // Handle SMART scope translation
+    const requestedScope = query.scope as string | undefined
+    let state = query.state as string | undefined
+    
+    if (requestedScope) {
+      const { oidcScopes, smartScopes } = separateScopes(requestedScope)
+      
+      // Encode SMART scopes in the state parameter so we can restore them later
+      // Format: originalState|base64(smartScopes)
+      if (smartScopes.length > 0 && state) {
+        const encodedSmartScopes = Buffer.from(requestedScope).toString('base64url')
+        const augmentedState = `${state}|${encodedSmartScopes}`
+        url.searchParams.set('state', augmentedState)
+        
+        logger.auth.debug('Encoded SMART scopes in state', { 
+          originalState: state,
+          smartScopes, 
+          oidcScopes 
+        })
+      } else if (state) {
+        url.searchParams.set('state', state)
+      }
+      
+      // Only pass OIDC-compatible scopes to Keycloak
+      url.searchParams.set('scope', oidcScopes.join(' '))
+    }
+
+    // Add all other query parameters to the Keycloak URL (except scope and state which we handled)
     Object.entries(query).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) {
+      if (v !== undefined && v !== null && k !== 'scope' && k !== 'state') {
         url.searchParams.set(k, v as string)
       }
+    })
+
+    logger.auth.debug('Redirecting to Keycloak authorize', { 
+      originalScope: requestedScope,
+      keycloakScope: url.searchParams.get('scope'),
+      state: url.searchParams.get('state')?.substring(0, 50)
     })
 
     return redirect(url.href)
@@ -117,7 +210,7 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
     query: AuthorizationQuery,
     detail: {
       summary: 'OAuth Authorization Endpoint',
-      description: 'Redirects to Keycloak authorization endpoint for OAuth flow with support for authorization details',
+      description: 'Redirects to Keycloak authorization endpoint for OAuth flow with support for authorization details and SMART scope translation',
       tags: ['authentication']
     }
   })
@@ -266,6 +359,10 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       // Convert the parsed body back to form data with proper OAuth2 field names
       const formData = new URLSearchParams()
       const bodyObj = body as Record<string, string | undefined>
+      
+      // Store original SMART scopes for response (we'll restore them later)
+      const originalRequestedScope = bodyObj.scope
+      let keycloakScope: string | undefined
 
       // Handle both camelCase and snake_case field names for OAuth2 standard field names
       if (bodyObj.grant_type || bodyObj.grantType) formData.append('grant_type', bodyObj.grant_type || bodyObj.grantType!)
@@ -275,7 +372,18 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       if (bodyObj.client_secret || bodyObj.clientSecret) formData.append('client_secret', bodyObj.client_secret || bodyObj.clientSecret!)
       if (bodyObj.code_verifier || bodyObj.codeVerifier) formData.append('code_verifier', bodyObj.code_verifier || bodyObj.codeVerifier!)
       if (bodyObj.refresh_token || bodyObj.refreshToken) formData.append('refresh_token', bodyObj.refresh_token || bodyObj.refreshToken!)
-      if (bodyObj.scope) formData.append('scope', bodyObj.scope)
+      
+      // Handle scope - translate SMART scopes to OIDC for Keycloak
+      if (originalRequestedScope) {
+        const { oidcScopes } = separateScopes(originalRequestedScope)
+        keycloakScope = oidcScopes.join(' ')
+        formData.append('scope', keycloakScope)
+        logger.auth.debug('Translated scope for Keycloak', {
+          originalScope: originalRequestedScope,
+          keycloakScope
+        })
+      }
+      
   if (bodyObj.audience) formData.append('audience', bodyObj.audience)
   // RFC 8707 Resource Indicators support
   if (bodyObj.resource) formData.append('resource', bodyObj.resource)
@@ -315,7 +423,7 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       // Log OAuth event
       const clientId = bodyObj.client_id || bodyObj.clientId || 'unknown';
       const grantType = bodyObj.grant_type || bodyObj.grantType || 'unknown';
-      const scopes = bodyObj.scope ? bodyObj.scope.split(' ') : [];
+      const scopes = originalRequestedScope ? originalRequestedScope.split(' ') : [];
 
       try {
         await oauthMetricsLogger.logEvent({
@@ -403,6 +511,22 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
           if (tokenPayload.smart_need_patient_banner) {
             data.need_patient_banner = tokenPayload.smart_need_patient_banner === 'true' || tokenPayload.smart_need_patient_banner === true
           }
+
+          // Restore SMART scopes in the token response
+          // The original scopes were stored during /authorize and we restore them here
+          // This is needed because Keycloak only returns OIDC scopes
+          if (tokenPayload.smart_scope) {
+            // If the token has smart_scope claim, use that (set via protocol mapper)
+            data.scope = tokenPayload.smart_scope
+          } else if (originalRequestedScope) {
+            // If scope was passed in token request, use that (includes SMART scopes)
+            data.scope = originalRequestedScope
+            logger.auth.debug('Restored SMART scopes in token response', {
+              originalScope: originalRequestedScope,
+              keycloakScope: data.scope
+            })
+          }
+          // If neither is available, Keycloak's returned scope will be used
 
           // Add authorization_details for multiple FHIR servers support (RFC 9396)
           // Generate based on configured FHIR servers and token claims
