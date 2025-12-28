@@ -65,6 +65,15 @@
       }
     },
     {
+      "name": "offline_access",
+      "description": "OpenID Connect built-in scope: offline_access",
+      "protocol": "openid-connect",
+      "attributes": {
+        "consent.screen.text": "${offlineAccessScopeConsentText}",
+        "display.on.consent.screen": "true"
+      }
+    },
+    {
       "name": "online_access",
       "description": "SMART on FHIR: Online access (refresh tokens valid while user online)",
       "protocol": "openid-connect",
