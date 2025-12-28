@@ -324,13 +324,23 @@ async function waitForSimpleTestCompletion(sessionId, runId, browser = null) {
         if (result.result === 'wait') {
           // Debug: log the wait result structure
           console.log(`  Wait result keys: ${Object.keys(result).join(', ')}`);
-          if (result.wait_message) {
-            console.log(`  Wait message: ${result.wait_message.substring(0, 200)}...`);
+          
+          // Check all possible message fields
+          const messageFields = ['wait_message', 'result_message', 'messages'];
+          for (const field of messageFields) {
+            if (result[field]) {
+              const content = typeof result[field] === 'string' 
+                ? result[field] 
+                : JSON.stringify(result[field]);
+              console.log(`  ${field} (first 500 chars): ${content.substring(0, 500)}`);
+            }
           }
           
           // Check for OAuth URL in requests
-          if (result.requests) {
+          if (result.requests && result.requests.length > 0) {
+            console.log(`  Checking ${result.requests.length} requests for OAuth URL...`);
             for (const req of result.requests) {
+              console.log(`    Request: ${req.direction || 'unknown'} ${req.verb || 'GET'} ${(req.url || '').substring(0, 100)}`);
               if (req.direction === 'outgoing' && req.url && req.url.includes('authorize')) {
                 console.log(`  Found OAuth redirect URL in requests: ${req.url}`);
                 try {
@@ -346,18 +356,27 @@ async function waitForSimpleTestCompletion(sessionId, runId, browser = null) {
             }
           }
           
-          // Also check if URL is in wait_message (Inferno might embed it there)
-          if (!oauthAttempted && result.wait_message) {
-            const urlMatch = result.wait_message.match(/https?:\/\/[^\s<>"']+authorize[^\s<>"']*/);
-            if (urlMatch) {
-              console.log(`  Found OAuth URL in wait_message: ${urlMatch[0]}`);
-              try {
-                if (!page) page = await browser.newPage();
-                await handleOAuthFlow(page, urlMatch[0]);
-                oauthAttempted = true;
-                console.log('  OAuth flow completed, continuing to poll...');
-              } catch (oauthError) {
-                console.error(`  OAuth flow failed: ${oauthError.message}`);
+          // Check all message fields for OAuth URL
+          if (!oauthAttempted) {
+            for (const field of messageFields) {
+              if (result[field]) {
+                const content = typeof result[field] === 'string' 
+                  ? result[field] 
+                  : JSON.stringify(result[field]);
+                // Look for authorize URLs
+                const urlMatch = content.match(/https?:\/\/[^\s<>"'\]]+authorize[^\s<>"'\]]*/);
+                if (urlMatch) {
+                  console.log(`  Found OAuth URL in ${field}: ${urlMatch[0]}`);
+                  try {
+                    if (!page) page = await browser.newPage();
+                    await handleOAuthFlow(page, urlMatch[0]);
+                    oauthAttempted = true;
+                    console.log('  OAuth flow completed, continuing to poll...');
+                  } catch (oauthError) {
+                    console.error(`  OAuth flow failed: ${oauthError.message}`);
+                  }
+                  break;
+                }
               }
             }
           }
