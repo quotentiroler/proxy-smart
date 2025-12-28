@@ -420,6 +420,47 @@ jobs:
           fi
           
           echo ""
+          echo "=== Setting fhirUser attributes ==="
+          
+          # Set fhirUser attribute on testuser (Patient reference)
+          echo "Setting fhirUser attribute on testuser..."
+          curl -s -X PUT "http://localhost:8080/admin/realms/proxy-smart/users/$USER_ID" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "username": "testuser",
+              "enabled": true,
+              "firstName": "Test",
+              "lastName": "User",
+              "email": "testuser@example.com",
+              "emailVerified": true,
+              "attributes": {
+                "fhirUser": ["Patient/test-patient"]
+              }
+            }'
+          echo "✓ Set fhirUser attribute on testuser"
+          
+          # Set fhirUser attribute on doctor (Practitioner reference)
+          if [ "$DOCTOR_ID" != "null" ] && [ -n "$DOCTOR_ID" ]; then
+            echo "Setting fhirUser attribute on doctor..."
+            curl -s -X PUT "http://localhost:8080/admin/realms/proxy-smart/users/$DOCTOR_ID" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "username": "doctor",
+                "enabled": true,
+                "firstName": "Dr. Jane",
+                "lastName": "Smith",
+                "email": "doctor@example.com",
+                "emailVerified": true,
+                "attributes": {
+                  "fhirUser": ["Practitioner/example-practitioner"]
+                }
+              }'
+            echo "✓ Set fhirUser attribute on doctor"
+          fi
+          
+          echo ""
           echo "=== Keycloak setup verified ==="
 
       # Run Inferno tests via Playwright automation
