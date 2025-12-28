@@ -149,11 +149,11 @@ jobs:
             start-dev --import-realm
           
           # Wait for Keycloak to be ready
-          # Note: /health/ready returns 404 in dev mode, use /health instead
+          # Note: Health endpoints return 404 in dev mode, check the realm endpoint instead
           echo "Waiting for Keycloak..."
           for i in {1..60}; do
-            # Check main health endpoint (works in both dev and prod mode)
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null || echo "000")
+            # Check if Keycloak is responding on the master realm
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/realms/master 2>/dev/null || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "Keycloak is ready! (HTTP $HTTP_CODE)"
               break

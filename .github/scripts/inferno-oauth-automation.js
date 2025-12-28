@@ -321,19 +321,44 @@ async function waitForSimpleTestCompletion(sessionId, runId, browser = null) {
       // Look for OAuth redirect URL in the waiting results
       const results = runStatus.results || [];
       for (const result of results) {
-        if (result.result === 'wait' && result.requests) {
-          for (const req of result.requests) {
-            if (req.direction === 'outgoing' && req.url && req.url.includes('authorize')) {
-              console.log(`  Found OAuth redirect URL: ${req.url}`);
+        if (result.result === 'wait') {
+          // Debug: log the wait result structure
+          console.log(`  Wait result keys: ${Object.keys(result).join(', ')}`);
+          if (result.wait_message) {
+            console.log(`  Wait message: ${result.wait_message.substring(0, 200)}...`);
+          }
+          
+          // Check for OAuth URL in requests
+          if (result.requests) {
+            for (const req of result.requests) {
+              if (req.direction === 'outgoing' && req.url && req.url.includes('authorize')) {
+                console.log(`  Found OAuth redirect URL in requests: ${req.url}`);
+                try {
+                  if (!page) page = await browser.newPage();
+                  await handleOAuthFlow(page, req.url);
+                  oauthAttempted = true;
+                  console.log('  OAuth flow completed, continuing to poll...');
+                } catch (oauthError) {
+                  console.error(`  OAuth flow failed: ${oauthError.message}`);
+                }
+                break;
+              }
+            }
+          }
+          
+          // Also check if URL is in wait_message (Inferno might embed it there)
+          if (!oauthAttempted && result.wait_message) {
+            const urlMatch = result.wait_message.match(/https?:\\/\\/[^\\s<>\"']+authorize[^\\s<>\"']*/);
+            if (urlMatch) {
+              console.log(`  Found OAuth URL in wait_message: ${urlMatch[0]}`);
               try {
                 if (!page) page = await browser.newPage();
-                await handleOAuthFlow(page, req.url);
+                await handleOAuthFlow(page, urlMatch[0]);
                 oauthAttempted = true;
                 console.log('  OAuth flow completed, continuing to poll...');
               } catch (oauthError) {
                 console.error(`  OAuth flow failed: ${oauthError.message}`);
               }
-              break;
             }
           }
         }
@@ -342,7 +367,7 @@ async function waitForSimpleTestCompletion(sessionId, runId, browser = null) {
       
       if (!oauthAttempted) {
         const waitResults = results.filter(r => r.result === 'wait');
-        console.log(`  Found ${waitResults.length} waiting result(s) but no OAuth URL found yet`);
+        console.log(`  Found ${waitResults.length} waiting result(s) but no OAuth URL found`);
       }
     } else if (runStatus.status === 'waiting') {
       console.log(`  Test is waiting (OAuth ${oauthAttempted ? 'already attempted' : 'no browser available'})`);
