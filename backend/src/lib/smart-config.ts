@@ -14,6 +14,7 @@ import type { SmartConfigurationResponseType } from '../schemas'
 
 interface OpenIDConfiguration {
     issuer: string
+    jwks_uri?: string
     authorization_endpoint: string
     token_endpoint: string
     introspection_endpoint?: string
