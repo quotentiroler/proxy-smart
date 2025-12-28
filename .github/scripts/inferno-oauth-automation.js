@@ -348,7 +348,7 @@ async function waitForSimpleTestCompletion(sessionId, runId, browser = null) {
           
           // Also check if URL is in wait_message (Inferno might embed it there)
           if (!oauthAttempted && result.wait_message) {
-            const urlMatch = result.wait_message.match(/https?:\\/\\/[^\\s<>\"']+authorize[^\\s<>\"']*/);
+            const urlMatch = result.wait_message.match(/https?:\/\/[^\s<>"']+authorize[^\s<>"']*/);
             if (urlMatch) {
               console.log(`  Found OAuth URL in wait_message: ${urlMatch[0]}`);
               try {
