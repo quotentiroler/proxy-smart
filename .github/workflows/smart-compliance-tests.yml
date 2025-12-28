@@ -55,6 +55,9 @@ on:
   schedule:
     - cron: '0 6 * * 1'  # Every Monday at 6 AM UTC
 
+permissions:
+  contents: write  # Required to commit test reports
+
 env:
   TEST_STAGE: ${{ inputs.test_stage || 'alpha' }}
 
@@ -276,6 +279,55 @@ jobs:
           done
           echo "ERROR: HAPI FHIR failed to start in time"
           exit 1
+
+      # Seed HAPI FHIR with test resources required for fhirUser claim validation
+      - name: Seed FHIR Test Resources
+        run: |
+          echo "Seeding HAPI FHIR with test resources..."
+          
+          # Create Practitioner resource for fhirUser claim
+          # This matches the fhirUser claim in Keycloak realm-export.json
+          curl -sf -X PUT "http://localhost:8081/fhir/Practitioner/example-practitioner" \
+            -H "Content-Type: application/fhir+json" \
+            -d '{
+              "resourceType": "Practitioner",
+              "id": "example-practitioner",
+              "identifier": [{
+                "system": "http://example.org/practitioners",
+                "value": "doctor"
+              }],
+              "active": true,
+              "name": [{
+                "family": "Doctor",
+                "given": ["Test"],
+                "prefix": ["Dr."]
+              }],
+              "telecom": [{
+                "system": "email",
+                "value": "doctor@example.com"
+              }]
+            }' && echo "✓ Created Practitioner/example-practitioner"
+          
+          # Create a test Patient for launch/patient scope
+          curl -sf -X PUT "http://localhost:8081/fhir/Patient/test-patient" \
+            -H "Content-Type: application/fhir+json" \
+            -d '{
+              "resourceType": "Patient",
+              "id": "test-patient",
+              "identifier": [{
+                "system": "http://example.org/patients",
+                "value": "12345"
+              }],
+              "active": true,
+              "name": [{
+                "family": "Test",
+                "given": ["Patient"]
+              }],
+              "gender": "unknown",
+              "birthDate": "1990-01-01"
+            }' && echo "✓ Created Patient/test-patient"
+          
+          echo "✓ FHIR test resources seeded successfully"
 
       # Start the application
       - name: Start Application
@@ -629,9 +681,54 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: inferno-test-results
+          name: inferno-test-results-${{ env.TEST_STAGE }}
           path: test-results/
           retention-days: 30
+
+      # Commit test report to repository
+      - name: Commit Test Report
+        if: always()
+        run: |
+          # Create report directory
+          REPORT_DIR="testing/${TEST_STAGE}/report"
+          mkdir -p "$REPORT_DIR"
+          
+          # Copy test results to report directory
+          cp -r test-results/* "$REPORT_DIR/" 2>/dev/null || true
+          
+          # Create summary report
+          cat > "$REPORT_DIR/summary.json" << EOF
+          {
+            "test_suite": "${TEST_SUITE}",
+            "test_stage": "${TEST_STAGE}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}",
+            "run_id": "${{ github.run_id }}",
+            "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "passed": ${{ steps.inferno-tests.outputs.passed || 0 }},
+            "failed": ${{ steps.inferno-tests.outputs.failed || 0 }},
+            "status": "${{ steps.inferno-tests.outcome || 'unknown' }}"
+          }
+          EOF
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Add and commit report
+          git add "$REPORT_DIR"
+          git diff --staged --quiet || git commit -m "chore(testing): update ${TEST_STAGE} SMART compliance report [skip ci]
+          
+          Test Suite: ${TEST_SUITE}
+          Passed: ${{ steps.inferno-tests.outputs.passed || 0 }}
+          Failed: ${{ steps.inferno-tests.outputs.failed || 0 }}
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          # Push changes
+          git push || echo "Failed to push report - may require write permissions"
+        env:
+          TEST_STAGE: ${{ env.TEST_STAGE }}
+          TEST_SUITE: ${{ env.TEST_SUITE }}
 
       # Cleanup
       - name: Cleanup
