@@ -233,7 +233,7 @@ function buildStandaloneSmartAuthInfo() {
   });
 }
 
-async function runWellKnownTests(sessionId) {
+async function runWellKnownTests(sessionId, browser) {
   console.log('\n=== Running SMART Discovery Tests ===\n');
   
   // The Standalone Launch group expects url and standalone_smart_auth_info inputs
@@ -270,7 +270,7 @@ async function runWellKnownTests(sessionId) {
       if (groups.length > 0) {
         console.log(`No discovery test group found, trying first group: ${groups[0].id}`);
         const run = await runTestGroup(sessionId, groups[0].id, inputs);
-        return await waitForSimpleTestCompletion(sessionId, run.id);
+        return await waitForSimpleTestCompletion(sessionId, run.id, browser);
       }
       console.log('No test groups available');
       return null;
@@ -279,7 +279,7 @@ async function runWellKnownTests(sessionId) {
     console.log(`Found test group: ${discoveryGroup.id} - ${discoveryGroup.title}`);
     
     const run = await runTestGroup(sessionId, discoveryGroup.id, inputs);
-    return await waitForSimpleTestCompletion(sessionId, run.id);
+    return await waitForSimpleTestCompletion(sessionId, run.id, browser);
     
   } catch (error) {
     console.error('Discovery tests error:', error.message);
@@ -287,10 +287,12 @@ async function runWellKnownTests(sessionId) {
   }
 }
 
-async function waitForSimpleTestCompletion(sessionId, runId) {
+async function waitForSimpleTestCompletion(sessionId, runId, browser = null) {
   const maxWait = 180000; // 3 minutes
   const startTime = Date.now();
   let pollCount = 0;
+  let page = null;
+  let oauthAttempted = false;
   
   console.log(`Waiting for test run ${runId} to complete (timeout: 3 minutes)...`);
   
@@ -308,16 +310,42 @@ async function waitForSimpleTestCompletion(sessionId, runId) {
     
     if (runStatus.status === 'done' || runStatus.status === 'error' || runStatus.status === 'cancelled') {
       console.log(`Test completed with status: ${runStatus.status}`);
+      if (page) await page.close();
       return runStatus;
     }
     
     // Handle waiting status (OAuth required)
-    if (runStatus.status === 'waiting') {
+    if (runStatus.status === 'waiting' && browser && !oauthAttempted) {
       console.log(`  Test is waiting for user action (OAuth flow)...`);
-      const waitResults = (runStatus.results || []).filter(r => r.result === 'wait');
-      if (waitResults.length > 0) {
-        console.log(`  Found ${waitResults.length} waiting result(s)`);
+      
+      // Look for OAuth redirect URL in the waiting results
+      const results = runStatus.results || [];
+      for (const result of results) {
+        if (result.result === 'wait' && result.requests) {
+          for (const req of result.requests) {
+            if (req.direction === 'outgoing' && req.url && req.url.includes('authorize')) {
+              console.log(`  Found OAuth redirect URL: ${req.url}`);
+              try {
+                if (!page) page = await browser.newPage();
+                await handleOAuthFlow(page, req.url);
+                oauthAttempted = true;
+                console.log('  OAuth flow completed, continuing to poll...');
+              } catch (oauthError) {
+                console.error(`  OAuth flow failed: ${oauthError.message}`);
+              }
+              break;
+            }
+          }
+        }
+        if (oauthAttempted) break;
       }
+      
+      if (!oauthAttempted) {
+        const waitResults = results.filter(r => r.result === 'wait');
+        console.log(`  Found ${waitResults.length} waiting result(s) but no OAuth URL found yet`);
+      }
+    } else if (runStatus.status === 'waiting') {
+      console.log(`  Test is waiting (OAuth ${oauthAttempted ? 'already attempted' : 'no browser available'})`);
     }
     
     // Log current progress
@@ -416,8 +444,8 @@ async function main() {
     // Create test session
     const session = await createTestSession();
     
-    // Run well-known configuration tests (no OAuth needed)
-    const wellKnownResult = await runWellKnownTests(session.id);
+    // Run SMART tests (may require OAuth for some tests)
+    const wellKnownResult = await runWellKnownTests(session.id, browser);
     
     // Run standalone patient tests (requires OAuth)
     // const standaloneResult = await runStandalonePatientTests(browser, session.id);
