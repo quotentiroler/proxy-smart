@@ -173,13 +173,11 @@ jobs:
           echo "Available realms: $REALMS"
           
           if echo "$REALMS" | grep -q "proxy-smart"; then
-            echo "proxy-smart realm found!"
+            echo "✓ proxy-smart realm found!"
           else
-            echo "proxy-smart realm not found, creating it..."
-            curl -s -X POST "http://localhost:8080/admin/realms" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{"realm": "proxy-smart", "enabled": true}'
+            echo "ERROR: proxy-smart realm not found! Check realm-export.json import."
+            docker logs keycloak | tail -50
+            exit 1
           fi
 
       # Wait for HAPI FHIR to be ready (takes ~35 seconds to start)

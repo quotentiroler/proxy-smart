@@ -1,16 +1,15 @@
 /**
  * Playwright script to automate Inferno SMART App Launch tests
- * Handles OAuth flow through Keycloak automatically
+ * Handles OAuth flow automatically - auth endpoints are discovered from SMART configuration
  */
 
 const { chromium } = require('playwright');
 
 const INFERNO_URL = process.env.INFERNO_URL || 'http://localhost:4567';
-const KEYCLOAK_URL = process.env.KEYCLOAK_URL || 'http://localhost:8080';
 const FHIR_SERVER_URL = process.env.FHIR_SERVER_URL || 'http://localhost:8445/proxy-smart-backend/hapi-fhir-server/R4';
 const TEST_SUITE = process.env.TEST_SUITE || 'smart_stu2_2';
 
-// Keycloak test user credentials
+// Test user credentials (for OAuth login page)
 const KC_USERNAME = process.env.KC_USERNAME || 'testuser';
 const KC_PASSWORD = process.env.KC_PASSWORD || 'testpass';
 
