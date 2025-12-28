@@ -12,6 +12,148 @@
   "actionTokenGeneratedByUserLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "offlineSessionMaxLifespan": 5184000,
+  "offlineSessionMaxLifespanEnabled": false,
+  "clientScopes": [
+    {
+      "name": "launch/patient",
+      "description": "SMART on FHIR: Launch with patient context",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Access patient context from EHR launch"
+      }
+    },
+    {
+      "name": "launch/encounter",
+      "description": "SMART on FHIR: Launch with encounter context",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Access encounter context from EHR launch"
+      }
+    },
+    {
+      "name": "launch",
+      "description": "SMART on FHIR: EHR launch capability",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Launch from EHR"
+      }
+    },
+    {
+      "name": "fhirUser",
+      "description": "SMART on FHIR: FHIR user identity claim",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Access your FHIR user identity"
+      }
+    },
+    {
+      "name": "online_access",
+      "description": "SMART on FHIR: Online access (refresh tokens valid while user online)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Maintain access while you are logged in"
+      }
+    },
+    {
+      "name": "patient/*.read",
+      "description": "SMART on FHIR: Read all patient data",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Read all data for the selected patient"
+      }
+    },
+    {
+      "name": "patient/*.write",
+      "description": "SMART on FHIR: Write all patient data",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Write all data for the selected patient"
+      }
+    },
+    {
+      "name": "patient/*.*",
+      "description": "SMART on FHIR: Full access to patient data",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Full access to the selected patient's data"
+      }
+    },
+    {
+      "name": "user/*.read",
+      "description": "SMART on FHIR: Read all data user has access to",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Read all data you have access to"
+      }
+    },
+    {
+      "name": "user/*.write",
+      "description": "SMART on FHIR: Write all data user has access to",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Write all data you have access to"
+      }
+    },
+    {
+      "name": "user/*.*",
+      "description": "SMART on FHIR: Full access to user's data",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Full access to all your data"
+      }
+    },
+    {
+      "name": "system/*.read",
+      "description": "SMART on FHIR: System-level read access",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "system/*.write",
+      "description": "SMART on FHIR: System-level write access",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "system/*.*",
+      "description": "SMART on FHIR: Full system-level access",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    }
+  ],
   "clients": [
     {
       "clientId": "admin-ui",
@@ -172,9 +314,87 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "inferno-test-client",
+      "name": "Inferno Test Client",
+      "description": "SMART on FHIR test client for Inferno compliance testing",
+      "enabled": true,
+      "clientAuthenticatorType": "client-dummy",
+      "redirectUris": [
+        "http://localhost:4567/*",
+        "http://localhost:4567/custom/smart_stu2_2/redirect",
+        "http://localhost:4567/custom/smart_stu2/redirect"
+      ],
+      "webOrigins": [
+        "http://localhost:4567",
+        "*"
+      ],
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "consentRequired": false,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email",
+        "openid"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt",
+        "launch/patient",
+        "launch/encounter",
+        "launch",
+        "fhirUser",
+        "online_access",
+        "patient/*.read",
+        "patient/*.write",
+        "patient/*.*",
+        "user/*.read",
+        "user/*.write",
+        "user/*.*"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false",
+        "use.refresh.tokens": "true"
+      }
     }
   ],
   "users": [
+    {
+      "username": "testuser",
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "testuser@example.com",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "testpass",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user",
+        "offline_access"
+      ]
+    },
     {
       "username": "admin",
       "enabled": true,

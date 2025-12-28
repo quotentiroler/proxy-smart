@@ -290,7 +290,7 @@ jobs:
           done
 
       # Register test client in Keycloak
-      - name: Register Inferno Client
+      - name: Verify Keycloak Setup
         run: |
           # Get admin token
           TOKEN=$(curl -s -X POST "http://localhost:8080/realms/master/protocol/openid-connect/token" \
@@ -302,106 +302,56 @@ jobs:
           
           echo "Admin token obtained: ${TOKEN:0:20}..."
           
-          # Check if realm exists
+          # Verify realm was imported from realm-export.json
           REALM_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
             "http://localhost:8080/admin/realms/proxy-smart" \
             -H "Authorization: Bearer $TOKEN")
           
-          if [ "$REALM_CHECK" != "200" ]; then
-            echo "Creating proxy-smart realm..."
-            curl -s -X POST "http://localhost:8080/admin/realms" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{"realm": "proxy-smart", "enabled": true}'
-          fi
-          
-          # Note: SMART scopes like launch/patient, patient/*.read are NOT created in Keycloak.
-          # The proxy-smart backend handles SMART scope translation automatically:
-          # - /auth/authorize translates SMART scopes to OIDC scopes for Keycloak
-          # - /auth/token restores SMART scopes in the token response
-          
-          # Create client with standard OIDC scopes (proxy handles SMART scopes)
-          echo "Creating Inferno client..."
-          RESULT=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:8080/admin/realms/proxy-smart/clients" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "clientId": "inferno-test-client",
-              "enabled": true,
-              "publicClient": true,
-              "standardFlowEnabled": true,
-              "directAccessGrantsEnabled": true,
-              "fullScopeAllowed": true,
-              "consentRequired": false,
-              "redirectUris": [
-                "http://localhost:4567/custom/smart_stu2_2/redirect",
-                "http://localhost:4567/custom/smart_stu2/redirect",
-                "http://localhost:4567/*"
-              ],
-              "webOrigins": ["http://localhost:4567", "*"],
-              "defaultClientScopes": ["openid", "profile", "email", "web-origins", "acr", "roles"],
-              "optionalClientScopes": ["offline_access", "address", "phone", "microprofile-jwt"],
-              "attributes": {
-                "pkce.code.challenge.method": "S256",
-                "oauth2.device.authorization.grant.enabled": "false",
-                "use.refresh.tokens": "true"
-              }
-            }')
-          
-          HTTP_CODE=$(echo "$RESULT" | tail -1)
-          BODY=$(echo "$RESULT" | head -n -1)
-          
-          if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "409" ]; then
-            echo "Client registered (or already exists)"
+          if [ "$REALM_CHECK" = "200" ]; then
+            echo "✓ proxy-smart realm exists"
           else
-            echo "Client registration response: $HTTP_CODE"
-            echo "$BODY"
+            echo "ERROR: proxy-smart realm not found! Check realm-export.json import."
+            exit 1
           fi
           
-          # Create test user for OAuth flow
-          echo "Creating test user..."
-          USER_RESULT=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:8080/admin/realms/proxy-smart/users" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "username": "testuser",
-              "enabled": true,
-              "emailVerified": true,
-              "firstName": "Test",
-              "lastName": "User",
-              "email": "testuser@example.com",
-              "credentials": [{
-                "type": "password",
-                "value": "testpass",
-                "temporary": false
-              }]
-            }')
+          # Verify inferno-test-client exists (from realm-export.json)
+          CLIENT_CHECK=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/clients?clientId=inferno-test-client" \
+            -H "Authorization: Bearer $TOKEN" | jq 'length')
           
-          USER_HTTP=$(echo "$USER_RESULT" | tail -1)
-          if [ "$USER_HTTP" = "201" ] || [ "$USER_HTTP" = "409" ]; then
-            echo "Test user created (or already exists)"
+          if [ "$CLIENT_CHECK" -gt 0 ]; then
+            echo "✓ inferno-test-client exists"
           else
-            echo "User creation response: $USER_HTTP"
+            echo "ERROR: inferno-test-client not found! Check realm-export.json"
+            exit 1
           fi
           
-          # Assign offline_access role to the user for refresh token support
-          echo "Assigning offline_access role to test user..."
-          USER_ID=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users?username=testuser" \
-            -H "Authorization: Bearer $TOKEN" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data[0]['id'] if data else '')")
+          # Verify testuser exists (from realm-export.json)
+          USER_CHECK=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users?username=testuser" \
+            -H "Authorization: Bearer $TOKEN" | jq 'length')
           
-          if [ -n "$USER_ID" ]; then
-            OFFLINE_ROLE=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/roles/offline_access" \
-              -H "Authorization: Bearer $TOKEN" 2>/dev/null || echo "")
-            if [ -n "$OFFLINE_ROLE" ]; then
-              curl -s -X POST "http://localhost:8080/admin/realms/proxy-smart/users/$USER_ID/role-mappings/realm" \
-                -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d "[$OFFLINE_ROLE]" > /dev/null 2>&1
-              echo "Offline access role assigned to user"
-            else
-              echo "offline_access role not found, skipping"
-            fi
+          if [ "$USER_CHECK" -gt 0 ]; then
+            echo "✓ testuser exists"
+          else
+            echo "ERROR: testuser not found! Check realm-export.json"
+            exit 1
           fi
+          
+          # Verify SMART scopes exist
+          echo "Checking SMART client scopes..."
+          SCOPES=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/client-scopes" \
+            -H "Authorization: Bearer $TOKEN" | jq -r '.[].name' | sort)
+          echo "Available client scopes:"
+          echo "$SCOPES"
+          
+          # Check for key SMART scopes
+          if echo "$SCOPES" | grep -q "launch/patient"; then
+            echo "✓ SMART scopes configured"
+          else
+            echo "WARNING: SMART scopes not found - they should be in realm-export.json"
+          fi
+          
+          echo ""
+          echo "=== Keycloak setup verified ==="
 
       # Run Inferno tests via Playwright automation
       - name: Run SMART Compliance Tests
