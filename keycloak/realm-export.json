@@ -416,6 +416,9 @@
       "lastName": "User",
       "email": "testuser@example.com",
       "emailVerified": true,
+      "attributes": {
+        "fhirUser": ["Patient/test-patient"]
+      },
       "credentials": [
         {
           "type": "password",
