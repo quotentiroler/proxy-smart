@@ -236,9 +236,13 @@ jobs:
           export REDIS_URL="redis://localhost:6379"
           
           # Start Sidekiq worker for background job processing (test runs)
-          bundle exec sidekiq &
+          # Must use -r ./worker.rb to load Inferno's job classes
+          bundle exec sidekiq -r ./worker.rb &
           SIDEKIQ_PID=$!
           echo "Started Sidekiq worker (PID: $SIDEKIQ_PID)"
+          
+          # Give Sidekiq a moment to connect to Redis
+          sleep 2
           
           # Start Inferno web server in background
           bundle exec puma -p 4567 &
