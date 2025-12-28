@@ -748,7 +748,8 @@
         }
       ],
       "realmRoles": [
-        "user"
+        "user",
+        "offline_access"
       ],
       "clientRoles": {
         "admin-ui": [

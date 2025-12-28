@@ -350,114 +350,46 @@ jobs:
             echo "WARNING: SMART scopes not found - they should be in realm-export.json"
           fi
           
-          # Ensure testuser has offline_access role (required for refresh tokens)
+          # Verify offline_access role exists (from realm-export.json)
           echo ""
-          echo "Ensuring testuser has offline_access role..."
-          
-          # Get offline_access role ID
+          echo "Verifying offline_access role..."
           OFFLINE_ROLE=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/roles/offline_access" \
             -H "Authorization: Bearer $TOKEN")
           OFFLINE_ROLE_ID=$(echo "$OFFLINE_ROLE" | jq -r '.id')
           
-          if [ "$OFFLINE_ROLE_ID" = "null" ] || [ -z "$OFFLINE_ROLE_ID" ]; then
-            echo "Creating offline_access role..."
-            curl -s -X POST "http://localhost:8080/admin/realms/proxy-smart/roles" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{"name":"offline_access","description":"Allow offline access tokens"}'
-            
-            OFFLINE_ROLE=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/roles/offline_access" \
-              -H "Authorization: Bearer $TOKEN")
-            OFFLINE_ROLE_ID=$(echo "$OFFLINE_ROLE" | jq -r '.id')
+          if [ "$OFFLINE_ROLE_ID" != "null" ] && [ -n "$OFFLINE_ROLE_ID" ]; then
+            echo "✓ offline_access role exists (ID: $OFFLINE_ROLE_ID)"
+          else
+            echo "WARNING: offline_access role not found - should be in realm-export.json"
           fi
-          echo "offline_access role ID: $OFFLINE_ROLE_ID"
           
-          # Get testuser ID
+          # Verify testuser has offline_access role
           TESTUSER_ID=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users?username=testuser" \
             -H "Authorization: Bearer $TOKEN" | jq -r '.[0].id')
-          echo "testuser ID: $TESTUSER_ID"
-          
-          # Assign offline_access role to testuser
-          echo "Assigning offline_access role to testuser..."
-          curl -s -X POST "http://localhost:8080/admin/realms/proxy-smart/users/$TESTUSER_ID/role-mappings/realm" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "[{\"id\":\"$OFFLINE_ROLE_ID\",\"name\":\"offline_access\"}]"
-          
-          # Verify the role was assigned
           USER_ROLES=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users/$TESTUSER_ID/role-mappings/realm" \
             -H "Authorization: Bearer $TOKEN" | jq -r '.[].name')
           echo "testuser roles: $USER_ROLES"
           
           if echo "$USER_ROLES" | grep -q "offline_access"; then
-            echo "✓ offline_access role assigned to testuser"
+            echo "✓ testuser has offline_access role"
           else
-            echo "WARNING: Could not verify offline_access role assignment"
+            echo "WARNING: testuser missing offline_access role - should be in realm-export.json"
           fi
           
-          # Also assign offline_access to doctor user (used by Playwright)
-          echo ""
-          echo "Assigning offline_access role to doctor user..."
+          # Verify doctor user has offline_access role
           DOCTOR_ID=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users?username=doctor" \
             -H "Authorization: Bearer $TOKEN" | jq -r '.[0].id')
           
           if [ "$DOCTOR_ID" != "null" ] && [ -n "$DOCTOR_ID" ]; then
-            echo "doctor ID: $DOCTOR_ID"
-            curl -s -X POST "http://localhost:8080/admin/realms/proxy-smart/users/$DOCTOR_ID/role-mappings/realm" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "[{\"id\":\"$OFFLINE_ROLE_ID\",\"name\":\"offline_access\"}]"
-            
             DOCTOR_ROLES=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users/$DOCTOR_ID/role-mappings/realm" \
               -H "Authorization: Bearer $TOKEN" | jq -r '.[].name')
             echo "doctor roles: $DOCTOR_ROLES"
             
             if echo "$DOCTOR_ROLES" | grep -q "offline_access"; then
-              echo "✓ offline_access role assigned to doctor"
+              echo "✓ doctor has offline_access role"
+            else
+              echo "WARNING: doctor missing offline_access role - should be in realm-export.json"
             fi
-          else
-            echo "WARNING: doctor user not found"
-          fi
-          
-          echo ""
-          echo "=== Setting fhirUser attributes ==="
-          
-          # Set fhirUser attribute on testuser (Patient reference)
-          echo "Setting fhirUser attribute on testuser..."
-          curl -s -X PUT "http://localhost:8080/admin/realms/proxy-smart/users/$USER_ID" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "username": "testuser",
-              "enabled": true,
-              "firstName": "Test",
-              "lastName": "User",
-              "email": "testuser@example.com",
-              "emailVerified": true,
-              "attributes": {
-                "fhirUser": ["Patient/test-patient"]
-              }
-            }'
-          echo "✓ Set fhirUser attribute on testuser"
-          
-          # Set fhirUser attribute on doctor (Practitioner reference)
-          if [ "$DOCTOR_ID" != "null" ] && [ -n "$DOCTOR_ID" ]; then
-            echo "Setting fhirUser attribute on doctor..."
-            curl -s -X PUT "http://localhost:8080/admin/realms/proxy-smart/users/$DOCTOR_ID" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{
-                "username": "doctor",
-                "enabled": true,
-                "firstName": "Dr. Jane",
-                "lastName": "Smith",
-                "email": "doctor@example.com",
-                "emailVerified": true,
-                "attributes": {
-                  "fhirUser": ["Practitioner/example-practitioner"]
-                }
-              }'
-            echo "✓ Set fhirUser attribute on doctor"
           fi
           
           echo ""
