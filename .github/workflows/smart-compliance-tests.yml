@@ -235,8 +235,15 @@ jobs:
           export DATABASE_URL="postgresql://inferno:inferno@localhost:5433/inferno"
           export REDIS_URL="redis://localhost:6379"
           
-          # Start Inferno in background
+          # Start Sidekiq worker for background job processing (test runs)
+          bundle exec sidekiq &
+          SIDEKIQ_PID=$!
+          echo "Started Sidekiq worker (PID: $SIDEKIQ_PID)"
+          
+          # Start Inferno web server in background
           bundle exec puma -p 4567 &
+          PUMA_PID=$!
+          echo "Started Puma server (PID: $PUMA_PID)"
           
           # Wait for Inferno to be ready
           echo "Waiting for Inferno..."
