@@ -355,6 +355,16 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       // Set the proper HTTP status code from Keycloak response
       set.status = resp.status
 
+      // RFC 6749 Section 5.1: Token response MUST include cache headers
+      // SMART 2.2.0 compliance: These headers are required for token responses
+      set.headers['Cache-Control'] = 'no-store'
+      set.headers['Pragma'] = 'no-cache'
+
+      // CORS headers for token endpoint (required by SMART)
+      set.headers['Access-Control-Allow-Origin'] = '*'
+      set.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+      set.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+
       // If there's an error, return it with the proper status code
       if (data.error) {
         logger.auth.warn('OAuth2 error from Keycloak', {

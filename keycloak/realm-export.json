@@ -62,7 +62,23 @@
         "include.in.token.scope": "true",
         "display.on.consent.screen": "true",
         "consent.screen.text": "Access your FHIR user identity"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "fhirUser-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "fhirUser",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "fhirUser",
+            "jsonType.label": "String"
+          }
+        }
+      ]
     },
     {
       "name": "offline_access",
@@ -455,6 +471,9 @@
       "lastName": "Smith",
       "email": "doctor@example.com",
       "emailVerified": true,
+      "attributes": {
+        "fhirUser": ["Practitioner/example-practitioner"]
+      },
       "credentials": [
         {
           "type": "password",
