@@ -31,10 +31,16 @@ on:
     outputs:
       test_status:
         description: "Overall test status"
-        value: ${{ jobs.integration-compliance-tests.outputs.overall_status }}
+        value: ${{ jobs.test-summary.outputs.overall_status }}
       test_reports_path:
         description: "Path to test reports"
-        value: ${{ jobs.integration-compliance-tests.outputs.test_reports_path }}
+        value: ${{ jobs.test-summary.outputs.reports_path }}
+      compliance_passed:
+        description: "Number of compliance tests passed"
+        value: ${{ jobs.smart-compliance-tests.outputs.passed }}
+      compliance_failed:
+        description: "Number of compliance tests failed"
+        value: ${{ jobs.smart-compliance-tests.outputs.failed }}
 
     secrets:
       DISCORD_WEBHOOK_URL:
@@ -42,41 +48,37 @@ on:
         required: false
 
 jobs:
-  integration-compliance-tests:
-    name: Integration & Compliance Testing (${{ inputs.test_stage }})
+  # Run SMART on FHIR 2.2.0 compliance tests via dedicated workflow
+  smart-compliance-tests:
+    name: SMART 2.2.0 Compliance (${{ inputs.test_stage }})
+    uses: ./.github/workflows/smart-compliance-tests.yml
+    with:
+      test_suite: 'smart_stu2_2'
+      test_stage: ${{ inputs.test_stage }}
+    secrets: inherit
+
+  # Integration tests against deployed services (runs in parallel)
+  integration-tests:
+    name: Integration Tests (${{ inputs.test_stage }})
     runs-on: ubuntu-latest
     
     outputs:
-      overall_status: ${{ steps.summary.outputs.overall_status }}
-      test_reports_path: ${{ steps.summary.outputs.reports_path }}
+      status: ${{ steps.tests.outputs.status }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Bun with version scripts
-        uses: ./.github/actions/setup-bun-version
-        with:
-          checkout: 'false'
-
-      - name: Install dependencies (for local deployment only)
-        if: inputs.deployment_target == 'local'
-        run: |
-          bun install
-          cd backend && bun install
-          cd ../ui && bun install
-
       - name: Setup test environment
         run: |
-          echo "🚀 Setting up integration & compliance testing environment..."
+          echo "🚀 Setting up integration testing environment..."
           echo "Test Stage: ${{ inputs.test_stage }}"
           echo "Deployment Target: ${{ inputs.deployment_target }}"
           echo "FHIR Server: ${{ inputs.fhir_server_url }}"
           echo "Keycloak: ${{ inputs.keycloak_url }}"
           
-          # Create basic test directory structure (Inferno action will create its own subdirs)
+          # Create test directory structure
           mkdir -p testing/${{ inputs.test_stage }}/reports/{integration,summary}
-          mkdir -p testing/${{ inputs.test_stage }}/config
 
       - name: Wait for deployment readiness
         run: |
@@ -89,82 +91,150 @@ jobs:
           echo "Checking health at: $BASE_URL/health"
           
           while [ $attempt -le $max_attempts ]; do
-            if curl -f "$BASE_URL/health" >/dev/null 2>&1; then
-              echo "✅ FHIR server is ready and responding"
+            if curl -sf "$BASE_URL/health" >/dev/null 2>&1; then
+              echo "✅ Deployed server is ready and responding"
               break
             fi
-            echo "🔄 Waiting for FHIR server... (attempt $attempt/$max_attempts)"
+            echo "🔄 Waiting for server... (attempt $attempt/$max_attempts)"
             sleep 10
             attempt=$((attempt + 1))
           done
           
           if [ $attempt -gt $max_attempts ]; then
-            echo "❌ FHIR server failed to respond within timeout"
-            exit 1
+            echo "⚠️ Deployed server not responding - integration tests may be skipped"
           fi
 
-      - name: Run integration tests
-        id: integration-tests
+      - name: Run integration tests against deployed services
+        id: tests
         run: |
-          echo "🔗 Running integration tests for ${{ inputs.test_stage }}..."
+          echo "🔗 Running integration tests against deployed ${{ inputs.test_stage }} environment..."
           
-          # Extract base URL from FHIR server URL (remove the /proxy-smart-backend/... path)
+          # Extract base URL from FHIR server URL
           BASE_URL=$(echo "${{ inputs.fhir_server_url }}" | sed 's|/proxy-smart-backend.*||')
           echo "Base server URL: $BASE_URL"
           echo "FHIR endpoint URL: ${{ inputs.fhir_server_url }}"
           
+          TESTS_PASSED=0
+          TESTS_TOTAL=0
+          
           # Test basic health endpoint
+          echo ""
           echo "Testing health endpoint..."
-          if curl -f "$BASE_URL/health" > testing/${{ inputs.test_stage }}/reports/integration/health.json; then
+          TESTS_TOTAL=$((TESTS_TOTAL + 1))
+          if curl -sf "$BASE_URL/health" > testing/${{ inputs.test_stage }}/reports/integration/health.json 2>&1; then
             echo "✅ Health endpoint working"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
           else
-            echo "❌ Health endpoint failed"
-            echo "status=failed" >> $GITHUB_OUTPUT
-            exit 1
+            echo "⚠️ Health endpoint not available"
           fi
           
           # Test FHIR server metadata endpoint
+          echo ""
           echo "Testing FHIR metadata endpoint..."
-          if curl -f "${{ inputs.fhir_server_url }}/metadata" > testing/${{ inputs.test_stage }}/reports/integration/fhir_metadata.json; then
+          TESTS_TOTAL=$((TESTS_TOTAL + 1))
+          if curl -sf "${{ inputs.fhir_server_url }}/metadata" > testing/${{ inputs.test_stage }}/reports/integration/fhir_metadata.json 2>&1; then
             echo "✅ FHIR metadata endpoint working"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
           else
-            echo "⚠️ FHIR metadata endpoint not available - may need authentication"
+            echo "⚠️ FHIR metadata endpoint not available"
           fi
           
-          # Test OAuth discovery if Keycloak is available
+          # Test OAuth discovery
+          echo ""
           echo "Testing OAuth discovery endpoint..."
-          if curl -f "${{ inputs.keycloak_url }}/realms/proxy-smart/.well-known/openid_configuration" > testing/${{ inputs.test_stage }}/reports/integration/oauth_discovery.json; then
+          TESTS_TOTAL=$((TESTS_TOTAL + 1))
+          if curl -sf "${{ inputs.keycloak_url }}/realms/proxy-smart/.well-known/openid-configuration" > testing/${{ inputs.test_stage }}/reports/integration/oauth_discovery.json 2>&1; then
             echo "✅ OAuth discovery endpoint working"
-          elif curl -f "${{ inputs.keycloak_url }}/realms/master/.well-known/openid_configuration" > testing/${{ inputs.test_stage }}/reports/integration/oauth_discovery_master.json; then
-            echo "✅ Keycloak master realm accessible (proxy-smart realm may not be configured yet)"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
           else
-            echo "⚠️ OAuth discovery endpoint not available - Keycloak may not be fully configured"
+            echo "⚠️ OAuth discovery endpoint not available"
           fi
           
-          echo "status=passed" >> $GITHUB_OUTPUT
-          echo "Integration tests completed successfully" | tee testing/${{ inputs.test_stage }}/reports/integration/integration_tests.log
+          # Test SMART configuration
+          echo ""
+          echo "Testing SMART configuration endpoint..."
+          TESTS_TOTAL=$((TESTS_TOTAL + 1))
+          SMART_CONFIG_URL="${{ inputs.fhir_server_url }}/.well-known/smart-configuration"
+          if curl -sf "$SMART_CONFIG_URL" > testing/${{ inputs.test_stage }}/reports/integration/smart_config.json 2>&1; then
+            echo "✅ SMART configuration endpoint working"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+            
+            # Validate key SMART config fields
+            if jq -e '.authorization_endpoint' testing/${{ inputs.test_stage }}/reports/integration/smart_config.json >/dev/null 2>&1; then
+              echo "  ✓ authorization_endpoint present"
+            fi
+            if jq -e '.token_endpoint' testing/${{ inputs.test_stage }}/reports/integration/smart_config.json >/dev/null 2>&1; then
+              echo "  ✓ token_endpoint present"
+            fi
+          else
+            echo "⚠️ SMART configuration endpoint not available"
+          fi
+          
+          echo ""
+          echo "=== Integration Test Summary ==="
+          echo "Passed: $TESTS_PASSED / $TESTS_TOTAL"
+          
+          if [ $TESTS_PASSED -eq $TESTS_TOTAL ]; then
+            echo "status=passed" >> $GITHUB_OUTPUT
+          elif [ $TESTS_PASSED -gt 0 ]; then
+            echo "status=partial" >> $GITHUB_OUTPUT
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "{\"passed\": $TESTS_PASSED, \"total\": $TESTS_TOTAL}" > testing/${{ inputs.test_stage }}/reports/integration/summary.json
+
+      - name: Upload integration test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results-${{ inputs.test_stage }}
+          path: testing/${{ inputs.test_stage }}/reports/integration/
+          retention-days: 30
+
+  # Summarize all test results
+  test-summary:
+    name: Test Summary (${{ inputs.test_stage }})
+    runs-on: ubuntu-latest
+    needs: [smart-compliance-tests, integration-tests]
+    if: always()
+    
+    outputs:
+      overall_status: ${{ steps.summary.outputs.overall_status }}
+      reports_path: ${{ steps.summary.outputs.reports_path }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Generate test summary
         id: summary
-        if: always()
         run: |
           echo "📊 Generating test summary..."
+          mkdir -p testing/${{ inputs.test_stage }}/reports/summary
           
-          INTEGRATION_STATUS="${{ steps.integration-tests.outputs.status || 'failed' }}"
-          INFERNO_STATUS="${{ steps.inferno-tests.outputs.compliance_status || 'skipped' }}"
+          # Get test results
+          COMPLIANCE_STATUS="${{ needs.smart-compliance-tests.outputs.status || 'failure' }}"
+          COMPLIANCE_PASSED="${{ needs.smart-compliance-tests.outputs.passed || '0' }}"
+          COMPLIANCE_FAILED="${{ needs.smart-compliance-tests.outputs.failed || '0' }}"
+          INTEGRATION_STATUS="${{ needs.integration-tests.outputs.status || 'failed' }}"
+          
+          echo "SMART Compliance: $COMPLIANCE_STATUS (passed: $COMPLIANCE_PASSED, failed: $COMPLIANCE_FAILED)"
+          echo "Integration Tests: $INTEGRATION_STATUS"
           
           # Determine overall status
-          if [[ "$INTEGRATION_STATUS" == "failed" || "$INFERNO_STATUS" == "failed" ]]; then
-            OVERALL_STATUS="failed"
-            STATUS_EMOJI="❌"
-          elif [[ "$INTEGRATION_STATUS" == "passed" && ("$INFERNO_STATUS" == "passed" || "$INFERNO_STATUS" == "skipped") ]]; then
+          if [[ "$COMPLIANCE_STATUS" == "success" && "$INTEGRATION_STATUS" == "passed" ]]; then
             OVERALL_STATUS="passed"
             STATUS_EMOJI="✅"
-          else
-            OVERALL_STATUS="unknown"
+          elif [[ "$COMPLIANCE_STATUS" == "success" || "$INTEGRATION_STATUS" == "passed" ]]; then
+            OVERALL_STATUS="partial"
             STATUS_EMOJI="⚠️"
+          else
+            OVERALL_STATUS="failed"
+            STATUS_EMOJI="❌"
           fi
           
+          echo "Overall Status: $OVERALL_STATUS"
           echo "overall_status=$OVERALL_STATUS" >> $GITHUB_OUTPUT
           echo "reports_path=testing/${{ inputs.test_stage }}/reports" >> $GITHUB_OUTPUT
           
@@ -172,7 +242,7 @@ jobs:
           SUMMARY_FILE="testing/${{ inputs.test_stage }}/reports/summary/test_summary.md"
           
           cat > "$SUMMARY_FILE" << EOF
-          # $STATUS_EMOJI Integration & Compliance Test Results - ${{ inputs.test_stage }}
+          # $STATUS_EMOJI Test Results - ${{ inputs.test_stage }}
           
           **Generated**: $(date -u)
           **Test Stage**: ${{ inputs.test_stage }}
@@ -188,109 +258,47 @@ jobs:
           ## Test Results Summary
           | Test Type | Status | Details |
           |-----------|--------|---------|
-          | Integration Tests | $INTEGRATION_STATUS | FHIR endpoints & OAuth |
-          | Inferno ONC Tests | $INFERNO_STATUS | ONC Program Edition compliance |
+          | SMART 2.2.0 Compliance | $COMPLIANCE_STATUS | Passed: $COMPLIANCE_PASSED, Failed: $COMPLIANCE_FAILED |
+          | Integration Tests | $INTEGRATION_STATUS | Health, Metadata, OAuth, SMART Config |
           
-          ## Test Artifacts
-          - **Integration Tests**: \`testing/${{ inputs.test_stage }}/reports/integration/\`
-          - **Inferno Tests**: \`testing/${{ inputs.test_stage }}/reports/inferno/\`
-          
-          ## Key Files
-          - \`metadata.json\`: FHIR server capability statement
-          - \`patient_search.json\`: FHIR Patient endpoint test
-          - \`oauth_discovery.json\`: OAuth discovery configuration
+          ## Overall Result: **$OVERALL_STATUS**
           EOF
-          
-          if [ "$INFERNO_STATUS" != "skipped" ]; then
-            cat >> "$SUMMARY_FILE" << EOF
-          - \`compliance_report.md\`: Detailed Inferno compliance report
-          - \`test_results.json\`: Raw Inferno test results
-          - \`test_report.html\`: Inferno HTML report
-          EOF
-          fi
-          
-          cat >> "$SUMMARY_FILE" << EOF
-          
-          ## Next Steps
-          EOF
-          
-          if [ "$OVERALL_STATUS" = "passed" ]; then
-            cat >> "$SUMMARY_FILE" << EOF
-          ✅ **All tests passed successfully!**
-          
-          1. Review test artifacts for any warnings
-          2. Proceed with deployment to next stage
-          3. For production: Submit for ONC certification if required
-          EOF
-          else
-            cat >> "$SUMMARY_FILE" << EOF
-          ❌ **Some tests failed - Action required**
-          
-          1. Review failed test logs in respective directories
-          2. Address identified issues
-          3. Re-run tests after fixes are implemented
-          EOF
-          fi
           
           echo "✅ Test summary generated"
 
-      - name: Upload test reports
-        if: always()
+      - name: Generate GitHub Step Summary
+        run: |
+          echo "## 🧪 Test Results - ${{ inputs.test_stage }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Stage | ${{ inputs.test_stage }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deployment Target | ${{ inputs.deployment_target }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| App Version | ${{ inputs.app_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### SMART 2.2.0 Compliance Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ needs.smart-compliance-tests.outputs.status || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Passed**: ${{ needs.smart-compliance-tests.outputs.passed || '0' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed**: ${{ needs.smart-compliance-tests.outputs.failed || '0' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Integration Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ needs.integration-tests.outputs.status || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Overall Result" >> $GITHUB_STEP_SUMMARY
+          echo "**${{ steps.summary.outputs.overall_status }}**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload summary report
         uses: actions/upload-artifact@v4
         with:
-          name: integration-compliance-test-results-${{ inputs.test_stage }}-${{ inputs.deployment_target }}
-          path: testing/${{ inputs.test_stage }}/reports/
+          name: test-summary-${{ inputs.test_stage }}
+          path: testing/${{ inputs.test_stage }}/reports/summary/
           retention-days: 30
-
-      - name: Cleanup local services
-        if: inputs.deployment_target == 'local' && always()
-        run: |
-          echo "🧹 Cleaning up Alpha deployment resources after testing..."
-          
-          # Stop backend process (deployed by deployment strategy)
-          if [ -f backend.pid ]; then
-            echo "Stopping backend process..."
-            kill $(cat backend.pid) || true
-            rm backend.pid
-          fi
-          
-          # Stop and remove Docker containers (created by deployment strategy)
-          echo "Stopping Docker containers..."
-          docker stop alpha-keycloak alpha-postgres || true
-          docker rm alpha-keycloak alpha-postgres || true
-          
-          # Clean up any Inferno containers from testing
-          echo "Cleaning up Inferno test containers..."
-          docker ps -a --filter "name=inferno" --format "{{.Names}}" | xargs -r docker rm -f || true
-          
-          # Clean up any dangling Docker resources
-          echo "Cleaning up Docker resources..."
-          docker system prune -f || true
-          
-          echo "✅ Alpha deployment and testing cleanup completed"
-
-      - name: Generate GitHub Step Summary
-        if: always()
-        run: |
-          echo "## 🧪 Test Results Summary - ${{ inputs.test_stage }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Test Stage**: ${{ inputs.test_stage }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Deployment Target**: ${{ inputs.deployment_target }}" >> $GITHUB_STEP_SUMMARY
-          echo "**FHIR Server**: ${{ inputs.fhir_server_url }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Overall Status**: ${{ steps.summary.outputs.overall_status }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "- **Integration Tests**: ${{ steps.integration-tests.outputs.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Inferno ONC Tests**: ${{ steps.inferno-tests.outputs.compliance_status }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Test Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "Test reports are available in the uploaded artifacts: \`integration-compliance-test-results-${{ inputs.test_stage }}-${{ inputs.deployment_target }}\`" >> $GITHUB_STEP_SUMMARY
 
   # Discord notification on successful testing
   notify-testing-success:
-    name: Discord Testing Success Notification
-    needs: [integration-compliance-tests]
-    if: ${{ success() && needs.integration-compliance-tests.outputs.overall_status == 'passed' }}
+    name: Discord Success Notification
+    needs: [smart-compliance-tests, integration-tests, test-summary]
+    if: ${{ always() && needs.test-summary.outputs.overall_status == 'passed' }}
     runs-on: ubuntu-latest
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -308,7 +316,9 @@ jobs:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           notification-type: 'testing'
           title: '✅ Tests Passed: ${{ inputs.test_stage }} v${{ inputs.app_version }}'
-          description: 'All integration and compliance tests passed successfully for ${{ inputs.test_stage }} environment!'
+          description: |
+            All tests passed for ${{ inputs.test_stage }} environment!
+            SMART Compliance: ${{ needs.smart-compliance-tests.outputs.passed }} passed, ${{ needs.smart-compliance-tests.outputs.failed }} failed
           version: ${{ inputs.app_version }}
           deployment-stage: ${{ inputs.test_stage }}
           deployment-target: ${{ inputs.deployment_target }}
@@ -321,9 +331,9 @@ jobs:
 
   # Discord notification on testing failure
   notify-testing-failure:
-    name: Discord Testing Failure Notification
-    needs: [integration-compliance-tests]
-    if: ${{ failure() || (success() && needs.integration-compliance-tests.outputs.overall_status != 'passed') }}
+    name: Discord Failure Notification
+    needs: [smart-compliance-tests, integration-tests, test-summary]
+    if: ${{ always() && needs.test-summary.outputs.overall_status != 'passed' }}
     runs-on: ubuntu-latest
     env:
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -341,7 +351,9 @@ jobs:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           notification-type: 'error'
           title: '❌ Tests Failed: ${{ inputs.test_stage }} v${{ inputs.app_version }}'
-          description: 'Some tests failed for ${{ inputs.test_stage }} environment. Please check the test reports for details.'
+          description: |
+            Some tests failed for ${{ inputs.test_stage }} environment.
+            SMART Compliance: ${{ needs.smart-compliance-tests.outputs.passed }} passed, ${{ needs.smart-compliance-tests.outputs.failed }} failed
           version: ${{ inputs.app_version }}
           deployment-stage: ${{ inputs.test_stage }}
           deployment-target: ${{ inputs.deployment_target }}

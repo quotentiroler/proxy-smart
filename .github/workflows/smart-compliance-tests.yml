@@ -22,6 +22,31 @@ on:
           - alpha
           - beta
           - production
+  
+  # Called by other workflows (alpha, beta, production releases)
+  workflow_call:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: false
+        type: string
+        default: 'smart_stu2_2'
+      test_stage:
+        description: 'Test stage config to use'
+        required: false
+        type: string
+        default: 'alpha'
+    outputs:
+      passed:
+        description: 'Number of passed tests'
+        value: ${{ jobs.smart-compliance-test.outputs.passed }}
+      failed:
+        description: 'Number of failed tests'
+        value: ${{ jobs.smart-compliance-test.outputs.failed }}
+      status:
+        description: 'Overall test status'
+        value: ${{ jobs.smart-compliance-test.outputs.status }}
+  
   # Run on releases
   push:
     tags:
@@ -38,6 +63,11 @@ jobs:
     name: SMART ${{ inputs.test_suite || 'STU2.2' }} Compliance (${{ inputs.test_stage || 'alpha' }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    
+    outputs:
+      passed: ${{ steps.inferno-tests.outputs.passed }}
+      failed: ${{ steps.inferno-tests.outputs.failed }}
+      status: ${{ steps.inferno-tests.outcome }}
     
     services:
       postgres:

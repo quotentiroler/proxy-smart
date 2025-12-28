@@ -2,11 +2,12 @@
   "test_stage": "production",
   "description": "Production testing with full ONC certification requirements",
   "fhir_server": {
-    "url": "http://proxy-smart-backend:3001",
-    "name": "Proxy Smart FHIR Server (Production)"
+    "name": "Proxy Smart FHIR Server (Production)",
+    "port": 8081
   },
   "inferno": {
-    "module": "onc_program",
+    "url": "http://localhost:4567",
+    "test_suite": "smart_stu2_2",
     "sequences": [
       "UsCoreR4CapabilityStatement",
       "USCore311Patient",
@@ -35,29 +36,42 @@
       "BulkDataPatientExport",
       "BulkDataSystemExport"
     ],
-    "test_focus": "full_onc_certification"
+    "test_focus": "full_onc_certification",
+    "database": {
+      "url": "postgresql://inferno:inferno@localhost:5433/inferno"
+    },
+    "redis": {
+      "url": "redis://localhost:6379"
+    }
+  },
+  "keycloak": {
+    "realm": "proxy-smart",
+    "port": 8080,
+    "admin": {
+      "username": "admin",
+      "password": "admin"
+    }
+  },
+  "backend": {
+    "port": 8445
   },
   "client": {
-    "client_id": "production_test_client",
-    "client_secret": "production_test_secret",
-    "scopes": "patient/*.read user/*.read system/*.read",
-    "redirect_uri": "http://inferno:4567/inferno/callback"
+    "client_id": "inferno-test-client",
+    "scopes": "launch/patient openid fhirUser offline_access patient/*.read user/*.read system/*.read"
   },
-  "endpoints": {
-    "authorization": "http://keycloak:8080/realms/proxy-smart/protocol/openid-connect/auth",
-    "token": "http://keycloak:8080/realms/proxy-smart/protocol/openid-connect/token",
-    "introspection": "http://keycloak:8080/realms/proxy-smart/protocol/openid-connect/token/introspect"
+  "test_user": {
+    "username": "doctor",
+    "password": "doctor123"
   },
   "test_settings": {
     "timeout": 120,
     "retries": 10,
     "validate_ssl": false,
-    "smart_app_launch": true,
     "bulk_data": true,
     "security_testing": true
-  },
-  "bulk_data": {
-    "group_export_endpoint": "http://proxy-smart-backend:3001/Group/[id]/$export",
+  }
+}
+
     "patient_export_endpoint": "http://proxy-smart-backend:3001/Patient/$export",
     "system_export_endpoint": "http://proxy-smart-backend:3001/$export"
   }
