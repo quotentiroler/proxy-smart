@@ -139,36 +139,48 @@ async function waitForTestResult(sessionId, runId, browser, page) {
 
 async function handleOAuthFlow(page, authorizeUrl) {
   console.log('Handling OAuth flow...');
+  console.log(`  Navigating to: ${authorizeUrl}`);
   
   try {
     // Navigate to the authorize URL
-    await page.goto(authorizeUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    const response = await page.goto(authorizeUrl, { waitUntil: 'networkidle', timeout: 30000 });
+    console.log(`  Navigation response status: ${response?.status()}`);
     
     // Check if we're on Keycloak login page
     const currentUrl = page.url();
-    console.log(`Current URL: ${currentUrl}`);
+    console.log(`  Current URL after navigation: ${currentUrl}`);
     
     if (currentUrl.includes('keycloak') || currentUrl.includes('/auth/') || currentUrl.includes('/realms/')) {
-      console.log('On Keycloak login page, entering credentials...');
+      console.log('  On Keycloak login page, entering credentials...');
       
       // Wait for and fill username
       await page.waitForSelector('#username, input[name="username"]', { timeout: 10000 });
       await page.fill('#username, input[name="username"]', KC_USERNAME);
+      console.log('  Filled username');
       
       // Fill password
       await page.fill('#password, input[name="password"]', KC_PASSWORD);
+      console.log('  Filled password');
       
       // Click login button
       await page.click('#kc-login, button[type="submit"], input[type="submit"]');
+      console.log('  Clicked login button');
       
       // Wait for redirect back to Inferno
       await page.waitForURL(url => url.toString().includes('localhost:4567'), { timeout: 30000 });
-      console.log('✓ OAuth flow completed, redirected back to Inferno');
+      console.log('  ✓ OAuth flow completed, redirected back to Inferno');
+    } else {
+      console.log(`  Not on Keycloak login page. Page title: ${await page.title()}`);
     }
   } catch (error) {
-    console.error('OAuth flow error:', error.message);
+    console.error(`  OAuth flow error: ${error.message}`);
     // Take screenshot for debugging
-    await page.screenshot({ path: 'oauth-error.png' });
+    try {
+      await page.screenshot({ path: '/tmp/oauth-error.png' });
+      console.log('  Screenshot saved to /tmp/oauth-error.png');
+    } catch (screenshotError) {
+      console.log('  Could not save screenshot');
+    }
     throw error;
   }
 }
@@ -363,13 +375,16 @@ async function waitForSimpleTestCompletion(sessionId, runId, browser = null) {
                 const content = typeof result[field] === 'string' 
                   ? result[field] 
                   : JSON.stringify(result[field]);
-                // Look for authorize URLs
-                const urlMatch = content.match(/https?:\/\/[^\s<>"'\]]+authorize[^\s<>"'\]]*/);
+                // Look for authorize URLs - handle markdown link format [text](url)
+                // Match URL up to closing ) or whitespace/quotes
+                const urlMatch = content.match(/https?:\/\/[^\s<>"']+?authorize[^\s<>"')]+/);
                 if (urlMatch) {
-                  console.log(`  Found OAuth URL in ${field}: ${urlMatch[0]}`);
+                  // Clean up any trailing punctuation
+                  let url = urlMatch[0].replace(/[.,;:!?]+$/, '');
+                  console.log(`  Found OAuth URL in ${field}: ${url}`);
                   try {
                     if (!page) page = await browser.newPage();
-                    await handleOAuthFlow(page, urlMatch[0]);
+                    await handleOAuthFlow(page, url);
                     oauthAttempted = true;
                     console.log('  OAuth flow completed, continuing to poll...');
                   } catch (oauthError) {
