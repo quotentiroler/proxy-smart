@@ -315,6 +315,17 @@ jobs:
               -d '{"realm": "proxy-smart", "enabled": true}'
           fi
           
+          # Create SMART/FHIR client scopes for the realm
+          echo "Creating SMART client scopes..."
+          SMART_SCOPES=("launch/patient" "patient/*.read" "patient/*.write" "user/*.read" "user/*.write" "fhirUser" "launch" "online_access")
+          for SCOPE in "${SMART_SCOPES[@]}"; do
+            echo "  Creating scope: $SCOPE"
+            curl -s -X POST "http://localhost:8080/admin/realms/proxy-smart/client-scopes" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\": \"$SCOPE\", \"protocol\": \"openid-connect\", \"attributes\": {\"include.in.token.scope\": \"true\", \"display.on.consent.screen\": \"true\"}}" > /dev/null 2>&1 || true
+          done
+          
           # Create client
           echo "Creating Inferno client..."
           RESULT=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:8080/admin/realms/proxy-smart/clients" \
@@ -326,14 +337,20 @@ jobs:
               "publicClient": true,
               "standardFlowEnabled": true,
               "directAccessGrantsEnabled": true,
+              "fullScopeAllowed": true,
+              "consentRequired": false,
               "redirectUris": [
                 "http://localhost:4567/custom/smart_stu2_2/redirect",
                 "http://localhost:4567/custom/smart_stu2/redirect",
                 "http://localhost:4567/*"
               ],
-              "webOrigins": ["http://localhost:4567"],
+              "webOrigins": ["http://localhost:4567", "*"],
+              "defaultClientScopes": ["openid", "profile", "email", "web-origins", "acr", "roles"],
+              "optionalClientScopes": ["offline_access", "address", "phone", "microprofile-jwt", "launch/patient", "patient/*.read", "fhirUser", "launch", "online_access"],
               "attributes": {
-                "pkce.code.challenge.method": "S256"
+                "pkce.code.challenge.method": "S256",
+                "oauth2.device.authorization.grant.enabled": "false",
+                "use.refresh.tokens": "true"
               }
             }')
           
@@ -345,6 +362,32 @@ jobs:
           else
             echo "Client registration response: $HTTP_CODE"
             echo "$BODY"
+          fi
+          
+          # Create test user for OAuth flow
+          echo "Creating test user..."
+          USER_RESULT=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:8080/admin/realms/proxy-smart/users" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "username": "testuser",
+              "enabled": true,
+              "emailVerified": true,
+              "firstName": "Test",
+              "lastName": "User",
+              "email": "testuser@example.com",
+              "credentials": [{
+                "type": "password",
+                "value": "testpass",
+                "temporary": false
+              }]
+            }')
+          
+          USER_HTTP=$(echo "$USER_RESULT" | tail -1)
+          if [ "$USER_HTTP" = "201" ] || [ "$USER_HTTP" = "409" ]; then
+            echo "Test user created (or already exists)"
+          else
+            echo "User creation response: $USER_HTTP"
           fi
 
       # Run Inferno tests via Playwright automation
