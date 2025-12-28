@@ -491,6 +491,12 @@
       {
         "name": "admin",
         "description": "Administrator role"
+      },
+      {
+        "name": "offline_access",
+        "description": "Allow users to obtain offline tokens (refresh tokens that don't expire)",
+        "composite": false,
+        "clientRole": false
       }
     ],
     "client": {
