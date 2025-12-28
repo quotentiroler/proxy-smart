@@ -106,6 +106,8 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
     )
 
     // Add all query parameters to the Keycloak URL
+    // SMART scopes (launch/patient, patient/*.read, etc.) are now configured in Keycloak
+    // as client scopes, so we can pass them through directly
     Object.entries(query).forEach(([k, v]) => {
       if (v !== undefined && v !== null) {
         url.searchParams.set(k, v as string)
@@ -275,7 +277,10 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       if (bodyObj.client_secret || bodyObj.clientSecret) formData.append('client_secret', bodyObj.client_secret || bodyObj.clientSecret!)
       if (bodyObj.code_verifier || bodyObj.codeVerifier) formData.append('code_verifier', bodyObj.code_verifier || bodyObj.codeVerifier!)
       if (bodyObj.refresh_token || bodyObj.refreshToken) formData.append('refresh_token', bodyObj.refresh_token || bodyObj.refreshToken!)
+      
+      // Pass scope through directly - SMART scopes are now configured in Keycloak
       if (bodyObj.scope) formData.append('scope', bodyObj.scope)
+      
   if (bodyObj.audience) formData.append('audience', bodyObj.audience)
   // RFC 8707 Resource Indicators support
   if (bodyObj.resource) formData.append('resource', bodyObj.resource)
@@ -315,7 +320,8 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       // Log OAuth event
       const clientId = bodyObj.client_id || bodyObj.clientId || 'unknown';
       const grantType = bodyObj.grant_type || bodyObj.grantType || 'unknown';
-      const scopes = bodyObj.scope ? bodyObj.scope.split(' ') : [];
+      const requestedScope = bodyObj.scope;
+      const scopes = requestedScope ? requestedScope.split(' ') : [];
 
       try {
         await oauthMetricsLogger.logEvent({
@@ -348,6 +354,16 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
 
       // Set the proper HTTP status code from Keycloak response
       set.status = resp.status
+
+      // RFC 6749 Section 5.1: Token response MUST include cache headers
+      // SMART 2.2.0 compliance: These headers are required for token responses
+      set.headers['Cache-Control'] = 'no-store'
+      set.headers['Pragma'] = 'no-cache'
+
+      // CORS headers for token endpoint (required by SMART)
+      set.headers['Access-Control-Allow-Origin'] = '*'
+      set.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+      set.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
 
       // If there's an error, return it with the proper status code
       if (data.error) {
@@ -403,6 +419,21 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
           if (tokenPayload.smart_need_patient_banner) {
             data.need_patient_banner = tokenPayload.smart_need_patient_banner === 'true' || tokenPayload.smart_need_patient_banner === true
           }
+
+          // Restore SMART scopes in the token response
+          // With SMART scopes configured in Keycloak, Keycloak should return them
+          // But we also support smart_scope claim from protocol mapper
+          if (tokenPayload.smart_scope) {
+            // If the token has smart_scope claim, use that (set via protocol mapper)
+            data.scope = tokenPayload.smart_scope
+          } else if (requestedScope && !data.scope) {
+            // If scope was passed in token request and Keycloak didn't return scope, use requested
+            data.scope = requestedScope
+            logger.auth.debug('Using requested scope for token response', {
+              requestedScope
+            })
+          }
+          // Otherwise, use Keycloak's returned scope (which now includes SMART scopes)
 
           // Add authorization_details for multiple FHIR servers support (RFC 9396)
           // Generate based on configured FHIR servers and token claims

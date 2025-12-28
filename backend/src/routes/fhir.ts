@@ -121,7 +121,11 @@ const proxySchema = {
 
 export const fhirRoutes = new Elysia({ prefix: `/${config.name}/:server_name/:fhir_version`, tags: ['fhir'] })
   // SMART on FHIR Configuration endpoint - server-specific configuration
-  .get('/.well-known/smart-configuration', async (): Promise<SmartConfigurationResponseType> => {
+  .get('/.well-known/smart-configuration', async ({ set }): Promise<SmartConfigurationResponseType> => {
+    // SMART 2.2.0 requires CORS support for .well-known/smart-configuration
+    set.headers['Access-Control-Allow-Origin'] = '*'
+    set.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    set.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     return await smartConfigService.getSmartConfiguration()
   }, {
     params: t.Object({

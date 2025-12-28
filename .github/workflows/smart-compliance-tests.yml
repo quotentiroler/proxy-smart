@@ -13,6 +13,15 @@ on:
           - smart_stu2_2
           - smart_stu2
           - smart_stu1
+      test_stage:
+        description: 'Test stage config to use'
+        required: false
+        default: 'alpha'
+        type: choice
+        options:
+          - alpha
+          - beta
+          - production
   # Run on releases
   push:
     tags:
@@ -22,18 +31,17 @@ on:
     - cron: '0 6 * * 1'  # Every Monday at 6 AM UTC
 
 env:
-  INFERNO_VERSION: main
-  TEST_SUITE: ${{ inputs.test_suite || 'smart_stu2_2' }}
+  TEST_STAGE: ${{ inputs.test_stage || 'alpha' }}
 
 jobs:
   smart-compliance-test:
-    name: SMART ${{ inputs.test_suite || 'STU2.2' }} Compliance
+    name: SMART ${{ inputs.test_suite || 'STU2.2' }} Compliance (${{ inputs.test_stage || 'alpha' }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: keycloak
           POSTGRES_PASSWORD: keycloak
@@ -48,7 +56,7 @@ jobs:
       
       # Inferno's postgres
       inferno-db:
-        image: postgres:16-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_USER: inferno
           POSTGRES_PASSWORD: inferno
@@ -63,7 +71,7 @@ jobs:
       
       # Redis for Inferno
       redis:
-        image: redis:7-alpine
+        image: redis:8-alpine
         ports:
           - 6379:6379
         options: >-
@@ -71,10 +79,89 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 5
+      
+      # HAPI FHIR Server - standard R4 test server
+      # Note: HAPI takes ~35 seconds to start. We use a simple TCP check.
+      hapi-fhir:
+        image: hapiproject/hapi:v8.6.0-1
+        ports:
+          - 8081:8080
+        env:
+          hapi.fhir.default_encoding: json
+          hapi.fhir.fhir_version: R4
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Load test configuration
+        id: config
+        run: |
+          CONFIG_FILE="testing/${{ env.TEST_STAGE }}/inferno-config.json"
+          echo "Loading config from: $CONFIG_FILE"
+          
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "ERROR: Config file not found: $CONFIG_FILE"
+            exit 1
+          fi
+          
+          # Extract values from config
+          INFERNO_URL=$(jq -r '.inferno.url' "$CONFIG_FILE")
+          TEST_SUITE=$(jq -r '.inferno.test_suite // "smart_stu2_2"' "$CONFIG_FILE")
+          CLIENT_ID=$(jq -r '.client.client_id' "$CONFIG_FILE")
+          KC_USERNAME=$(jq -r '.test_user.username' "$CONFIG_FILE")
+          KC_PASSWORD=$(jq -r '.test_user.password' "$CONFIG_FILE")
+          KC_REALM=$(jq -r '.keycloak.realm' "$CONFIG_FILE")
+          KC_PORT=$(jq -r '.keycloak.port' "$CONFIG_FILE")
+          BACKEND_PORT=$(jq -r '.backend.port' "$CONFIG_FILE")
+          FHIR_PORT=$(jq -r '.fhir_server.port' "$CONFIG_FILE")
+          
+          # Override test_suite if provided via input
+          if [ -n "${{ inputs.test_suite }}" ]; then
+            TEST_SUITE="${{ inputs.test_suite }}"
+          fi
+          
+          # Set outputs for later steps
+          echo "inferno_url=$INFERNO_URL" >> $GITHUB_OUTPUT
+          echo "test_suite=$TEST_SUITE" >> $GITHUB_OUTPUT
+          echo "client_id=$CLIENT_ID" >> $GITHUB_OUTPUT
+          echo "kc_username=$KC_USERNAME" >> $GITHUB_OUTPUT
+          echo "kc_password=$KC_PASSWORD" >> $GITHUB_OUTPUT
+          echo "kc_realm=$KC_REALM" >> $GITHUB_OUTPUT
+          echo "kc_port=$KC_PORT" >> $GITHUB_OUTPUT
+          echo "backend_port=$BACKEND_PORT" >> $GITHUB_OUTPUT
+          echo "fhir_port=$FHIR_PORT" >> $GITHUB_OUTPUT
+          
+          echo "✓ Configuration loaded from $CONFIG_FILE"
+          echo "  Test Suite: $TEST_SUITE"
+          echo "  Client ID: $CLIENT_ID"
+          echo "  Keycloak Realm: $KC_REALM"
+
+      # Cache Docker images to speed up workflow
+      - name: Cache Docker images
+        uses: actions/cache@v4
+        id: docker-cache
+        with:
+          path: /tmp/docker-images
+          key: docker-images-keycloak-26.0.5
+
+      - name: Load cached Docker images
+        if: steps.docker-cache.outputs.cache-hit == 'true'
+        run: |
+          if [ -f /tmp/docker-images/keycloak.tar ]; then
+            echo "Loading cached Keycloak image..."
+            docker load -i /tmp/docker-images/keycloak.tar
+            echo "✓ Keycloak image loaded from cache"
+          fi
+
+      - name: Pull and cache Keycloak image
+        if: steps.docker-cache.outputs.cache-hit != 'true'
+        run: |
+          echo "Pulling Keycloak image (will be cached for next run)..."
+          docker pull quay.io/keycloak/keycloak:26.0.5
+          mkdir -p /tmp/docker-images
+          docker save quay.io/keycloak/keycloak:26.0.5 -o /tmp/docker-images/keycloak.tar
+          echo "✓ Keycloak image pulled and saved for caching"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -113,14 +200,17 @@ jobs:
             start-dev --import-realm
           
           # Wait for Keycloak to be ready
+          # Note: Health endpoints return 404 in dev mode, check the realm endpoint instead
           echo "Waiting for Keycloak..."
-          for i in {1..90}; do
-            if curl -sf http://localhost:8080/health/ready; then
-              echo "Keycloak is ready!"
+          for i in {1..60}; do
+            # Check if Keycloak is responding on the master realm
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/realms/master 2>/dev/null || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Keycloak is ready! (HTTP $HTTP_CODE)"
               break
             fi
-            echo "Attempt $i/90..."
-            sleep 5
+            echo "Attempt $i/60... (HTTP $HTTP_CODE)"
+            sleep 2
           done
           
           # Verify realm was imported
@@ -134,14 +224,28 @@ jobs:
           echo "Available realms: $REALMS"
           
           if echo "$REALMS" | grep -q "proxy-smart"; then
-            echo "proxy-smart realm found!"
+            echo "✓ proxy-smart realm found!"
           else
-            echo "proxy-smart realm not found, creating it..."
-            curl -s -X POST "http://localhost:8080/admin/realms" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{"realm": "proxy-smart", "enabled": true}'
+            echo "ERROR: proxy-smart realm not found! Check realm-export.json import."
+            docker logs keycloak | tail -50
+            exit 1
           fi
+
+      # Wait for HAPI FHIR to be ready (takes ~35 seconds to start)
+      - name: Wait for HAPI FHIR
+        run: |
+          echo "Waiting for HAPI FHIR server to be ready..."
+          for i in {1..60}; do
+            if curl -sf http://localhost:8081/fhir/metadata > /dev/null 2>&1; then
+              echo "✓ HAPI FHIR is ready!"
+              curl -s http://localhost:8081/fhir/metadata | jq -r '.fhirVersion' | xargs -I{} echo "  FHIR Version: {}"
+              exit 0
+            fi
+            echo "Attempt $i/60 - waiting for HAPI FHIR..."
+            sleep 2
+          done
+          echo "ERROR: HAPI FHIR failed to start in time"
+          exit 1
 
       # Start the application
       - name: Start Application
@@ -163,9 +267,29 @@ jobs:
           done
         env:
           NODE_ENV: production
-          KEYCLOAK_URL: http://localhost:8080
+          KEYCLOAK_BASE_URL: http://localhost:8080
+          KEYCLOAK_REALM: proxy-smart
+          # Point to HAPI FHIR server running in GitHub Actions service container
+          FHIR_SERVER_BASE: http://localhost:8081/fhir
 
-      # Setup Ruby and Inferno
+      # Setup Node.js for Playwright
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          # Install Playwright in a separate directory to avoid workspace package.json issues
+          mkdir -p /tmp/playwright-setup
+          cd /tmp/playwright-setup
+          npm init -y
+          npm install playwright
+          npx playwright install chromium --with-deps
+          # Copy playwright to workspace node_modules for script access
+          mkdir -p $GITHUB_WORKSPACE/node_modules
+          cp -r node_modules/playwright* $GITHUB_WORKSPACE/node_modules/ || true
+
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -189,8 +313,19 @@ jobs:
           export DATABASE_URL="postgresql://inferno:inferno@localhost:5433/inferno"
           export REDIS_URL="redis://localhost:6379"
           
-          # Start Inferno in background
+          # Start Sidekiq worker for background job processing (test runs)
+          # Must use -r ./worker.rb to load Inferno's job classes
+          bundle exec sidekiq -r ./worker.rb &
+          SIDEKIQ_PID=$!
+          echo "Started Sidekiq worker (PID: $SIDEKIQ_PID)"
+          
+          # Give Sidekiq a moment to connect to Redis
+          sleep 2
+          
+          # Start Inferno web server in background
           bundle exec puma -p 4567 &
+          PUMA_PID=$!
+          echo "Started Puma server (PID: $PUMA_PID)"
           
           # Wait for Inferno to be ready
           echo "Waiting for Inferno..."
@@ -204,7 +339,7 @@ jobs:
           done
 
       # Register test client in Keycloak
-      - name: Register Inferno Client
+      - name: Verify Keycloak Setup
         run: |
           # Get admin token
           TOKEN=$(curl -s -X POST "http://localhost:8080/realms/master/protocol/openid-connect/token" \
@@ -216,160 +351,212 @@ jobs:
           
           echo "Admin token obtained: ${TOKEN:0:20}..."
           
-          # Check if realm exists
+          # Verify realm was imported from realm-export.json
           REALM_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
             "http://localhost:8080/admin/realms/proxy-smart" \
             -H "Authorization: Bearer $TOKEN")
           
-          if [ "$REALM_CHECK" != "200" ]; then
-            echo "Creating proxy-smart realm..."
-            curl -s -X POST "http://localhost:8080/admin/realms" \
-              -H "Authorization: Bearer $TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{"realm": "proxy-smart", "enabled": true}'
-          fi
-          
-          # Create client
-          echo "Creating Inferno client..."
-          RESULT=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:8080/admin/realms/proxy-smart/clients" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "clientId": "inferno-test-client",
-              "enabled": true,
-              "publicClient": true,
-              "standardFlowEnabled": true,
-              "directAccessGrantsEnabled": true,
-              "redirectUris": [
-                "http://localhost:4567/custom/smart_stu2_2/redirect",
-                "http://localhost:4567/custom/smart_stu2/redirect",
-                "http://localhost:4567/*"
-              ],
-              "webOrigins": ["http://localhost:4567"],
-              "attributes": {
-                "pkce.code.challenge.method": "S256"
-              }
-            }')
-          
-          HTTP_CODE=$(echo "$RESULT" | tail -1)
-          BODY=$(echo "$RESULT" | head -n -1)
-          
-          if [ "$HTTP_CODE" = "201" ] || [ "$HTTP_CODE" = "409" ]; then
-            echo "Client registered (or already exists)"
+          if [ "$REALM_CHECK" = "200" ]; then
+            echo "✓ proxy-smart realm exists"
           else
-            echo "Client registration response: $HTTP_CODE"
-            echo "$BODY"
+            echo "ERROR: proxy-smart realm not found! Check realm-export.json import."
+            exit 1
           fi
+          
+          # Verify inferno-test-client exists (from realm-export.json)
+          CLIENT_CHECK=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/clients?clientId=inferno-test-client" \
+            -H "Authorization: Bearer $TOKEN" | jq 'length')
+          
+          if [ "$CLIENT_CHECK" -gt 0 ]; then
+            echo "✓ inferno-test-client exists"
+          else
+            echo "ERROR: inferno-test-client not found! Check realm-export.json"
+            exit 1
+          fi
+          
+          # Verify testuser exists (from realm-export.json)
+          USER_CHECK=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users?username=testuser" \
+            -H "Authorization: Bearer $TOKEN" | jq 'length')
+          
+          if [ "$USER_CHECK" -gt 0 ]; then
+            echo "✓ testuser exists"
+          else
+            echo "ERROR: testuser not found! Check realm-export.json"
+            exit 1
+          fi
+          
+          # Verify SMART scopes exist
+          echo "Checking SMART client scopes..."
+          SCOPES=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/client-scopes" \
+            -H "Authorization: Bearer $TOKEN" | jq -r '.[].name' | sort)
+          echo "Available client scopes:"
+          echo "$SCOPES"
+          
+          # Check for key SMART scopes
+          if echo "$SCOPES" | grep -q "launch/patient"; then
+            echo "✓ SMART scopes configured"
+          else
+            echo "WARNING: SMART scopes not found - they should be in realm-export.json"
+          fi
+          
+          # Verify offline_access role exists (from realm-export.json)
+          echo ""
+          echo "Verifying offline_access role..."
+          OFFLINE_ROLE=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/roles/offline_access" \
+            -H "Authorization: Bearer $TOKEN")
+          OFFLINE_ROLE_ID=$(echo "$OFFLINE_ROLE" | jq -r '.id')
+          
+          if [ "$OFFLINE_ROLE_ID" != "null" ] && [ -n "$OFFLINE_ROLE_ID" ]; then
+            echo "✓ offline_access role exists (ID: $OFFLINE_ROLE_ID)"
+          else
+            echo "WARNING: offline_access role not found - should be in realm-export.json"
+          fi
+          
+          # Verify testuser has offline_access role
+          TESTUSER_ID=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users?username=testuser" \
+            -H "Authorization: Bearer $TOKEN" | jq -r '.[0].id')
+          USER_ROLES=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users/$TESTUSER_ID/role-mappings/realm" \
+            -H "Authorization: Bearer $TOKEN" | jq -r '.[].name')
+          echo "testuser roles: $USER_ROLES"
+          
+          if echo "$USER_ROLES" | grep -q "offline_access"; then
+            echo "✓ testuser has offline_access role"
+          else
+            echo "WARNING: testuser missing offline_access role - should be in realm-export.json"
+          fi
+          
+          # Verify doctor user has offline_access role
+          DOCTOR_ID=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users?username=doctor" \
+            -H "Authorization: Bearer $TOKEN" | jq -r '.[0].id')
+          
+          if [ "$DOCTOR_ID" != "null" ] && [ -n "$DOCTOR_ID" ]; then
+            DOCTOR_ROLES=$(curl -s "http://localhost:8080/admin/realms/proxy-smart/users/$DOCTOR_ID/role-mappings/realm" \
+              -H "Authorization: Bearer $TOKEN" | jq -r '.[].name')
+            echo "doctor roles: $DOCTOR_ROLES"
+            
+            if echo "$DOCTOR_ROLES" | grep -q "offline_access"; then
+              echo "✓ doctor has offline_access role"
+            else
+              echo "WARNING: doctor missing offline_access role - should be in realm-export.json"
+            fi
+          fi
+          
+          echo ""
+          echo "=== Keycloak setup verified ==="
 
-      # Run Inferno tests via API
+      # Run Inferno tests via Playwright automation
       - name: Run SMART Compliance Tests
         id: inferno-tests
         continue-on-error: true
         run: |
-          echo "=== Checking Inferno API ==="
+          set +e  # Disable exit on error for robust handling
           
-          # List available test suites
-          SUITES=$(curl -s "http://localhost:4567/api/test_suites" || echo "[]")
-          echo "Available suites: $SUITES"
+          echo "=== SMART 2.2.0 Compliance Testing with Inferno ==="
+          echo ""
           
-          # Create test session
-          echo "Creating test session for $TEST_SUITE..."
-          SESSION_RESPONSE=$(curl -s -X POST "http://localhost:4567/api/test_sessions" \
-            -H "Content-Type: application/json" \
-            -d "{\"test_suite_id\": \"$TEST_SUITE\"}" || echo "{}")
+          # Get FHIR server URL from our proxy
+          echo "### Step 0: Discovering FHIR Servers ###"
+          SERVERS=$(curl -s "http://localhost:8445/fhir-servers" 2>&1)
+          echo "Available FHIR servers:"
+          echo "$SERVERS" | jq '.' 2>/dev/null || echo "$SERVERS"
           
-          echo "Session response: $SESSION_RESPONSE"
-          SESSION=$(echo "$SESSION_RESPONSE" | jq -r '.id // empty')
+          # Get the first server's endpoints
+          SMART_CONFIG_URL=$(echo "$SERVERS" | jq -r '.servers[0].endpoints.smartConfig // empty' 2>/dev/null)
+          BASE_FHIR_URL=$(echo "$SERVERS" | jq -r '.servers[0].endpoints.base // empty' 2>/dev/null)
           
-          if [ -z "$SESSION" ]; then
-            echo "::warning::Could not create test session. Inferno API may not be ready."
-            echo "## SMART Compliance Tests" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Could not run automated tests - Inferno API not responding as expected." >> $GITHUB_STEP_SUMMARY
+          if [ -z "$SMART_CONFIG_URL" ] || [ "$SMART_CONFIG_URL" = "null" ]; then
+            echo "::warning::No FHIR servers configured - cannot test SMART configuration"
+            echo "## SMART Compliance Tests - SKIPPED" >> $GITHUB_STEP_SUMMARY
+            echo "No FHIR servers configured." >> $GITHUB_STEP_SUMMARY
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
             exit 0
           fi
           
-          echo "Created test session: $SESSION"
-          echo "session_id=$SESSION" >> $GITHUB_OUTPUT
+          echo ""
+          echo "Using SMART config URL: $SMART_CONFIG_URL"
+          echo "Using FHIR base URL: $BASE_FHIR_URL"
           
-          # Get test suite info
-          SUITE_INFO=$(curl -s "http://localhost:4567/api/test_suites/$TEST_SUITE")
-          FIRST_GROUP=$(echo "$SUITE_INFO" | jq -r '.test_groups[0].id // empty')
+          # Step 1: Quick validation of SMART configuration
+          echo ""
+          echo "### Step 1: Quick SMART Configuration Validation ###"
+          SMART_CONFIG=$(curl -s "$SMART_CONFIG_URL" 2>&1)
+          echo "$SMART_CONFIG" | jq '.'
           
-          if [ -z "$FIRST_GROUP" ]; then
-            echo "::warning::Could not find test groups"
-            exit 0
+          # Check required fields
+          AUTH_EP=$(echo "$SMART_CONFIG" | jq -r '.authorization_endpoint // empty')
+          TOKEN_EP=$(echo "$SMART_CONFIG" | jq -r '.token_endpoint // empty')
+          
+          if [ -z "$AUTH_EP" ] || [ -z "$TOKEN_EP" ]; then
+            echo "::error::Missing required SMART endpoints"
+            echo "## SMART Compliance Tests - FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Missing authorization_endpoint or token_endpoint" >> $GITHUB_STEP_SUMMARY
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=1" >> $GITHUB_OUTPUT
+            exit 1
           fi
           
-          echo "Running test group: $FIRST_GROUP"
+          echo "✓ authorization_endpoint: $AUTH_EP"
+          echo "✓ token_endpoint: $TOKEN_EP"
           
-          # Run tests with inputs
-          RUN_RESPONSE=$(curl -s -X POST "http://localhost:4567/api/test_runs" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"test_session_id\": \"$SESSION\",
-              \"test_group_id\": \"$FIRST_GROUP\",
-              \"inputs\": [
-                {\"name\": \"url\", \"value\": \"http://localhost:8445/fhir\"},
-                {\"name\": \"smart_authorization_url\", \"value\": \"http://localhost:8080/realms/proxy-smart/protocol/openid-connect/auth\"},
-                {\"name\": \"smart_token_url\", \"value\": \"http://localhost:8080/realms/proxy-smart/protocol/openid-connect/token\"},
-                {\"name\": \"client_id\", \"value\": \"inferno-test-client\"}
-              ]
-            }")
+          # Step 2: Run Inferno tests with Playwright OAuth automation
+          echo ""
+          echo "### Step 2: Running Inferno Tests with Playwright ###"
           
-          echo "Run response: $RUN_RESPONSE"
-          RUN=$(echo "$RUN_RESPONSE" | jq -r '.id // empty')
+          # Copy the script to the Playwright directory and run it from there
+          cp .github/scripts/inferno-oauth-automation.js /tmp/playwright-setup/
+          cd /tmp/playwright-setup
+          node inferno-oauth-automation.js 2>&1 | tee $GITHUB_WORKSPACE/inferno-output.log
+          INFERNO_EXIT_CODE=${PIPESTATUS[0]}
+          cd $GITHUB_WORKSPACE
           
-          if [ -z "$RUN" ]; then
-            echo "::warning::Could not start test run"
-            exit 0
+          # Parse results from the log
+          if grep -q "PASS:" inferno-output.log; then
+            PASSED=$(grep -c "✓ PASS:" inferno-output.log || echo "0")
+            FAILED=$(grep -c "✗ FAIL:" inferno-output.log || echo "0")
+          else
+            PASSED=0
+            FAILED=0
           fi
           
-          echo "Started test run: $RUN"
-          echo "run_id=$RUN" >> $GITHUB_OUTPUT
-          
-          # Poll for completion (max 10 minutes)
-          for i in {1..120}; do
-            STATUS=$(curl -s "http://localhost:4567/api/test_runs/$RUN" | jq -r '.status // "unknown"')
-            echo "Test status: $STATUS"
-            
-            if [ "$STATUS" = "done" ]; then
-              break
-            fi
-            
-            sleep 5
-          done
-          
-          # Get results
-          RESULTS=$(curl -s "http://localhost:4567/api/test_runs/$RUN/results")
-          
-          PASSED=$(echo "$RESULTS" | jq '[.[] | select(.result == "pass")] | length')
-          FAILED=$(echo "$RESULTS" | jq '[.[] | select(.result == "fail")] | length')
-          SKIPPED=$(echo "$RESULTS" | jq '[.[] | select(.result == "skip")] | length')
-          ERRORS=$(echo "$RESULTS" | jq '[.[] | select(.result == "error")] | length')
-          
-          echo "## SMART Compliance Test Results" >> $GITHUB_STEP_SUMMARY
+          # Write summary
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Test Suite:** $TEST_SUITE" >> $GITHUB_STEP_SUMMARY
+          echo "## SMART 2.2.0 Compliance Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
-          echo "| Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
-          echo "| Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
-          echo "| Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
           
+          if [ "$INFERNO_EXIT_CODE" -eq 0 ]; then
+            echo "**Status: ✓ PASSED**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Status: ✗ FAILED**" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
+          echo "- Failed: $FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "- Test Stage: ${{ env.TEST_STAGE }}" >> $GITHUB_STEP_SUMMARY
+          
+          # Include FHIR server info (discovered from SMART config)
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### FHIR Server Configuration" >> $GITHUB_STEP_SUMMARY
+          FHIR_VERSION=$(echo "$SMART_CONFIG" | jq -r '.fhirVersion // "R4"')
+          echo "- FHIR Version: $FHIR_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- Authorization Endpoint: $AUTH_EP" >> $GITHUB_STEP_SUMMARY
+          echo "- Token Endpoint: $TOKEN_EP" >> $GITHUB_STEP_SUMMARY
+          
+          # Set outputs
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
-          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
-          echo "errors=$ERRORS" >> $GITHUB_OUTPUT
           
-          # List failed tests if any
-          if [ "$FAILED" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Failed/Error Tests" >> $GITHUB_STEP_SUMMARY
-            echo "$RESULTS" | jq -r '.[] | select(.result == "fail" or .result == "error") | "- \(.test_id): \(.result)"' >> $GITHUB_STEP_SUMMARY
-          fi
+          exit $INFERNO_EXIT_CODE
+        env:
+          # All values loaded from testing/$TEST_STAGE/inferno-config.json
+          INFERNO_URL: ${{ steps.config.outputs.inferno_url }}
+          FHIR_SERVER_URL: http://localhost:${{ steps.config.outputs.backend_port }}/proxy-smart-backend/hapi-fhir-server/R4
+          TEST_SUITE: ${{ steps.config.outputs.test_suite }}
+          CLIENT_ID: ${{ steps.config.outputs.client_id }}
+          KC_USERNAME: ${{ steps.config.outputs.kc_username }}
+          KC_PASSWORD: ${{ steps.config.outputs.kc_password }}
 
       # Save test results
       - name: Save Test Results
@@ -377,13 +564,33 @@ jobs:
         run: |
           mkdir -p test-results
           
-          RUN="${{ steps.inferno-tests.outputs.run_id }}"
+          # Discover servers and get SMART config URL
+          SERVERS=$(curl -s "http://localhost:8445/fhir-servers" 2>&1)
+          SMART_CONFIG_URL=$(echo "$SERVERS" | jq -r '.servers[0].endpoints.smartConfig // empty' 2>/dev/null)
+          METADATA_URL=$(echo "$SERVERS" | jq -r '.servers[0].endpoints.metadata // empty' 2>/dev/null)
           
-          if [ -n "$RUN" ]; then
-            curl -s "http://localhost:4567/api/test_runs/$RUN/results" > test-results/inferno-results.json 2>/dev/null || echo "[]" > test-results/inferno-results.json
+          # Save server discovery info
+          echo "$SERVERS" > test-results/fhir-servers.json
+          
+          # Save SMART configuration if URL available
+          if [ -n "$SMART_CONFIG_URL" ] && [ "$SMART_CONFIG_URL" != "null" ]; then
+            curl -s "$SMART_CONFIG_URL" > test-results/smart-configuration.json 2>/dev/null || echo "{}" > test-results/smart-configuration.json
           else
-            echo "[]" > test-results/inferno-results.json
+            echo "{\"note\": \"No FHIR servers configured\"}" > test-results/smart-configuration.json
           fi
+          
+          # Save FHIR metadata if URL available
+          if [ -n "$METADATA_URL" ] && [ "$METADATA_URL" != "null" ]; then
+            curl -s "$METADATA_URL" > test-results/fhir-metadata.json 2>/dev/null || echo "{}" > test-results/fhir-metadata.json
+          else
+            echo "{\"note\": \"No FHIR servers configured\"}" > test-results/fhir-metadata.json
+          fi
+          
+          # Save Inferno test output
+          cp inferno-output.log test-results/inferno-output.log 2>/dev/null || true
+          
+          # Save Playwright screenshots if any
+          cp oauth-error.png test-results/oauth-error.png 2>/dev/null || true
           
           # Also save service logs
           docker logs keycloak > test-results/keycloak.log 2>&1 || true
