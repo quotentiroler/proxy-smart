@@ -15,6 +15,7 @@
   "offlineSessionIdleTimeout": 2592000,
   "offlineSessionMaxLifespan": 5184000,
   "offlineSessionMaxLifespanEnabled": false,
+  "defaultRoles": ["user", "offline_access"],
   "clientScopes": [
     {
       "name": "launch/patient",
