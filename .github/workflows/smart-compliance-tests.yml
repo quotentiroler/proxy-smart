@@ -13,6 +13,15 @@ on:
           - smart_stu2_2
           - smart_stu2
           - smart_stu1
+      test_stage:
+        description: 'Test stage config to use'
+        required: false
+        default: 'alpha'
+        type: choice
+        options:
+          - alpha
+          - beta
+          - production
   # Run on releases
   push:
     tags:
@@ -22,12 +31,11 @@ on:
     - cron: '0 6 * * 1'  # Every Monday at 6 AM UTC
 
 env:
-  INFERNO_VERSION: main
-  TEST_SUITE: ${{ inputs.test_suite || 'smart_stu2_2' }}
+  TEST_STAGE: ${{ inputs.test_stage || 'alpha' }}
 
 jobs:
   smart-compliance-test:
-    name: SMART ${{ inputs.test_suite || 'STU2.2' }} Compliance
+    name: SMART ${{ inputs.test_suite || 'STU2.2' }} Compliance (${{ inputs.test_stage || 'alpha' }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     
@@ -85,6 +93,49 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Load test configuration
+        id: config
+        run: |
+          CONFIG_FILE="testing/${{ env.TEST_STAGE }}/inferno-config.json"
+          echo "Loading config from: $CONFIG_FILE"
+          
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "ERROR: Config file not found: $CONFIG_FILE"
+            exit 1
+          fi
+          
+          # Extract values from config
+          INFERNO_URL=$(jq -r '.inferno.url' "$CONFIG_FILE")
+          TEST_SUITE=$(jq -r '.inferno.test_suite // "smart_stu2_2"' "$CONFIG_FILE")
+          CLIENT_ID=$(jq -r '.client.client_id' "$CONFIG_FILE")
+          KC_USERNAME=$(jq -r '.test_user.username' "$CONFIG_FILE")
+          KC_PASSWORD=$(jq -r '.test_user.password' "$CONFIG_FILE")
+          KC_REALM=$(jq -r '.keycloak.realm' "$CONFIG_FILE")
+          KC_PORT=$(jq -r '.keycloak.port' "$CONFIG_FILE")
+          BACKEND_PORT=$(jq -r '.backend.port' "$CONFIG_FILE")
+          FHIR_PORT=$(jq -r '.fhir_server.port' "$CONFIG_FILE")
+          
+          # Override test_suite if provided via input
+          if [ -n "${{ inputs.test_suite }}" ]; then
+            TEST_SUITE="${{ inputs.test_suite }}"
+          fi
+          
+          # Set outputs for later steps
+          echo "inferno_url=$INFERNO_URL" >> $GITHUB_OUTPUT
+          echo "test_suite=$TEST_SUITE" >> $GITHUB_OUTPUT
+          echo "client_id=$CLIENT_ID" >> $GITHUB_OUTPUT
+          echo "kc_username=$KC_USERNAME" >> $GITHUB_OUTPUT
+          echo "kc_password=$KC_PASSWORD" >> $GITHUB_OUTPUT
+          echo "kc_realm=$KC_REALM" >> $GITHUB_OUTPUT
+          echo "kc_port=$KC_PORT" >> $GITHUB_OUTPUT
+          echo "backend_port=$BACKEND_PORT" >> $GITHUB_OUTPUT
+          echo "fhir_port=$FHIR_PORT" >> $GITHUB_OUTPUT
+          
+          echo "✓ Configuration loaded from $CONFIG_FILE"
+          echo "  Test Suite: $TEST_SUITE"
+          echo "  Client ID: $CLIENT_ID"
+          echo "  Keycloak Realm: $KC_REALM"
 
       # Cache Docker images to speed up workflow
       - name: Cache Docker images
@@ -483,8 +534,9 @@ jobs:
           echo "### Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- Passed: $PASSED" >> $GITHUB_STEP_SUMMARY
           echo "- Failed: $FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "- Test Stage: ${{ env.TEST_STAGE }}" >> $GITHUB_STEP_SUMMARY
           
-          # Include FHIR server info
+          # Include FHIR server info (discovered from SMART config)
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### FHIR Server Configuration" >> $GITHUB_STEP_SUMMARY
           FHIR_VERSION=$(echo "$SMART_CONFIG" | jq -r '.fhirVersion // "R4"')
@@ -498,12 +550,13 @@ jobs:
           
           exit $INFERNO_EXIT_CODE
         env:
-          INFERNO_URL: http://localhost:4567
-          FHIR_SERVER_URL: http://localhost:8445/proxy-smart-backend/hapi-fhir-server/R4
-          TEST_SUITE: ${{ env.TEST_SUITE }}
-          CLIENT_ID: inferno-test-client
-          KC_USERNAME: doctor
-          KC_PASSWORD: doctor123
+          # All values loaded from testing/$TEST_STAGE/inferno-config.json
+          INFERNO_URL: ${{ steps.config.outputs.inferno_url }}
+          FHIR_SERVER_URL: http://localhost:${{ steps.config.outputs.backend_port }}/proxy-smart-backend/hapi-fhir-server/R4
+          TEST_SUITE: ${{ steps.config.outputs.test_suite }}
+          CLIENT_ID: ${{ steps.config.outputs.client_id }}
+          KC_USERNAME: ${{ steps.config.outputs.kc_username }}
+          KC_PASSWORD: ${{ steps.config.outputs.kc_password }}
 
       # Save test results
       - name: Save Test Results
