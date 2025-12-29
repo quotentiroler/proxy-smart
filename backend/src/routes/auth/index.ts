@@ -1,14 +1,116 @@
 import { Elysia } from 'elysia'
 import { oauthRoutes } from './oauth'
 import { clientRegistrationRoutes } from './client-registration'
-import { config } from '../../config'
-import { checkKeycloakConnection, isKeycloakAccessible } from '../../init'
-import { AuthConfigResponse } from '../../schemas/auth/config'
+import { config } from '@/config'
+import { checkKeycloakConnection, isKeycloakAccessible } from '@/init'
+import { AuthConfigResponse } from '@/schemas/auth/config'
 
 /**
  * Authentication routes - OAuth2 and Dynamic Client Registration
+ * 
+ * This includes OAuth discovery endpoints under /auth per MCP spec:
+ * - /auth/.well-known/openid-configuration (path appending)
+ * These endpoints are accessed by MCP clients after discovering the
+ * authorization server URL from the Protected Resource Metadata.
  */
 export const authRoutes = new Elysia({ prefix: '/auth', tags: ['authentication'] })
+  /**
+   * OpenID Connect Discovery under /auth (MCP path appending)
+   * 
+   * Per MCP spec, for authorization server URLs with path components,
+   * clients try: {auth_server_url}/.well-known/openid-configuration
+   * 
+   * So for auth server "http://localhost:8445/auth", clients will try:
+   * http://localhost:8445/auth/.well-known/openid-configuration
+   */
+  .get('/.well-known/openid-configuration', async ({ set }) => {
+    try {
+      const keycloakBase = config.keycloak.publicUrl || config.keycloak.baseUrl
+      const realm = config.keycloak.realm
+      const oidcUrl = `${keycloakBase}/realms/${realm}/.well-known/openid-configuration`
+      
+      const response = await fetch(oidcUrl)
+      
+      if (!response.ok) {
+        set.status = 502
+        return {
+          error: 'bad_gateway',
+          error_description: 'Failed to fetch OpenID Connect configuration from authorization server'
+        }
+      }
+      
+      const oidcConfig = await response.json()
+      
+      // Return Keycloak's metadata - the issuer will be Keycloak's realm URL
+      // but the endpoints can be proxied through the backend
+      return oidcConfig
+    } catch {
+      set.status = 500
+      return {
+        error: 'server_error',
+        error_description: 'Internal server error while fetching OpenID Connect configuration'
+      }
+    }
+  }, {
+    detail: {
+      summary: 'Get OpenID Connect Discovery (MCP path appending)',
+      description: 'Returns OpenID Connect Discovery metadata for MCP authorization server discovery',
+      tags: ['authentication', 'mcp-authorization']
+    }
+  })
+  
+  /**
+   * OAuth 2.0 Authorization Server Metadata under /auth (MCP path appending)
+   * 
+   * Alternative to OpenID Connect Discovery for OAuth 2.0 AS Metadata
+   */
+  .get('/.well-known/oauth-authorization-server', async ({ set }) => {
+    try {
+      const keycloakBase = config.keycloak.publicUrl || config.keycloak.baseUrl
+      const realm = config.keycloak.realm
+      
+      // Fetch Keycloak's OIDC config to get accurate metadata
+      const oidcUrl = `${keycloakBase}/realms/${realm}/.well-known/openid-configuration`
+      const response = await fetch(oidcUrl)
+      
+      if (!response.ok) {
+        set.status = 502
+        return {
+          error: 'bad_gateway',
+          error_description: 'Failed to fetch authorization server metadata'
+        }
+      }
+      
+      const oidcConfig = await response.json()
+      
+      // Return OAuth 2.0 AS Metadata format (subset of OIDC)
+      return {
+        issuer: oidcConfig.issuer,
+        authorization_endpoint: oidcConfig.authorization_endpoint,
+        token_endpoint: oidcConfig.token_endpoint,
+        jwks_uri: oidcConfig.jwks_uri,
+        registration_endpoint: oidcConfig.registration_endpoint,
+        scopes_supported: oidcConfig.scopes_supported,
+        response_types_supported: oidcConfig.response_types_supported,
+        grant_types_supported: oidcConfig.grant_types_supported,
+        token_endpoint_auth_methods_supported: oidcConfig.token_endpoint_auth_methods_supported,
+        code_challenge_methods_supported: oidcConfig.code_challenge_methods_supported
+      }
+    } catch {
+      set.status = 500
+      return {
+        error: 'server_error',
+        error_description: 'Internal server error while fetching authorization server metadata'
+      }
+    }
+  }, {
+    detail: {
+      summary: 'Get OAuth 2.0 Authorization Server Metadata (MCP path appending)',
+      description: 'Returns OAuth 2.0 AS Metadata for MCP authorization server discovery',
+      tags: ['authentication', 'mcp-authorization']
+    }
+  })
+  
   .get('/config', async () => {
     // Test Keycloak connection and update global state
     try {

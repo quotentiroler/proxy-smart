@@ -24,28 +24,17 @@ import {
   Loader2, 
   CheckCircle 
 } from 'lucide-react';
-
-interface IdP {
-  id: string;
-  name: string;
-  type: string;
-  provider: string;
-  status: 'active' | 'inactive';
-  entityId: string;
-  ssoUrl: string;
-  userCount: number;
-  lastUsed: string;
-}
+import type { IdentityProviderWithStats } from '@/lib/types/api';
 
 interface IdPTableProps {
-  idps: IdP[];
+  idps: IdentityProviderWithStats[];
   testingConnection: string | null;
   connectionResults: Record<string, { success: boolean; message: string }>;
-  onToggleStatus: (id: string) => void;
-  onEdit: (idp: IdP) => void;
-  onTestConnection: (idp: IdP) => Promise<void>;
-  onViewCertificates: (idp: IdP) => void;
-  onDelete: (id: string) => void;
+  onToggleStatus: (alias: string) => void;
+  onEdit: (idp: IdentityProviderWithStats) => void;
+  onTestConnection: (idp: IdentityProviderWithStats) => Promise<void>;
+  onViewCertificates: (idp: IdentityProviderWithStats) => void;
+  onDelete: (alias: string) => void;
 }
 
 export function IdPTable({
@@ -59,14 +48,14 @@ export function IdPTable({
   onDelete
 }: IdPTableProps) {
   const getTypeBadgeColor = (type: string) => {
-    switch (type) {
-      case 'SAML':
+    switch (type.toLowerCase()) {
+      case 'saml':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
-      case 'OAuth2':
+      case 'oauth2':
         return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
-      case 'OIDC':
+      case 'oidc':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300';
-      case 'LDAP':
+      case 'ldap':
         return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
@@ -99,33 +88,55 @@ export function IdPTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {idps.map((idp) => (
-              <TableRow key={idp.id} className="hover:bg-muted/30 transition-colors duration-200 border-b border-border/50">
+            {idps.map((idp, index) => {
+              const alias = idp.alias ?? '';
+              const status = idp.status ?? (idp.enabled ? 'active' : 'inactive');
+              const normalizedType = (idp.providerId ?? 'unknown').toLowerCase();
+              const providerType = (() => {
+                switch (normalizedType) {
+                  case 'saml':
+                    return 'SAML';
+                  case 'oauth2':
+                    return 'OAuth2';
+                  case 'oidc':
+                    return 'OIDC';
+                  case 'ldap':
+                    return 'LDAP';
+                  default:
+                    return idp.providerId ?? 'Unknown';
+                }
+              })();
+
+              return (
+                <TableRow
+                  key={alias || idp.internalId || idp.displayName || `idp-${index}`}
+                  className="hover:bg-muted/30 transition-colors duration-200 border-b border-border/50"
+                >
                 <TableCell className="py-4">
                   <div>
-                    <div className="font-medium text-foreground">{idp.name}</div>
-                    <div className="text-sm text-muted-foreground">{idp.provider}</div>
+                    <div className="font-medium text-foreground">{idp.displayName ?? idp.alias ?? 'Unknown Provider'}</div>
+                    <div className="text-sm text-muted-foreground">{idp.vendorName ?? idp.providerId ?? 'Unknown'}</div>
                   </div>
                 </TableCell>
                 <TableCell className="py-4">
-                  <Badge className={`${getTypeBadgeColor(idp.type)} shadow-sm`}>
-                    {idp.type}
+                  <Badge className={`${getTypeBadgeColor(normalizedType)} shadow-sm`}>
+                    {providerType}
                   </Badge>
                 </TableCell>
                 <TableCell className="py-4">
                   <Badge 
-                    variant={idp.status === 'active' ? 'default' : 'secondary'}
-                    className={`${idp.status === 'active' ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30' : 'bg-muted text-muted-foreground hover:bg-muted/80'} shadow-sm`}
+                    variant={status === 'active' ? 'default' : 'secondary'}
+                    className={`${status === 'active' ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30' : 'bg-muted text-muted-foreground hover:bg-muted/80'} shadow-sm`}
                   >
-                    {idp.status}
+                    {status}
                   </Badge>
                 </TableCell>
                 <TableCell className="py-4">
-                  <span className="text-sm font-medium text-foreground">{idp.userCount}</span>
+                  <span className="text-sm font-medium text-foreground">{idp.userCount ?? 0}</span>
                   <span className="text-xs text-muted-foreground ml-1">users</span>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground py-4">
-                  {new Date(idp.lastUsed).toLocaleDateString()}
+                  {idp.lastUsed ? new Date(idp.lastUsed).toLocaleDateString() : '—'}
                 </TableCell>
                 <TableCell className="py-4">
                   <DropdownMenu>
@@ -135,10 +146,10 @@ export function IdPTable({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-popover/90 backdrop-blur-sm border border-border shadow-xl">
-                      <DropdownMenuItem onClick={() => onToggleStatus(idp.id)} className="hover:bg-muted/50">
+                      <DropdownMenuItem onClick={() => onToggleStatus(alias)} className="hover:bg-muted/50" disabled={!alias}>
                         <div className="flex items-center">
                           <Shield className="h-4 w-4 mr-2" />
-                          {idp.status === 'active' ? 'Disable' : 'Enable'}
+                          {status === 'active' ? 'Disable' : 'Enable'}
                         </div>
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(idp)} className="hover:bg-muted/50">
@@ -150,13 +161,13 @@ export function IdPTable({
                       <DropdownMenuItem 
                         onClick={() => onTestConnection(idp)} 
                         className="hover:bg-muted/50"
-                        disabled={testingConnection === idp.id}
+                        disabled={!alias || testingConnection === alias}
                       >
                         <div className="flex items-center">
-                          {testingConnection === idp.id ? (
+                          {testingConnection === alias ? (
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          ) : connectionResults[idp.id] ? (
-                            connectionResults[idp.id].success ? (
+                          ) : alias && connectionResults[alias] ? (
+                            connectionResults[alias].success ? (
                               <CheckCircle className="h-4 w-4 mr-2 text-green-600 dark:text-green-400" />
                             ) : (
                               <XCircle className="h-4 w-4 mr-2 text-red-600 dark:text-red-400" />
@@ -164,7 +175,7 @@ export function IdPTable({
                           ) : (
                             <TestTube className="h-4 w-4 mr-2" />
                           )}
-                          {testingConnection === idp.id ? 'Testing...' : 'Test Connection'}
+                          {testingConnection === alias ? 'Testing...' : 'Test Connection'}
                         </div>
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onViewCertificates(idp)} className="hover:bg-muted/50">
@@ -174,8 +185,9 @@ export function IdPTable({
                         </div>
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onClick={() => onDelete(idp.id)}
+                        onClick={() => onDelete(alias)}
                         className="text-destructive hover:bg-destructive/10"
+                        disabled={!alias}
                       >
                         <div className="flex items-center">
                           <XCircle className="h-4 w-4 mr-2" />
@@ -186,7 +198,8 @@ export function IdPTable({
                   </DropdownMenu>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>

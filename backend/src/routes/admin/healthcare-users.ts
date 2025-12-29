@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia'
-import { keycloakPlugin } from '../../lib/keycloak-plugin'
+import { keycloakPlugin } from '@/lib/keycloak-plugin'
 import { 
   SuccessResponse,
   CommonErrorResponses,
@@ -11,9 +11,9 @@ import {
   HealthcareUserType,
   SuccessResponseType,
   ErrorResponseType
-} from '../../schemas'
-import { extractBearerToken, UNAUTHORIZED_RESPONSE, getValidatedAdmin, mapHealthcareUser, AuthenticationError } from '../../lib/admin-utils'
-import { logger } from '../../lib/logger'
+} from '@/schemas'
+import { extractBearerToken, UNAUTHORIZED_RESPONSE, getValidatedAdmin, mapHealthcareUser, AuthenticationError } from '@/lib/admin-utils'
+import { logger } from '@/lib/logger'
 
 /**
  * Healthcare User Management - specialized for healthcare professionals
@@ -108,14 +108,12 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
         
         // Use custom attributes for additional info
         const organization = user.attributes?.organization?.[0] || ''
-        const fhirUser = user.attributes?.fhirUser?.[0] || ''
         
         return {
           ...profile,
           realmRoles,
           clientRoles,
           organization,
-          fhirUser,
           lastLogin: lastLogin
         }
       }))
@@ -184,10 +182,15 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
         email: body.email,
         firstName: body.firstName,
         lastName: body.lastName,
-        enabled: true,
+        enabled: body.enabled !== undefined ? body.enabled : true,
+        emailVerified: body.emailVerified,
         attributes: {
           organization: body.organization ? [body.organization] : [],
-          fhirUser: body.fhirUser ? [body.fhirUser] : []
+          ...(body.fhirPersons && body.fhirPersons.length > 0 && { 
+            fhir_persons: [JSON.stringify(body.fhirPersons)]
+          }),
+          ...(body.npi && { npi: [body.npi] }),
+          ...(body.practitionerId && { practitioner_id: [body.practitionerId] })
         },
         credentials: body.password ? [{
           type: 'password',
@@ -361,9 +364,14 @@ export const healthcareUsersRoutes = new Elysia({ prefix: '/healthcare-users' })
         lastName: body.lastName,
         email: body.email,
         enabled: body.enabled,
+        emailVerified: body.emailVerified,
         attributes: {
           organization: body.organization ? [body.organization] : undefined,
-          fhirUser: body.fhirUser ? [body.fhirUser] : undefined
+          ...(body.fhirPersons && body.fhirPersons.length > 0 && { 
+            fhir_persons: [JSON.stringify(body.fhirPersons)]
+          }),
+          ...(body.npi && { npi: [body.npi] }),
+          ...(body.practitionerId && { practitioner_id: [body.practitionerId] })
         }
       }
       

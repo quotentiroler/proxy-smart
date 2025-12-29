@@ -8,7 +8,7 @@ import { t, type Static } from 'elysia'
 // ==================== OAuth Token Exchange ====================
 
 export const TokenRequest = t.Object({
-  grant_type: t.String({ description: 'OAuth2 grant type (authorization_code, refresh_token, client_credentials, password)' }),
+  grant_type: t.String({ description: 'OAuth2 grant type (authorization_code, refresh_token, client_credentials, password, urn:ietf:params:oauth:grant-type:token-exchange)' }),
   code: t.Optional(t.String({ description: 'Authorization code (for authorization_code grant)' })),
   redirect_uri: t.Optional(t.String({ description: 'Redirect URI used in authorization request' })),
   client_id: t.Optional(t.String({ description: 'OAuth2 client ID' })),
@@ -20,7 +20,11 @@ export const TokenRequest = t.Object({
   username: t.Optional(t.String({ description: 'Username (for password grant)' })),
   password: t.Optional(t.String({ description: 'Password (for password grant)' })),
   client_assertion_type: t.Optional(t.String({ description: 'Client assertion type for JWT authentication' })),
-  client_assertion: t.Optional(t.String({ description: 'Client assertion JWT for authentication' }))
+  client_assertion: t.Optional(t.String({ description: 'Client assertion JWT for authentication' })),
+  // Token exchange parameters (RFC 8693)
+  subject_token: t.Optional(t.String({ description: 'Security token to be exchanged (for token-exchange grant)' })),
+  subject_token_type: t.Optional(t.String({ description: 'Type of subject_token (urn:ietf:params:oauth:token-type:access_token)' })),
+  requested_token_type: t.Optional(t.String({ description: 'Type of requested token (urn:ietf:params:oauth:token-type:access_token)' }))
 }, { title: 'TokenRequest' })
 export type TokenRequestType = Static<typeof TokenRequest>
 
@@ -163,3 +167,26 @@ export const UserInfoErrorResponse = t.Object({
   error: t.String({ description: 'Error message' })
 }, { title: 'UserInfoErrorResponse' })
 export type UserInfoErrorResponseType = Static<typeof UserInfoErrorResponse>
+
+// ==================== JWKS (JSON Web Key Set) ====================
+
+export const JsonWebKey = t.Object({
+  kty: t.String({ description: 'Key type (e.g., RSA, EC)' }),
+  use: t.Optional(t.String({ description: 'Public key use (sig, enc)' })),
+  alg: t.Optional(t.String({ description: 'Algorithm (e.g., RS256, RS384, RS512)' })),
+  kid: t.Optional(t.String({ description: 'Key ID' })),
+  n: t.Optional(t.String({ description: 'RSA modulus' })),
+  e: t.Optional(t.String({ description: 'RSA exponent' })),
+  x: t.Optional(t.String({ description: 'EC x coordinate' })),
+  y: t.Optional(t.String({ description: 'EC y coordinate' })),
+  crv: t.Optional(t.String({ description: 'EC curve name' })),
+  x5c: t.Optional(t.Array(t.String(), { description: 'X.509 certificate chain' })),
+  x5t: t.Optional(t.String({ description: 'X.509 certificate SHA-1 thumbprint' })),
+  'x5t#S256': t.Optional(t.String({ description: 'X.509 certificate SHA-256 thumbprint' }))
+}, { title: 'JsonWebKey' })
+export type JsonWebKeyType = Static<typeof JsonWebKey>
+
+export const JWKSResponse = t.Object({
+  keys: t.Array(JsonWebKey, { description: 'Array of JSON Web Keys' })
+}, { title: 'JWKSResponse' })
+export type JWKSResponseType = Static<typeof JWKSResponse>

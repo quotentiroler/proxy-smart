@@ -94,8 +94,9 @@ export const PermissionMatrix: React.FC<Props> = ({ appId, initialScopes = [], o
       }
       setStatus('Saved');
       onSave?.(Array.from(new Set(scopes)));
-    } catch (err: any) {
-      setStatus(String(err?.message || err));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setStatus(message);
     } finally {
       setSaving(false);
       setTimeout(() => setStatus(null), 4000);

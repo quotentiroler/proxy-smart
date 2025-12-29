@@ -7,6 +7,7 @@ import {
   HealthcareUsersApi,
   IdentityProvidersApi,
   LaunchContextsApi,
+  McpManagementApi,
   OauthMonitoringApi,
   RolesApi,
   SmartAppsApi,
@@ -23,19 +24,22 @@ export const setAuthErrorHandler = (handler: () => void) => {
   onAuthError = handler;
 };
 
-// Global flag to prevent multiple simultaneous refresh attempts
+// Global flags to prevent multiple simultaneous operations
 let isRefreshing = false;
+let hasLoggedOut = false;
 
 // Wrapper function to handle authentication errors with refresh attempt
 export const handleApiError = async (error: unknown) => {
-  console.info('handleApiError called with:', error);
+  // If already logged out, don't process any more auth errors
+  if (hasLoggedOut) {
+    throw error;
+  }
 
   let shouldTryRefresh = false;
 
   // Check for ResponseError first
   if (error instanceof ResponseError) {
     if (error.response.status === 401 || error.response.status === 403) {
-      console.warn('Authentication error detected (ResponseError)');
       shouldTryRefresh = true;
     }
   }
@@ -43,76 +47,45 @@ export const handleApiError = async (error: unknown) => {
   // Check for other error formats that might contain status
   if (!shouldTryRefresh && error && typeof error === 'object') {
     const err = error as Record<string, unknown>;
-    // Check various possible error formats
     const status = (err.status as number) ||
       ((err.response as Record<string, unknown>)?.status as number) ||
       ((err.responseData as Record<string, unknown>)?.status as number);
     if (status === 401 || status === 403) {
-      console.warn('Authentication error detected (status check)');
       shouldTryRefresh = true;
-    }
-
-    // Check for HTTP 401 in error message
-    if (!shouldTryRefresh && typeof err.message === 'string' && err.message.includes('401')) {
-      console.warn('Authentication error detected (message check)');
-      shouldTryRefresh = true;
-    }
-
-    // Check for nested error data
-    if (!shouldTryRefresh) {
-      const responseData = err.responseData as Record<string, unknown>;
-      if (responseData && typeof responseData.error === 'string' && responseData.error.includes('401')) {
-        console.warn('Authentication error detected (responseData check)');
-        shouldTryRefresh = true;
-      }
     }
   }
 
   // Attempt refresh if we detected an auth error and not already refreshing
   if (shouldTryRefresh && !isRefreshing) {
-    console.debug('🔄 Attempting token refresh before logout...');
     isRefreshing = true;
     
     try {
       const refreshed = await attemptTokenRefresh();
       
       if (refreshed) {
-        // Check if we now have a valid token
         const newToken = await getStoredToken();
         if (newToken) {
-          console.debug('✅ Token refreshed successfully, retry might succeed');
           isRefreshing = false;
-          // Don't call onAuthError, let the caller retry the request
-          throw new Error('TOKEN_REFRESHED'); // Special error to indicate retry needed
+          throw new Error('TOKEN_REFRESHED'); // Signal caller to retry
         }
       }
-      
-      console.warn('❌ Token refresh failed or no refresh token, triggering logout');
     } catch (refreshError) {
       if (refreshError instanceof Error && refreshError.message === 'TOKEN_REFRESHED') {
-        throw refreshError; // Re-throw the special case
+        throw refreshError;
       }
-      console.error('❌ Error during refresh attempt:', refreshError);
     } finally {
       isRefreshing = false;
     }
     
-    // If we get here, refresh failed - trigger logout immediately
-    console.warn('🚪 Authentication failed after refresh attempt, logging out');
+    // Refresh failed - trigger logout once
+    hasLoggedOut = true;
     if (onAuthError) {
       onAuthError();
-      return; // Don't throw again, auth error handler will handle logout
+      // Return instead of throwing to prevent further error propagation
+      return;
     }
   } else if (shouldTryRefresh && isRefreshing) {
-    console.debug('🔄 Refresh already in progress, waiting and then triggering logout');
-    // Wait a bit for the ongoing refresh to complete, then logout if still failing
-    setTimeout(() => {
-      if (onAuthError && isRefreshing) {
-        console.warn('🚪 Refresh timeout, forcing logout');
-        isRefreshing = false;
-        onAuthError();
-      }
-    }, 3000); // 3 second timeout
+    // Another refresh is in progress, just wait and don't throw
     return;
   }
 
@@ -134,6 +107,7 @@ export const createAuthApi = (token?: string) => new AuthenticationApi(createCon
 export const createHealthcareUsersApi = (token?: string) => new HealthcareUsersApi(createConfig(token));
 export const createIdentityProvidersApi = (token?: string) => new IdentityProvidersApi(createConfig(token));
 export const createLaunchContextsApi = (token?: string) => new LaunchContextsApi(createConfig(token));
+export const createMcpManagementApi = (token?: string) => new McpManagementApi(createConfig(token));
 export const createOauthMonitoringApi = (token?: string) => new OauthMonitoringApi(createConfig(token));
 export const createRolesApi = (token?: string) => new RolesApi(createConfig(token));
 export const createSmartAppsApi = (token?: string) => new SmartAppsApi(createConfig(token));
@@ -185,6 +159,7 @@ export const createClientApis = (token?: string) => ({
   healthcareUsers: wrapApiClient(createHealthcareUsersApi(token)),
   identityProviders: wrapApiClient(createIdentityProvidersApi(token)),
   launchContexts: wrapApiClient(createLaunchContextsApi(token)),
+  mcpManagement: wrapApiClient(createMcpManagementApi(token)),
   oauthMonitoring: wrapApiClient(createOauthMonitoringApi(token)),
   roles: wrapApiClient(createRolesApi(token)),
   smartApps: wrapApiClient(createSmartAppsApi(token)),

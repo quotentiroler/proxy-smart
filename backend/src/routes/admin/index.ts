@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
-import { logger } from '../../lib/logger'
-import { ErrorResponse, ServerOperationResponse } from '../../schemas'
+import { logger } from '@/lib/logger'
+import { ErrorResponse, ServerOperationResponse } from '@/schemas'
 import { smartAppsRoutes } from './smart-apps'
 import { healthcareUsersRoutes } from './healthcare-users'
 import { rolesRoutes } from './roles'
@@ -9,11 +9,17 @@ import { identityProvidersRoutes } from './identity-providers'
 import { smartConfigAdminRoutes } from './smart-config'
 import { clientRegistrationSettingsRoutes } from './client-registration-settings'
 import { keycloakConfigRoutes } from './keycloak-config'
+import { aiRoutes, aiPublicRoutes } from './ai'
+import { mcpServersRoutes } from './mcp-servers'
+import { initializeToolRegistry } from '@/lib/ai/tool-registry'
 
 /**
  * Admin routes aggregator - combines all admin functionality
  */
 export const adminRoutes = new Elysia({ prefix: '/admin' })
+  // Add public AI health check routes first (no auth required)
+  .use(aiPublicRoutes)
+  // Then add authentication guard for protected routes
   .guard({
     detail: {
       security: [{ BearerAuth: [] }]
@@ -75,3 +81,15 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
   .use(smartConfigAdminRoutes)
   .use(clientRegistrationSettingsRoutes)
   .use(keycloakConfigRoutes)
+  // MCP servers management
+  .use(mcpServersRoutes)
+  // AI assistant routes with internal tool execution
+  .use(aiRoutes)
+
+// Initialize the tool registry once at startup
+initializeToolRegistry(adminRoutes, {
+  prefixes: [
+    '/admin/',        // Admin routes (healthcare users, SMART apps, etc.)
+    '/fhir-servers/', // FHIR server management
+  ]
+})

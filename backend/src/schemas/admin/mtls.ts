@@ -35,6 +35,18 @@ export const CertificateUploadResponse = t.Object({
   certDetails: t.Optional(CertificateDetails)
 }, { title: 'CertificateUpload' })
 
+/**
+ * Internal mTLS Configuration Interface
+ * Used for in-memory storage of mTLS configuration including certificates
+ */
+export interface MtlsConfig {
+  enabled: boolean
+  clientCert?: string // Base64-encoded client certificate
+  clientKey?: string // Base64-encoded client private key
+  caCert?: string // Base64-encoded CA certificate
+  certDetails?: Static<typeof CertificateDetails> // Parsed certificate details
+}
+
 // TypeScript type inference helpers
 export type MtlsConfigResponseType = Static<typeof MtlsConfigResponse>
 export type UpdateMtlsConfigRequestType = Static<typeof UpdateMtlsConfigRequest>

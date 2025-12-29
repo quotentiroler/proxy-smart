@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -68,12 +68,20 @@ export function LaunchContextSetBuilder({
   onSave,
   onCancel
 }: LaunchContextSetBuilderProps) {
+  // Use a key-based reset pattern: track the editingSet identity to reset state
+  const editingSetKey = editingSet?.name ?? '';
+  
   const [contextSet, setContextSet] = useState<{
     name: string;
     description: string;
     category: string;
     contexts: string[];
-  }>({
+  }>(() => editingSet ? {
+    name: editingSet.name,
+    description: editingSet.description || '',
+    category: editingSet.category || '',
+    contexts: [...editingSet.contexts]
+  } : {
     name: '',
     description: '',
     category: '',
@@ -89,8 +97,13 @@ export function LaunchContextSetBuilder({
   const [error, setError] = useState<string | null>(null);
   const [activeBuilder, setActiveBuilder] = useState<'quick' | 'custom'>('quick');
 
-  // Reset form when editing set changes
-  useEffect(() => {
+  // Reset state when editingSet changes using a ref to track previous value
+  // This uses the "you might need a key" pattern recommended by React
+  const prevEditingSetKeyRef = useRef(editingSetKey);
+  if (prevEditingSetKeyRef.current !== editingSetKey) {
+    prevEditingSetKeyRef.current = editingSetKey;
+    // State updates during render are allowed when derived from props
+    // React will re-render with the new state
     if (editingSet) {
       setContextSet({
         name: editingSet.name,
@@ -103,7 +116,7 @@ export function LaunchContextSetBuilder({
     }
     setBuilderState({ resource: '', role: '', customScope: '' });
     setError(null);
-  }, [editingSet]);
+  }
 
   // Validate scope format
   const validateScope = (scope: string): { valid: boolean; message: string; type: 'error' | 'warning' | 'success' } => {

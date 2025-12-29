@@ -13,8 +13,6 @@ import { HealthcareUsersTable } from './HealthcareUsersTable';
 // Extend the API type to include our UI-specific computed properties
 type HealthcareUserWithPersons = HealthcareUser & {
   name: string; // Computed from firstName + lastName
-  organization: string; // Computed from attributes
-  fhirPersons: FhirPersonAssociation[]; // UI-specific Person associations
   status: 'active' | 'inactive'; // Computed from enabled status
   primaryRole?: string; // Computed from roles
   // Override the object types to be more specific
@@ -83,42 +81,10 @@ const getAllAvailableRoles = () => {
 };
 
 /**
- * Parse FHIR user string into structured associations
- */
-function parseFhirPersons(fhirUser: string): FhirPersonAssociation[] {
-  if (!fhirUser) return [];
-  
-  try {
-    // Format: "server1:Person/123,server2:Person/456"
-    return fhirUser.split(',').map(entry => {
-      const [serverName, personId] = entry.split(':');
-      return {
-        serverName: serverName.trim(),
-        personId: personId.trim(),
-        display: `${personId.trim()} on ${serverName.trim()}`,
-        created: new Date().toISOString()
-      };
-    }).filter(assoc => assoc.serverName && assoc.personId);
-  } catch (error) {
-    console.error('Failed to parse FHIR persons:', error);
-    return [];
-  }
-}
-
-/**
- * Convert FHIR person associations to API format
- */
-function serializeFhirPersons(fhirPersons: FhirPersonAssociation[]): string {
-  return fhirPersons.map(assoc => `${assoc.serverName}:${assoc.personId}`).join(',');
-}
-
-/**
  * Transform API user data to our internal format
  */
 function transformApiUser(apiUser: HealthcareUser): HealthcareUserWithPersons {
   const attributes = apiUser.attributes as Record<string, string[]> || {};
-  const organization = apiUser.organization || '';
-  const fhirUser = apiUser.fhirUser || '';
   const clientRoles = apiUser.clientRoles as Record<string, string[]> || {};
   const realmRoles = apiUser.realmRoles || [];
   
@@ -126,19 +92,10 @@ function transformApiUser(apiUser: HealthcareUser): HealthcareUserWithPersons {
   const primaryRole = getPrimaryRole(realmRoles, clientRoles);
   
   return {
-    id: apiUser.id,
+    ...apiUser,
     name: `${apiUser.firstName} ${apiUser.lastName}`.trim(),
-    email: apiUser.email,
-    firstName: apiUser.firstName,
-    lastName: apiUser.lastName,
-    username: apiUser.username,
-    organization,
-    fhirPersons: parseFhirPersons(fhirUser),
     status: apiUser.enabled ? 'active' : 'inactive',
-    enabled: apiUser.enabled,
     primaryRole: primaryRole,
-    lastLogin: apiUser.lastLogin,
-    createdTimestamp: apiUser.createdTimestamp,
     realmRoles: realmRoles,
     clientRoles: clientRoles,
     attributes: attributes
@@ -239,7 +196,7 @@ export function HealthcareUsersManager() {
 
     const updatedUser = {
       ...selectedUserForPerson,
-      fhirPersons: [...selectedUserForPerson.fhirPersons, association]
+      fhirPersons: [...(selectedUserForPerson.fhirPersons || []), association]
     };
 
     // Update the user in the local state
@@ -296,7 +253,7 @@ export function HealthcareUsersManager() {
               firstName: formData.firstName,
               lastName: formData.lastName,
               organization: formData.organization || undefined,
-              fhirUser: serializeFhirPersons(formData.fhirPersons || []),
+              fhirPersons: (formData.fhirPersons && formData.fhirPersons.length > 0) ? formData.fhirPersons : undefined,
               password: formData.password || undefined,
               temporaryPassword: formData.temporaryPassword,
               realmRoles: (formData.realmRoles && formData.realmRoles.length > 0) ? formData.realmRoles : undefined,
@@ -343,7 +300,7 @@ export function HealthcareUsersManager() {
               email: formData.email,
               enabled: formData.enabled,
               organization: formData.organization || undefined,
-              fhirUser: serializeFhirPersons(formData.fhirPersons),
+              fhirPersons: (formData.fhirPersons && formData.fhirPersons.length > 0) ? formData.fhirPersons : undefined,
               realmRoles: formData.realmRoles.length > 0 ? formData.realmRoles : undefined,
               clientRoles: Object.keys(formData.clientRoles).length > 0 ? formData.clientRoles : undefined,
             };
@@ -407,6 +364,7 @@ export function HealthcareUsersManager() {
             createdAt: user.createdTimestamp ? new Date(user.createdTimestamp).toISOString() : new Date().toISOString(),
             lastLogin: user.lastLogin ? new Date(user.lastLogin).toISOString() : undefined
           }))}
+          fhirServers={fhirServers}
           onEditUser={(user) => {
             const originalUser = users.find(u => u.id === user.id);
             if (originalUser) {
@@ -427,22 +385,29 @@ export function HealthcareUsersManager() {
       )}
 
       {/* Add FHIR Person Modal */}
-      {selectedUserForPerson && (
-        <AddFhirPersonModal
-          isOpen={showAddPersonModal}
-          onClose={() => {
-            setShowAddPersonModal(false);
-            setSelectedUserForPerson(null);
-          }}
-          user={selectedUserForPerson}
-          onPersonAdded={handlePersonAdded}
-          availableServers={fhirServers.map(server => ({
-            name: server.name,
-            baseUrl: server.url,
-            status: server.supported ? 'active' : 'inactive'
-          }))}
-        />
-      )}
+      {selectedUserForPerson && (() => {
+        const mappedServers = fhirServers.map(server => ({
+          id: server.id,
+          name: server.name,
+          baseUrl: server.url,
+          status: server.supported ? 'active' : 'inactive',
+          fhirVersion: server.fhirVersion
+        }));
+      
+        
+        return (
+          <AddFhirPersonModal
+            isOpen={showAddPersonModal}
+            onClose={() => {
+              setShowAddPersonModal(false);
+              setSelectedUserForPerson(null);
+            }}
+            user={selectedUserForPerson}
+            onPersonAdded={handlePersonAdded}
+            availableServers={mappedServers}
+          />
+        );
+      })()}
     </div>
   );
 }

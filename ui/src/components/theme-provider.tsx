@@ -46,6 +46,7 @@ export function ThemeProvider({
       if (typeof window.matchMedia !== "function") {
         // default to light when matchMedia not available
         root.classList.add("light")
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- Fallback for environments without matchMedia
         setResolvedTheme("light")
         return
       }

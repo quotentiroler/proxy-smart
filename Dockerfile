@@ -38,6 +38,8 @@ COPY ui/ ./ui/
 # Build UI
 WORKDIR /app/ui
 
+RUN bun run generate:ui
+
 # Build UI for standalone deployment
 RUN bun run build
 

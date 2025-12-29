@@ -5,6 +5,7 @@ import { getSessionItem, removeSessionItem } from '@/lib/storage';
 import type { PublicIdentityProvider } from '../lib/api-client/models';
 import { KeycloakConfigForm } from './KeycloakConfigForm';
 import { AuthDebugPanel } from './AuthDebugPanel';
+import { logger } from '@/lib/logger';
 import { 
   Heart, 
   Shield, 
@@ -39,13 +40,16 @@ export function LoginForm() {
   const fetchAvailableIdps = useCallback(async () => {
     try {
       setLoadingIdps(true);
+      logger.info('LoginForm: fetching identity providers...');
       const idps = await clientApis.auth.getAuthIdentityProviders();
       
       // Filter to only show enabled identity providers
       const enabledIdps = idps.filter((idp: PublicIdentityProvider) => idp.enabled !== false);
+      logger.info('LoginForm: identity providers fetched', { count: enabledIdps.length });
       setAvailableIdps(enabledIdps);
     } catch (error) {
       console.warn('Could not fetch identity providers (this is normal for public access):', error);
+      logger.warn('LoginForm: failed to fetch identity providers', error);
       // Don't show this as an error to users - it's expected when not authenticated
       setAvailableIdps([]);
     } finally {
@@ -56,8 +60,10 @@ export function LoginForm() {
   // Check if authentication is configured
   const checkAuthAvailability = useCallback(async () => {
     try {
+      logger.info('LoginForm: checking authentication availability...');
       const available = await openidService.isAuthenticationAvailable();
       setAuthAvailable(available);
+      logger.info('LoginForm: auth availability', { available });
       if (!available) {
         setError('Keycloak is not configured. Please contact your administrator.');
         setLoadingIdps(false); // Stop loading IdPs if auth is not available
@@ -68,6 +74,7 @@ export function LoginForm() {
       }
     } catch (error) {
       console.error('Failed to check auth availability:', error);
+      logger.error('LoginForm: auth availability check failed', error);
       setAuthAvailable(false);
       setError('Unable to verify authentication configuration. Please try again later.');
       setLoadingIdps(false); // Stop loading IdPs on error
@@ -91,6 +98,7 @@ export function LoginForm() {
 
   // Load IdPs and check auth availability on component mount
   useEffect(() => {
+    logger.info('LoginForm mounted');
     checkAuthAvailability();
   }, [checkAuthAvailability]);
 
@@ -105,6 +113,7 @@ export function LoginForm() {
     setError(null);
 
     try {
+      logger.info('LoginForm: starting code exchange');
       // Get stored PKCE parameters
       const codeVerifier = getSessionItem('pkce_code_verifier');
       const storedState = getSessionItem('oauth_state');
@@ -124,10 +133,12 @@ export function LoginForm() {
       }
 
       await exchangeCodeForToken(code, codeVerifier);
+      logger.info('LoginForm: code exchange successful');
     } catch (err) {
       // Ensure session data is cleaned up on any error
       removeSessionItem('pkce_code_verifier');
       removeSessionItem('oauth_state');
+      logger.error('LoginForm: code exchange failed', err);
       setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
       setLoading(false);
@@ -138,6 +149,7 @@ export function LoginForm() {
   // Handle OAuth callback on component mount
   useEffect(() => {
     const currentUrl = window.location.href;
+    logger.debug('LoginForm: processing OAuth callback params');
     
     // Prevent processing the same URL multiple times
     if (processedUrl.current === currentUrl) {
@@ -158,12 +170,14 @@ export function LoginForm() {
     
     if (error) {
       console.error('OAuth error:', error, errorDescription);
+      logger.error('LoginForm: OAuth error present in URL', { error, errorDescription });
       setError(`Authentication failed: ${errorDescription || error}. Please try again or use the troubleshooting panel below.`);
       return;
     }
 
     if (code && state) {
       // Exchange code for token
+      logger.info('LoginForm: found code/state in URL – exchanging');
       handleCodeExchange(code, state);
     }
   }, [handleCodeExchange]);
@@ -179,9 +193,11 @@ export function LoginForm() {
     setError(null);
     
     try {
+      logger.info('LoginForm: initiating login', { idpAlias });
       // Pass the IdP alias as a hint to the authentication service
       await initiateLogin(idpAlias);
     } catch (err) {
+      logger.error('LoginForm: initiateLogin failed', err);
       setError(err instanceof Error ? err.message : 'Failed to initiate login');
       setLoading(false);
     }
@@ -190,7 +206,7 @@ export function LoginForm() {
   // If the configuration form is shown, render it instead
   if (showConfigForm) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <KeycloakConfigForm 
           onSuccess={handleConfigSuccess}
           onCancel={handleConfigCancel}
@@ -201,21 +217,14 @@ export function LoginForm() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-8">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center">
-                <Loader2 className="w-8 h-8 text-white animate-spin" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Authenticating</h3>
-              <p className="text-gray-600">Please wait while we verify your credentials...</p>
-              <div className="mt-6 flex justify-center space-x-1">
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-              </div>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center">
+            <div className="w-12 h-12 mx-auto mb-6 border border-border rounded-lg flex items-center justify-center">
+              <Loader2 className="w-5 h-5 text-foreground animate-spin" />
             </div>
+            <h3 className="text-lg font-medium text-foreground mb-2">Authenticating</h3>
+            <p className="text-muted-foreground text-sm">Please wait while we verify your credentials...</p>
           </div>
         </div>
       </div>
@@ -223,216 +232,166 @@ export function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-12 text-center">
-            <div className="w-20 h-20 mx-auto mb-6 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-              <Heart className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-3xl font-bold text-white mb-2">Healthcare Admin</h2>
-            <p className="text-blue-100">Proxy Smart</p>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        {/* Logo & Title */}
+        <div className="text-center mb-10">
+          <div className="w-12 h-12 mx-auto mb-6 border border-border rounded-lg flex items-center justify-center">
+            <Heart className="w-6 h-6 text-foreground" />
           </div>
-          
-          {/* Content */}
-          <div className="px-8 py-8">
-            <div className="text-center mb-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Welcome Back</h3>
-              <p className="text-gray-600">Sign in to access the Proxy Smart dashboard</p>
+          <h1 className="text-2xl font-medium tracking-tight text-foreground mb-1">Proxy Smart</h1>
+          <p className="text-muted-foreground text-sm">Healthcare Administration</p>
+        </div>
+        
+        {/* Content */}
+        <div className="space-y-6">
+          {error && (
+            <div className="border border-destructive/20 bg-destructive/5 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Shield className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                <p className="text-destructive text-sm">{error}</p>
+              </div>
             </div>
-            
-            <div className="space-y-6">
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <div className="flex items-center">
-                    <Shield className="w-5 h-5 text-red-600 mr-3 flex-shrink-0" />
-                    <div className="text-red-700 text-sm">{error}</div>
-                  </div>
-                </div>
-              )}
+          )}
 
-              {/* Loading state for IdPs */}
-              {(loadingIdps || authAvailable === null) && (
-                <div className="text-center py-4">
-                  <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-500">Loading authentication options...</p>
-                </div>
-              )}
+          {/* Loading state for IdPs */}
+          {(loadingIdps || authAvailable === null) && (
+            <div className="text-center py-6">
+              <Loader2 className="w-4 h-4 animate-spin mx-auto mb-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Loading authentication options...</p>
+            </div>
+          )}
 
-              {/* Authentication not configured */}
-              {authAvailable === false && (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <AlertTriangle className="w-8 h-8 text-yellow-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Authentication Not Configured</h3>
-                  <p className="text-gray-600 mb-6">
-                    Keycloak is not yet configured on this server.
-                  </p>
-                  
-                  <button
-                    onClick={() => setShowConfigForm(true)}
-                    className="w-full mb-4 group relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl py-3 px-6 font-semibold transition-all duration-200 hover:shadow-xl hover:scale-[1.02]"
-                  >
-                    <div className="relative flex items-center justify-center space-x-2">
-                      <Settings className="w-5 h-5" />
-                      <span>Configure Keycloak</span>
-                    </div>
-                  </button>
-                  
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-left">
-                    <p className="text-sm text-yellow-800">
-                      <strong>For administrators:</strong> You can configure Keycloak authentication 
-                      using the button above or by setting the required environment variables and restarting the service.
-                    </p>
-                  </div>
+          {/* Authentication not configured */}
+          {authAvailable === false && (
+            <div className="text-center py-6">
+              <div className="w-12 h-12 mx-auto mb-4 border border-border rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-foreground" />
+              </div>
+              <h3 className="text-base font-medium text-foreground mb-2">Authentication Not Configured</h3>
+              <p className="text-muted-foreground text-sm mb-6">
+                Keycloak is not yet configured on this server.
+              </p>
+              
+              <button
+                onClick={() => setShowConfigForm(true)}
+                className="w-full bg-foreground text-background rounded-lg py-3 px-4 text-sm font-medium transition-opacity hover:opacity-80"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  <span>Configure Keycloak</span>
                 </div>
-              )}
+              </button>
+            </div>
+          )}
 
-              {/* Authentication available - show login options */}
-              {authAvailable === true && (
-                <>
-                  {/* Available Identity Providers */}
-                  {availableIdps.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="text-center">
-                        <p className="text-sm font-medium text-gray-700 mb-4">Choose your authentication method</p>
-                      </div>
-                      
-                      {availableIdps.map((idp) => (
-                        <button
-                          key={idp.alias}
-                          onClick={() => handleLogin(idp.alias)}
-                          className="w-full group relative overflow-hidden bg-white border-2 border-gray-200 text-gray-700 rounded-xl py-4 px-6 font-medium transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                          disabled={loading}
-                        >
-                          <div className="relative flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
-                                {idp.providerId === 'saml' && <Building2 className="w-4 h-4 text-white" />}
-                                {idp.providerId === 'oidc' && <Globe className="w-4 h-4 text-white" />}
-                                {idp.providerId === 'google' && <Users className="w-4 h-4 text-white" />}
-                                {!['saml', 'oidc', 'google'].includes(idp.providerId) && <Shield className="w-4 h-4 text-white" />}
-                              </div>
-                              <div className="text-left">
-                                <div className="text-sm font-medium">
-                                  {idp.displayName || idp.alias}
-                                </div>
-                                <div className="text-xs text-gray-500 capitalize">
-                                  {idp.providerId} Authentication
-                                </div>
-                              </div>
-                            </div>
-                            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+          {/* Authentication available - show login options */}
+          {authAvailable === true && (
+            <>
+              {/* Available Identity Providers */}
+              {availableIdps.length > 0 && (
+                <div className="space-y-3">
+                  {availableIdps.map((idp) => (
+                    <button
+                      key={idp.alias}
+                      onClick={() => handleLogin(idp.alias)}
+                      className="w-full group border border-border bg-card text-card-foreground rounded-lg py-3 px-4 text-sm font-medium transition-all hover:bg-accent hover:border-foreground/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={loading}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-secondary rounded flex items-center justify-center">
+                            {idp.providerId === 'saml' && <Building2 className="w-4 h-4" />}
+                            {idp.providerId === 'oidc' && <Globe className="w-4 h-4" />}
+                            {idp.providerId === 'google' && <Users className="w-4 h-4" />}
+                            {!['saml', 'oidc', 'google'].includes(idp.providerId) && <Shield className="w-4 h-4" />}
                           </div>
-                        </button>
-                      ))}
-                      
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <div className="w-full border-t border-gray-200"></div>
+                          <div className="text-left">
+                            <div className="text-sm font-medium">
+                              {idp.displayName || idp.alias}
+                            </div>
+                            <div className="text-xs text-muted-foreground capitalize">
+                              {idp.providerId}
+                            </div>
+                          </div>
                         </div>
-                        <div className="relative flex justify-center text-sm">
-                          <span className="px-3 bg-white text-gray-500">or</span>
-                        </div>
+                        <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                       </div>
+                    </button>
+                  ))}
+                  
+                  <div className="relative py-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-border"></div>
                     </div>
-                  )}
-
-                  {/* Default OpenID Connect Login */}
-                  <button 
-                    onClick={() => handleLogin()}
-                    className="w-full group relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl py-4 px-6 font-semibold transition-all duration-200 hover:shadow-xl hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                    disabled={loading}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-indigo-700 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-left"></div>
-                    <div className="relative flex items-center justify-center space-x-3">
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          <span>Signing in...</span>
-                        </>
-                      ) : (
-                        <>
-                          <LogIn className="w-5 h-5" />
-                          <span>
-                            {availableIdps.length > 0 ? 'Default Authentication' : 'Sign in with OpenID Connect'}
-                          </span>
-                        </>
-                      )}
+                    <div className="relative flex justify-center">
+                      <span className="px-3 bg-background text-muted-foreground text-xs">or</span>
                     </div>
-                  </button>
-
-                  {/* Info message when no IdPs are available */}
-                  {availableIdps.length === 0 && !loadingIdps && (
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="flex items-start space-x-2">
-                        <Globe className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div className="text-xs text-blue-700">
-                          <p className="font-medium mb-1">Single Sign-On Available</p>
-                          <p>Use the default authentication method above. Additional identity providers can be configured by administrators.</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
+                  </div>
+                </div>
               )}
-            </div>
-            
-            {/* Security info */}
-            <div className="mt-8 p-4 bg-gray-50 rounded-xl">
-              <div className="flex items-start space-x-3">
-                <Lock className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-1">Secure Authentication</h4>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    You will be redirected to our secure identity provider for authentication. 
-                    Your credentials are never stored on this application.
-                  </p>
+
+              {/* Default OpenID Connect Login */}
+              <button 
+                onClick={() => handleLogin()}
+                className="w-full bg-foreground text-background rounded-lg py-3 px-4 text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Signing in...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="w-4 h-4" />
+                      <span>
+                        {availableIdps.length > 0 ? 'Default Authentication' : 'Sign in with OpenID Connect'}
+                      </span>
+                    </>
+                  )}
                 </div>
-              </div>
-            </div>
-            
-            {/* Features */}
-            <div className="mt-6 grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="w-8 h-8 mx-auto mb-2 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Stethoscope className="w-4 h-4 text-blue-600" />
-                </div>
-                <p className="text-xs text-gray-600">FHIR Compliant</p>
-              </div>
-              <div className="text-center">
-                <div className="w-8 h-8 mx-auto mb-2 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Globe className="w-4 h-4 text-green-600" />
-                </div>
-                <p className="text-xs text-gray-600">Global Standards</p>
-              </div>
-            </div>
+              </button>
+            </>
+          )}
+        </div>
+        
+        {/* Security info */}
+        <div className="mt-8 pt-6 border-t border-border">
+          <div className="flex items-start gap-3">
+            <Lock className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Secure authentication via OpenID Connect. Your credentials are never stored on this application.
+            </p>
           </div>
         </div>
         
-        {/* Footer */}
-        <div className="text-center mt-8">
-          <p className="text-sm text-gray-500">
-            Protected by enterprise-grade security
-          </p>
+        {/* Features */}
+        <div className="mt-6 flex items-center justify-center gap-6 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <Stethoscope className="w-3.5 h-3.5" />
+            <span>FHIR Compliant</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Globe className="w-3.5 h-3.5" />
+            <span>SMART on FHIR</span>
+          </div>
         </div>
 
         {/* Debug Panel Toggle */}
-        <div className="mt-6">
+        <div className="mt-8">
           <button
             onClick={() => setShowDebugPanel(!showDebugPanel)}
-            className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors duration-200 flex items-center justify-center gap-2 py-2"
+            className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1.5 py-2"
           >
             <Bug className="w-3 h-3" />
             <span>Troubleshooting</span>
             {showDebugPanel ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
           
-          {/* Debug Panel */}
           {showDebugPanel && (
-            <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
+            <div className="mt-4">
               <AuthDebugPanel />
             </div>
           )}

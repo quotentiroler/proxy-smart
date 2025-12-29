@@ -1,0 +1,86 @@
+import { useTranslation } from 'react-i18next';
+import { AVAILABLE_MODELS } from './constants';
+
+interface ChatSettingsProps {
+    isOpen: boolean;
+    selectedModel: string;
+    streamingEnabled: boolean;
+    onModelChange: (modelId: string) => void;
+    onStreamingToggle: () => void;
+    onClickOutside: (event: React.MouseEvent) => void;
+}
+
+export function ChatSettings({
+    isOpen,
+    selectedModel,
+    streamingEnabled,
+    onModelChange,
+    onStreamingToggle,
+    onClickOutside,
+}: ChatSettingsProps) {
+    const { t } = useTranslation();
+
+    if (!isOpen) return null;
+
+    return (
+        <div
+            className="settings-dropdown absolute right-0 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg p-3 z-50"
+            onClick={onClickOutside}
+        >
+            <div className="space-y-3">
+                {/* Model Selection */}
+                <div>
+                    <label className="text-xs font-medium text-foreground mb-1.5 block">{t('AI Model')}</label>
+                    <div className="space-y-1">
+                        {AVAILABLE_MODELS.map((model) => (
+                            <button
+                                key={model.id}
+                                onClick={() => onModelChange(model.id)}
+                                className={`w-full text-left px-2.5 py-2 rounded-md text-xs transition-colors ${
+                                    selectedModel === model.id
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'hover:bg-muted'
+                                }`}
+                            >
+                                <div className="font-medium">{model.name}</div>
+                                <div
+                                    className={`text-[10px] mt-0.5 ${
+                                        selectedModel === model.id
+                                            ? 'text-primary-foreground/80'
+                                            : 'text-muted-foreground'
+                                    }`}
+                                >
+                                    {model.description}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Streaming Toggle */}
+                <div className="pt-2 border-t border-border">
+                    <label className="flex items-center justify-between cursor-pointer">
+                        <div>
+                            <div className="text-xs font-medium text-foreground">{t('Streaming')}</div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                                {t('Real-time response streaming')}
+                            </div>
+                        </div>
+                        <button
+                            onClick={onStreamingToggle}
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                                streamingEnabled ? 'bg-primary' : 'bg-muted'
+                            }`}
+                        >
+                            <span
+                                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                    streamingEnabled ? 'translate-x-5' : 'translate-x-1'
+                                }`}
+                            />
+                        </button>
+                    </label>
+                </div>
+            </div>
+        </div>
+    );
+}

@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Users, Server, Plus, MoreHorizontal } from 'lucide-react';
-import type { FhirPersonAssociation } from '@/lib/types/api';
+import type { FhirPersonAssociation, FhirServer } from '@/lib/types/api';
 
 // TODO: dont use custom interfaces for backend models, use or inherit the existing generated API models instead
 interface HealthcareUser {
@@ -25,7 +25,7 @@ interface HealthcareUser {
   email: string;
   firstName: string;
   lastName: string;
-  organization: string;
+  organization?: string;
   enabled: boolean;
   realmRoles: string[];
   clientRoles: Record<string, string[]>;
@@ -37,6 +37,7 @@ interface HealthcareUser {
 
 interface HealthcareUsersTableProps {
   users: HealthcareUser[];
+  fhirServers?: FhirServer[];
   onEditUser: (user: HealthcareUser) => void;
   onToggleStatus: (userId: string, currentStatus: 'active' | 'inactive') => void;
   onDeleteUser: (userId: string) => void;
@@ -105,11 +106,12 @@ function getRoleBadgeColor(role: string): string {
   return 'bg-muted text-muted-foreground border-border';
 }
 
-export function HealthcareUsersTable({ 
-  users, 
-  onEditUser, 
-  onToggleStatus, 
-  onDeleteUser, 
+export function HealthcareUsersTable({
+  users,
+  fhirServers = [],
+  onEditUser,
+  onToggleStatus,
+  onDeleteUser,
   onAddFhirPerson
 }: HealthcareUsersTableProps) {
   return (
@@ -183,15 +185,18 @@ export function HealthcareUsersTable({
                     <div className="space-y-2">
                       <div className="space-y-1">
                         {user.fhirPersons.length > 0 ? (
-                          user.fhirPersons.slice(0, 2).map((association: FhirPersonAssociation, index: number) => (
-                            <div key={index} className="flex items-center space-x-2 text-xs">
-                              <Server className="w-3 h-3 text-primary" />
-                              <span className="font-medium text-foreground">{association.serverName}:</span>
-                              <code className="text-muted-foreground bg-muted px-1 py-0.5 rounded text-xs">
-                                {association.personId}
-                              </code>
-                            </div>
-                          ))
+                          user.fhirPersons.slice(0, 2).map((association: FhirPersonAssociation, index: number) => {
+                            const serverName = fhirServers.find(s => s.id === association.serverId)?.name || association.serverId;
+                            return (
+                              <div key={index} className="flex items-center space-x-2 text-xs">
+                                <Server className="w-3 h-3 text-primary" />
+                                <span className="font-medium text-foreground">{serverName}:</span>
+                                <code className="text-muted-foreground bg-muted px-1 py-0.5 rounded text-xs">
+                                  {association.personId}
+                                </code>
+                              </div>
+                            );
+                          })
                         ) : (
                           <div className="text-sm text-muted-foreground">
                             No associations

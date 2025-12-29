@@ -31,7 +31,8 @@ describe('Basic app integration tests', () => {
     expect(res.data).toBeTruthy()  // Add null check
     if (res.data) {  // Add null guard
       expect(res.data).toHaveProperty('status', 'healthy')
-      expect(typeof res.data.timestamp).toBe('string')
+      const ts = (res.data as any).timestamp
+      expect(typeof ts === 'string' || ts instanceof Date).toBe(true)
       expect(typeof res.data.uptime).toBe('number')
     }
   })

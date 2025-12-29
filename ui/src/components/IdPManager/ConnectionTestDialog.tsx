@@ -8,17 +8,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { TestTube, CheckCircle, XCircle } from 'lucide-react';
-
-interface IdP {
-  id: string;
-  name: string;
-}
+import type { IdentityProviderWithStats } from '@/lib/types/api';
 
 interface ConnectionTestDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  connectionResults: Record<string, { success: boolean; message: string }>;
-  idps: IdP[];
+  connectionResults: Record<string, { success: boolean; message: string; testedAt?: string }>;
+  idps: IdentityProviderWithStats[];
 }
 
 export function ConnectionTestDialog({ 
@@ -48,7 +44,7 @@ export function ConnectionTestDialog({
 
         <div className="space-y-4">
           {Object.entries(connectionResults).map(([idpId, result]) => {
-            const idp = idps.find(i => i.id === idpId);
+            const idp = idps.find((i) => (i.alias ?? '') === idpId);
             return (
               <div key={idpId} className="bg-card/50 p-6 rounded-xl border border-border">
                 <div className="flex items-center space-x-3 mb-4">
@@ -65,7 +61,7 @@ export function ConnectionTestDialog({
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-2">
-                      <span className="font-semibold text-foreground">{idp?.name}</span>
+                      <span className="font-semibold text-foreground">{idp?.displayName ?? idp?.alias ?? idpId}</span>
                       <Badge className={`${
                         result.success 
                           ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-300' 

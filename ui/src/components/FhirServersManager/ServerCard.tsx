@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { FhirServerWithState } from '../../lib/types/api';
+import type { FhirServerWithState } from '@/lib/types/api';
 
 interface ServerCardProps {
   server: FhirServerWithState;

@@ -1,7 +1,7 @@
 import { Elysia } from 'elysia'
-import { smartConfigService } from '../../lib/smart-config'
-import { validateToken } from '../../lib/auth'
-import { CommonErrorResponses, SmartConfigRefreshResponse } from '../../schemas'
+import { smartConfigService } from '@/lib/smart-config'
+import { validateToken } from '@/lib/auth'
+import { CommonErrorResponses, SmartConfigRefreshResponse, type SmartConfigurationResponseType } from '@/schemas'
 
 /**
  * SMART Configuration Admin endpoints
@@ -14,18 +14,18 @@ export const smartConfigAdminRoutes = new Elysia({ prefix: '/smart-config', tags
       set.status = 401
       return { error: 'Authentication required' }
     }
-    
+
     try {
       await validateToken(auth)
-      
+
       // Clear cache and fetch fresh data
       smartConfigService.clearCache()
       const freshConfig = await smartConfigService.getSmartConfiguration()
-      
+
       return {
         message: 'SMART configuration cache refreshed successfully',
         timestamp: new Date().toISOString(),
-        config: freshConfig
+        config: freshConfig as SmartConfigurationResponseType
       }
     } catch (error) {
       set.status = 500

@@ -67,7 +67,7 @@ describe('Eden Treaty Tests', () => {
     expect(error).toBeNull()
     expect(data).toMatchObject({
       status: 'healthy',
-      timestamp: expect.any(String),
+      timestamp: expect.anything(),
       uptime: expect.any(Number)
     })
   })

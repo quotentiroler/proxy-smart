@@ -10,10 +10,11 @@
 
 import { logger } from './logger'
 import { config } from '../config'
-import type { SmartConfiguration } from '../types'
+import type { SmartConfigurationResponseType } from '../schemas'
 
 interface OpenIDConfiguration {
     issuer: string
+    jwks_uri?: string
     authorization_endpoint: string
     token_endpoint: string
     introspection_endpoint?: string
@@ -26,7 +27,7 @@ interface OpenIDConfiguration {
 }
 
 interface CachedConfig {
-    config: SmartConfiguration
+    config: SmartConfigurationResponseType
     timestamp: number
     ttl: number
 }
@@ -39,7 +40,7 @@ class SmartConfigService {
     /**
      * Get SMART configuration, using cache if available and valid
      */
-    async getSmartConfiguration(): Promise<SmartConfiguration> {
+    async getSmartConfiguration(): Promise<SmartConfigurationResponseType> {
         const now = Date.now()
 
         // Check if we have valid cached config
@@ -63,7 +64,7 @@ class SmartConfigService {
     /**
      * Fetch OpenID configuration from Keycloak and build SMART config
      */
-    private async fetchAndBuildSmartConfig(): Promise<SmartConfiguration> {
+    private async fetchAndBuildSmartConfig(): Promise<SmartConfigurationResponseType> {
         try {
             const response = await fetch(this.keycloakDiscoveryUrl, {
                 headers: {
@@ -90,11 +91,22 @@ class SmartConfigService {
     /**
      * Build SMART configuration from OpenID configuration
      */
-    private buildSmartConfigFromOpenID(openidConfig: OpenIDConfiguration): SmartConfiguration {
+    private buildSmartConfigFromOpenID(openidConfig: OpenIDConfiguration): SmartConfigurationResponseType {
         // Build scopes - combine OpenID scopes with SMART-specific scopes
         const baseScopes = openidConfig.scopes_supported || ['openid', 'profile']
         const smartScopes = this.getSmartScopes()
         const allScopes = [...new Set([...baseScopes, ...smartScopes])]
+
+        // SMART 2.2.0 spec: code_challenge_methods_supported SHALL include S256, SHALL NOT include plain
+        // Filter out 'plain' from Keycloak's response to comply with SMART spec
+        const codeChallengeMethodsFromKeycloak = openidConfig.code_challenge_methods_supported || ['S256']
+        const smartCompliantCodeChallengeMethods = codeChallengeMethodsFromKeycloak.filter(
+            (method: string) => method !== 'plain'
+        )
+        // Ensure S256 is included (required by SMART spec)
+        if (!smartCompliantCodeChallengeMethods.includes('S256')) {
+            smartCompliantCodeChallengeMethods.push('S256')
+        }
 
         return {
             // Use our proxy endpoints, not Keycloak's direct endpoints
@@ -104,8 +116,12 @@ class SmartConfigService {
             introspection_endpoint: `${config.baseUrl}/auth/introspect`,
             registration_endpoint: `${config.baseUrl}/auth/register`, // RFC 7591 Dynamic Client Registration
 
-            // Use Keycloak's reported capabilities
-            code_challenge_methods_supported: openidConfig.code_challenge_methods_supported,
+            // JWKS URI - required when sso-openid-connect capability is supported
+            // Use Keycloak's JWKS endpoint directly for token validation
+            jwks_uri: openidConfig.jwks_uri,
+
+            // Use SMART-compliant code challenge methods (no 'plain')
+            code_challenge_methods_supported: smartCompliantCodeChallengeMethods,
             grant_types_supported: openidConfig.grant_types_supported,
             response_types_supported: openidConfig.response_types_supported,
             token_endpoint_auth_methods_supported: openidConfig.token_endpoint_auth_methods_supported,

@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { FhirServerWithState } from '../../lib/types/api';
+import type { FhirServerWithState } from '@/lib/types/api';
 
 interface MtlsConfig {
   enabled: boolean;

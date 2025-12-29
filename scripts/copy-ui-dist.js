@@ -15,9 +15,18 @@ const webappPath = path.join(backendPublicPath, 'webapp');
 
 console.log('🔄 Copying UI dist to backend public directory...');
 
+// Ensure the destination directory is recreated from scratch so no stale files linger
+function ensureCleanDirectory(dir) {
+  if (fs.existsSync(dir)) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    console.log(`🧹 Cleared existing directory: ${dir}`);
+  }
+
+  fs.mkdirSync(dir, { recursive: true });
+}
+
 // Function to copy directory recursively
 function copyDirectorySync(src, dest) {
-  // Create destination directory if it doesn't exist
   if (!fs.existsSync(dest)) {
     fs.mkdirSync(dest, { recursive: true });
   }
@@ -52,11 +61,8 @@ try {
     console.log('📁 Created backend public directory');
   }
 
-  // Remove existing webapp directory if it exists
-  if (fs.existsSync(webappPath)) {
-    fs.rmSync(webappPath, { recursive: true, force: true });
-    console.log('🗑️  Removed existing webapp directory');
-  }
+  // Clean destination to guarantee a fresh copy (no stale hashed assets)
+  ensureCleanDirectory(webappPath);
 
   // Copy UI dist to webapp
   copyDirectorySync(uiDistPath, webappPath);

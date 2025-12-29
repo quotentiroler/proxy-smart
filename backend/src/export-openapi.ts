@@ -10,36 +10,31 @@ import { oauthMonitoringRoutes } from './routes/oauth-monitoring'
 import { oauthWebSocket } from './routes/oauth-websocket'
 import { adminRoutes } from './routes/admin'
 import { authRoutes } from './routes/auth'
-import { aiRoutes } from './routes/admin/ai'
+import { aiRoutes, aiPublicRoutes } from './routes/admin/ai'
 import { writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 
-// Minimal config for OpenAPI export - provides defaults for required environment variables
+/**
+ * Export configuration - uses values from config module (which reads from .env and package.json)
+ * No hardcoded values - everything comes from environment or package.json
+ */
 const exportConfig = {
-  name: 'proxy-smart',
-  displayName: 'Proxy Smart',
-  version: process.env.npm_package_version || '1.0.0',
-  baseUrl: 'http://localhost:3001',
-  port: 3001,
+  name: config.name,
+  displayName: config.displayName,
+  version: config.version,
+  baseUrl: config.baseUrl,
+  port: config.port,
   keycloak: {
-    serverUrl: process.env.KEYCLOAK_SERVER_URL || 'http://localhost:8080',
-    realm: process.env.KEYCLOAK_REALM || 'proxy-smart',
-    clientId: process.env.KEYCLOAK_CLIENT_ID || 'proxy-smart-admin',
-    clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || 'mock-secret',
+    serverUrl: config.keycloak.publicUrl || config.keycloak.baseUrl || 'http://localhost:8080',
+    realm: config.keycloak.realm || 'proxy-smart',
+    jwksUri: config.keycloak.jwksUri,
   },
   fhir: {
-    serverBases: (process.env.FHIR_SERVER_BASE ?? 'http://localhost:8081/fhir')
-      .split(',')
-      .map(s => s.trim()),
-  },
-  logging: {
-    level: 'info' as const,
-    oauthMetrics: false,
+    serverBases: config.fhir.serverBases,
   },
   cors: {
-    allowedOrigins: ['http://localhost:5173', 'http://localhost:3000'],
+    allowedOrigins: config.cors.origins,
   },
-  enableMutualTLS: false,
 }
 
 // Create the same app configuration as the main server
@@ -85,7 +80,8 @@ const app = new Elysia({
         { name: 'smart-apps', description: 'SMART on FHIR configuration endpoints' },
         { name: 'oauth-ws-monitoring', description: 'OAuth monitoring via WebSocket' },
         { name: 'oauth-sse-monitoring', description: 'OAuth monitoring via Server-Sent Events' },
-        { name: 'ai', description: 'AI assistant endpoints proxied to MCP server' },
+        { name: 'ai', description: 'AI assistant endpoints with unified internal and MCP tools' },
+        { name: 'mcp-management', description: 'MCP server management endpoints' },
       ],
       components: {
         securitySchemes: {
@@ -95,6 +91,46 @@ const app = new Elysia({
             bearerFormat: 'JWT',
             description: 'JWT Bearer token from OAuth2 flow'
           },
+          OAuth2: {
+            type: 'oauth2',
+            description: 'OAuth2 authentication via Keycloak with SMART on FHIR support',
+            flows: {
+              authorizationCode: {
+                authorizationUrl: `${exportConfig.baseUrl}/auth/authorize`,
+                tokenUrl: `${exportConfig.baseUrl}/auth/token`,
+                refreshUrl: `${exportConfig.baseUrl}/auth/token`,
+                scopes: {
+                  'openid': 'OpenID Connect authentication',
+                  'profile': 'User profile information',
+                  'email': 'User email address',
+                  'patient/*.read': 'Read all patient data',
+                  'patient/*.write': 'Write all patient data',
+                  'user/*.read': 'Read all data for current user',
+                  'user/*.write': 'Write all data for current user',
+                  'launch': 'SMART launch context',
+                  'launch/patient': 'SMART launch with patient context',
+                  'launch/encounter': 'SMART launch with encounter context',
+                  'offline_access': 'Offline access via refresh token'
+                }
+              },
+              password: {
+                tokenUrl: `${exportConfig.baseUrl}/auth/token`,
+                refreshUrl: `${exportConfig.baseUrl}/auth/token`,
+                scopes: {
+                  'openid': 'OpenID Connect authentication',
+                  'profile': 'User profile information',
+                  'email': 'User email address'
+                }
+              },
+              clientCredentials: {
+                tokenUrl: `${exportConfig.baseUrl}/auth/token`,
+                scopes: {
+                  'system/*.read': 'System-level read access to FHIR resources',
+                  'system/*.write': 'System-level write access to FHIR resources'
+                }
+              }
+            }
+          },
           MutualTLS: {
             type: 'http',
             scheme: 'mutual-tls',
@@ -102,6 +138,10 @@ const app = new Elysia({
           }
         }
       },
+      security: [
+        { OAuth2: ['openid', 'profile', 'email'] },
+        { BearerAuth: [] }
+      ],
       servers: [
         {
           url: exportConfig.baseUrl,
@@ -117,7 +157,8 @@ const app = new Elysia({
   .use(adminRoutes)
   .use(oauthMonitoringRoutes)
   .use(oauthWebSocket)
-  .use(aiRoutes)
+  .use(aiPublicRoutes) // Public AI health checks (no auth)
+  .use(aiRoutes) // Protected AI routes (with auth)
   .use(fhirRoutes)
 
 // The OpenAPI plugin doesn't expose the spec directly, so we need to start a server
@@ -147,15 +188,39 @@ const exportSpec = async () => {
     
     const spec = await response.json()
     
+    // Add custom OpenAPI extensions for authentication configuration
+    spec['x-jwks-uri'] = exportConfig.keycloak.jwksUri || `${exportConfig.baseUrl}/.well-known/jwks.json`
+    spec['x-issuer'] = exportConfig.keycloak.serverUrl ? 
+      `${exportConfig.keycloak.serverUrl}/realms/${exportConfig.keycloak.realm}` : 
+      exportConfig.baseUrl
+    spec['x-audience'] = process.env.JWT_AUDIENCE || exportConfig.baseUrl
+    spec['x-token-endpoint'] = `${exportConfig.baseUrl}/auth/token`
+    spec['x-authorization-endpoint'] = `${exportConfig.baseUrl}/auth/authorize`
+    spec['x-userinfo-endpoint'] = `${exportConfig.baseUrl}/auth/userinfo`
+    
+    console.log('📝 Added custom OpenAPI extensions:')
+    console.log(`   x-jwks-uri: ${spec['x-jwks-uri']}`)
+    console.log(`   x-issuer: ${spec['x-issuer']}`)
+    console.log(`   x-audience: ${spec['x-audience']}`)
+    
     // Ensure dist directory exists
     const distDir = join(process.cwd(), 'dist')
     mkdirSync(distDir, { recursive: true })
 
-    // Write to file
+    // Write to backend dist
     const outputPath = join(distDir, 'openapi.json')
-    writeFileSync(outputPath, JSON.stringify(spec, null, 2))
-
+    const specJson = JSON.stringify(spec, null, 2)
+    writeFileSync(outputPath, specJson)
     console.log(`✅ OpenAPI spec exported to: ${outputPath}`)
+
+    // Also copy to mcp-server folder for the Python generator
+    const mcpServerPath = join(process.cwd(), '..', 'mcp-server', 'openapi.json')
+    try {
+      writeFileSync(mcpServerPath, specJson)
+      console.log(`✅ OpenAPI spec copied to: ${mcpServerPath}`)
+    } catch (copyError) {
+      console.warn(`⚠️  Failed to copy to mcp-server folder: ${copyError}`)
+    }
     
     serverInstance?.stop()
     process.exit(0)

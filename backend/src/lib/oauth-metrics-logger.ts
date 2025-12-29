@@ -2,38 +2,15 @@ import { writeFile, appendFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { logger } from './logger';
+import type {
+  OAuthEventType,
+  OAuthPredictiveInsightsType,
+  OAuthWeekdayInsightType
+} from '../schemas/monitoring';
 
-export interface OAuthFlowEvent {
-  id: string;
-  timestamp: string;
-  type: 'authorization' | 'token' | 'refresh' | 'error' | 'revoke' | 'introspect';
-  status: 'success' | 'error' | 'pending' | 'warning';
-  clientId: string;
-  clientName?: string;
-  userId?: string;
-  userName?: string;
-  scopes: string[];
-  grantType: string;
-  responseTime: number;
-  ipAddress: string;
-  userAgent: string;
-  errorMessage?: string;
-  errorCode?: string;
-  tokenType?: string;
-  expiresIn?: number;
-  refreshToken?: boolean;
-  fhirContext?: {
-    patient?: string;
-    encounter?: string;
-    location?: string;
-    fhirUser?: string;
-  };
-  requestDetails?: {
-    path: string;
-    method: string;
-    headers?: Record<string, string>;
-  };
-}
+export type OAuthFlowEvent = OAuthEventType;
+type OAuthPredictiveInsights = OAuthPredictiveInsightsType;
+type OAuthWeekdayInsight = OAuthWeekdayInsightType;
 
 export interface OAuthAnalytics {
   totalFlows: number;
@@ -54,6 +31,8 @@ export interface OAuthAnalytics {
     error: number;
     total: number;
   }>;
+  predictiveInsights?: OAuthPredictiveInsights;
+  weekdayInsights?: OAuthWeekdayInsight[];
 }
 
 class OAuthMetricsLogger {
@@ -284,6 +263,13 @@ class OAuthMetricsLogger {
         };
       });
 
+      const predictiveInsights = this.calculatePredictiveInsights({
+        hourlyStats,
+        errorsByType
+      });
+
+      const weekdayInsights = this.calculateWeekdayInsights(this.events);
+
       this.analytics = {
         totalFlows,
         successRate,
@@ -292,7 +278,9 @@ class OAuthMetricsLogger {
         topClients,
         flowsByType,
         errorsByType,
-        hourlyStats
+        hourlyStats,
+        predictiveInsights: predictiveInsights ?? undefined,
+        weekdayInsights: weekdayInsights ?? undefined
       };
 
       // Persist analytics to file
@@ -315,6 +303,127 @@ class OAuthMetricsLogger {
     } catch (error) {
       logger.auth.error('Failed to calculate OAuth analytics', { error });
     }
+  }
+
+  private calculatePredictiveInsights(input: {
+    hourlyStats: Array<{ hour: string; success: number; error: number; total: number }>;
+    errorsByType: Record<string, number>;
+  }): OAuthPredictiveInsights | null {
+    const { hourlyStats, errorsByType } = input;
+
+    if (!hourlyStats || hourlyStats.length < 4) {
+      return null;
+    }
+
+    const recent = hourlyStats.slice(-6).filter(stat => Number.isFinite(stat.total));
+    if (recent.length < 3) {
+      return null;
+    }
+
+    const totals = recent.map(stat => stat.total);
+  const successes = recent.map(stat => stat.success);
+
+    const { slope: volumeSlope, direction: trendDirection, confidence: volumeConfidence } = this.computeLinearTrend(totals);
+    const { slope: successSlope } = this.computeLinearTrend(successes.map((value, idx) => {
+      const total = recent[idx].total || 0;
+      return total === 0 ? 0 : (value / total) * 100;
+    }));
+
+    const latest = recent[recent.length - 1];
+    const latestTotal = latest.total;
+    const latestSuccessRate = latest.total > 0 ? (latest.success / latest.total) * 100 : 0;
+    const predictedTotal = Math.max(0, Math.round(latestTotal + volumeSlope));
+    const predictedSuccessRate = Math.max(0, Math.min(100, latestSuccessRate + successSlope));
+    const predictedErrorRate = Math.max(0, Math.min(100, 100 - predictedSuccessRate));
+
+    const recentErrorRates = recent.slice(0, -1).map(stat => {
+      if (stat.total === 0) return 0;
+      return (stat.error / stat.total) * 100;
+    });
+    const averageErrorRate = recentErrorRates.length
+      ? recentErrorRates.reduce((sum, value) => sum + value, 0) / recentErrorRates.length
+      : 0;
+    const variance = recentErrorRates.length
+      ? recentErrorRates.reduce((sum, value) => sum + Math.pow(value - averageErrorRate, 2), 0) / recentErrorRates.length
+      : 0;
+    const stdDeviation = Math.sqrt(variance);
+    const lastErrorRate = latest.total === 0 ? 0 : (latest.error / latest.total) * 100;
+
+    let anomalyRisk: 'low' | 'medium' | 'high' = 'low';
+    const anomalyReasons: string[] = [];
+
+    if (recentErrorRates.length >= 2) {
+      if (lastErrorRate > averageErrorRate + 2 * stdDeviation && lastErrorRate > 5) {
+        anomalyRisk = 'high';
+        anomalyReasons.push('Error rate spiked significantly in the last hour');
+      } else if (lastErrorRate > averageErrorRate + stdDeviation) {
+        anomalyRisk = 'medium';
+        anomalyReasons.push('Error rate is trending upward');
+      }
+    }
+
+    if (trendDirection === 'increasing' && predictedErrorRate > 10) {
+      anomalyRisk = anomalyRisk === 'high' ? 'high' : 'medium';
+      anomalyReasons.push('Increasing traffic with elevated projected error rate');
+    }
+
+    const topErrorType = Object.entries(errorsByType)
+      .sort((a, b) => b[1] - a[1])
+      .map(([type]) => type)[0];
+
+    if (topErrorType) {
+      anomalyReasons.push(`Dominant error category: ${topErrorType}`);
+    }
+
+    if (anomalyReasons.length === 0) {
+      anomalyReasons.push('No anomalies detected in the last six hours');
+    }
+
+    const trendConfidence = Math.max(0, Math.min(1, volumeConfidence));
+
+    return {
+      generatedAt: new Date().toISOString(),
+      trendDirection,
+      trendConfidence,
+      nextHour: {
+        totalFlows: predictedTotal,
+        successRate: Number(predictedSuccessRate.toFixed(1)),
+        errorRate: Number(predictedErrorRate.toFixed(1))
+      },
+      anomalyRisk,
+      anomalyReasons,
+      notes: anomalyRisk === 'high' ? 'Investigate failing clients or infrastructure issues impacting OAuth flows.' : undefined
+    };
+  }
+
+  private computeLinearTrend(values: number[]): { slope: number; direction: 'increasing' | 'decreasing' | 'stable'; confidence: number } {
+    const numeric = values.filter(value => Number.isFinite(value));
+    const n = numeric.length;
+    if (n < 2) {
+      return { slope: 0, direction: 'stable', confidence: 0 };
+    }
+
+    const sumX = numeric.reduce((acc, _, idx) => acc + idx, 0);
+    const sumY = numeric.reduce((acc, value) => acc + value, 0);
+    const sumXY = numeric.reduce((acc, value, idx) => acc + idx * value, 0);
+    const sumX2 = numeric.reduce((acc, _, idx) => acc + idx * idx, 0);
+
+    const denominator = n * sumX2 - sumX * sumX;
+    const slope = denominator === 0 ? 0 : (n * sumXY - sumX * sumY) / denominator;
+
+    let direction: 'increasing' | 'decreasing' | 'stable' = 'stable';
+    const threshold = Math.max(1, numeric[n - 1] * 0.05);
+    if (slope > threshold) {
+      direction = 'increasing';
+    } else if (slope < -threshold) {
+      direction = 'decreasing';
+    }
+
+    const average = sumY / n;
+    const variance = numeric.reduce((acc, value) => acc + Math.pow(value - average, 2), 0) / n;
+    const confidence = average === 0 ? 0 : Math.min(1, Math.abs(slope) / (average + Math.sqrt(variance) + 1));
+
+    return { slope, direction, confidence };
   }
 
   /**
@@ -373,6 +482,89 @@ class OAuthMetricsLogger {
   private async measureResponseTime(): Promise<number> {
     // This is a placeholder - in production you'd ping your actual OAuth endpoints
     return Math.random() * 200 + 100; // 100-300ms
+  }
+
+  private calculateWeekdayInsights(events: OAuthFlowEvent[]): OAuthWeekdayInsight[] | null {
+    const now = new Date();
+    const weekWindow = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weeklyEvents = events.filter(event => new Date(event.timestamp) >= weekWindow);
+
+    if (weeklyEvents.length === 0) {
+      return null;
+    }
+
+    const dateMap = new Map<string, { total: number; success: number; lastTimestamp: Date }>();
+
+    weeklyEvents.forEach(event => {
+      const eventTimestamp = new Date(event.timestamp);
+      const dateKey = eventTimestamp.toISOString().split('T')[0];
+      const entry = dateMap.get(dateKey) ?? { total: 0, success: 0, lastTimestamp: eventTimestamp };
+      entry.total += 1;
+      if (event.status === 'success') {
+        entry.success += 1;
+      }
+      if (eventTimestamp > entry.lastTimestamp) {
+        entry.lastTimestamp = eventTimestamp;
+      }
+      dateMap.set(dateKey, entry);
+    });
+
+    if (dateMap.size === 0) {
+      return null;
+    }
+
+    const weekdayMap = new Map<number, Array<{ total: number; successRate: number; timestamp: Date }>>();
+
+    for (const entry of dateMap.values()) {
+      const weekday = entry.lastTimestamp.getUTCDay();
+      const successRate = entry.total > 0 ? (entry.success / entry.total) * 100 : 0;
+      const list = weekdayMap.get(weekday) ?? [];
+      list.push({
+        total: entry.total,
+        successRate,
+        timestamp: entry.lastTimestamp
+      });
+      weekdayMap.set(weekday, list);
+    }
+
+    const weekdayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const insights: OAuthWeekdayInsight[] = [];
+
+    for (const [weekday, entries] of weekdayMap.entries()) {
+      if (!entries.length) {
+        continue;
+      }
+
+      const totals = entries.map(entry => entry.total);
+      const successRates = entries.map(entry => entry.successRate);
+      const averageTotalRaw = totals.reduce((sum, value) => sum + value, 0) / totals.length;
+      const averageSuccessRateRaw = successRates.reduce((sum, value) => sum + value, 0) / successRates.length;
+      const latestEntry = entries.slice().sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+      const deltaFromAverage = latestEntry
+        ? ((latestEntry.total - averageTotalRaw) / (averageTotalRaw || 1)) * 100
+        : undefined;
+
+      insights.push({
+        weekday,
+        label: weekdayLabels[weekday],
+        sampleDays: entries.length,
+        averageTotal: Number(averageTotalRaw.toFixed(1)),
+        averageSuccessRate: Number(averageSuccessRateRaw.toFixed(1)),
+        averageErrorRate: Number((100 - averageSuccessRateRaw).toFixed(1)),
+        projectedTotal: Math.max(0, Math.round(averageTotalRaw)),
+        projectedSuccessRate: Number(averageSuccessRateRaw.toFixed(1)),
+        projectedErrorRate: Number((100 - averageSuccessRateRaw).toFixed(1)),
+        latestTotal: latestEntry?.total,
+        deltaFromAverage: deltaFromAverage !== undefined ? Number(deltaFromAverage.toFixed(1)) : undefined,
+        lastObserved: latestEntry?.timestamp.toISOString()
+      });
+    }
+
+    if (!insights.length) {
+      return null;
+    }
+
+    return insights.sort((a, b) => a.weekday - b.weekday);
   }
 }
 

@@ -22,7 +22,6 @@ import {
     Bot
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { DescriptionList } from '@medplum/react';
 import {
     Dialog,
     DialogContent,
@@ -534,14 +533,14 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
             {/* Notification Toast */}
             {notification && (
                 <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg border ${notification.type === 'success'
-                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/50 text-green-800 dark:text-green-200'
-                    : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-200'
+                    ? 'bg-card border-border text-foreground'
+                    : 'bg-destructive/10 dark:bg-destructive/20 border-destructive/30 text-foreground'
                     } animate-in slide-in-from-top-2 duration-300`}>
                     <div className="flex items-center space-x-2">
                         {notification.type === 'success' ? (
-                            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                            <CheckCircle className="h-5 w-5 text-foreground" />
                         ) : (
-                            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            <AlertCircle className="h-5 w-5 text-destructive" />
                         )}
                         <span className="font-medium">{notification.message}</span>
                         <Button
@@ -560,7 +559,7 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
             <div className="bg-muted/50 p-4 sm:p-6 lg:p-8 rounded-3xl border border-border/50 shadow-lg">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-6 lg:space-y-0">
                     <div className="flex-1">
-                        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3 tracking-tight">
+                        <h1 className="text-3xl font-medium text-foreground mb-3 tracking-tight">
                             {t('Proxy Smart Dashboard')}
                         </h1>
                         <div className="text-muted-foreground flex items-center text-lg">
@@ -577,23 +576,23 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                         {/* AI Agent Status */}
                         <div className="mt-4 flex items-center space-x-3 p-3 bg-muted/20 rounded-xl border border-border/30">
                             {systemHealth.aiAgentStatus === 'connected' ? (
-                                <Bot className="w-5 h-5 text-emerald-500 dark:text-emerald-400" />
+                                <Bot className="w-5 h-5 text-foreground" />
                             ) : systemHealth.aiAgentStatus === 'fallback' ? (
-                                <Bot className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />
+                                <Bot className="w-5 h-5 text-muted-foreground" />
                             ) : systemHealth.aiAgentStatus === 'checking' ? (
                                 <Bot className="w-5 h-5 text-muted-foreground animate-pulse" />
                             ) : (
-                                <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400" />
+                                <AlertCircle className="w-5 h-5 text-destructive" />
                             )}
                             <div>
                                 <span className={`font-semibold text-sm ${
                                     systemHealth.aiAgentStatus === 'connected'
-                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                        ? 'text-foreground'
                                         : systemHealth.aiAgentStatus === 'fallback'
-                                            ? 'text-yellow-600 dark:text-yellow-400'
+                                            ? 'text-muted-foreground'
                                             : systemHealth.aiAgentStatus === 'checking'
                                                 ? 'text-muted-foreground'
-                                                : 'text-red-600 dark:text-red-400'
+                                                : 'text-destructive'
                                 }`}>
                                     {systemHealth.aiAgentStatus === 'connected' 
                                         ? t('AI Assistant: Backend Connected') 
@@ -620,28 +619,28 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                     <div className="flex flex-wrap gap-3">
                         <button
                             onClick={handleRefresh}
-                            className="px-6 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 border border-blue-500/20"
+                            className="px-4 py-2 bg-foreground text-background text-sm font-medium rounded-lg hover:opacity-80 transition-opacity cursor-pointer"
                         >
                             <RefreshCw className="w-4 h-4 mr-2 inline" />
-                            {t('Refresh Data')}
+                            {t('Refresh')}
                         </button>
                         <button
                             onClick={handleHealthCheck}
-                            className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white font-semibold rounded-xl hover:from-emerald-500 hover:to-green-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 border border-emerald-500/20"
+                            className="px-4 py-2 border border-border bg-card text-foreground text-sm font-medium rounded-lg hover:bg-accent transition-colors cursor-pointer"
                         >
                             <Heart className="w-4 h-4 mr-2 inline" />
-                            {t('Health Check')}
+                            {t('Health')}
                         </button>
                         <button
                             onClick={handleServerRestart}
-                            className="px-6 py-3 bg-gradient-to-r from-orange-600 to-amber-600 text-white font-semibold rounded-xl hover:from-orange-500 hover:to-amber-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 border border-orange-500/20"
+                            className="px-4 py-2 border border-border bg-card text-foreground text-sm font-medium rounded-lg hover:bg-accent transition-colors cursor-pointer"
                         >
                             <RotateCcw className="w-4 h-4 mr-2 inline" />
-                            {t('Restart Server')}
+                            {t('Restart')}
                         </button>
                         <button
                             onClick={handleServerShutdown}
-                            className="px-6 py-3 bg-gradient-to-r from-red-600 to-rose-600 text-white font-semibold rounded-xl hover:from-red-500 hover:to-rose-500 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 border border-red-500/20"
+                            className="px-4 py-2 border border-destructive/30 bg-destructive/10 text-destructive text-sm font-medium rounded-lg hover:bg-destructive/20 transition-colors cursor-pointer"
                         >
                             <Power className="w-4 h-4 inline" />
                         </button>
@@ -666,8 +665,8 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
 
                 <div className="bg-card/70 backdrop-blur-sm p-4 rounded-xl border border-border/50 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105">
                     <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-                            <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                            <Users className="w-4 h-4 text-foreground" />
                         </div>
                         <h3 className="text-xs font-medium text-muted-foreground">{t('Users')}</h3>
                     </div>
@@ -679,8 +678,8 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
 
                 <div className="bg-card/70 backdrop-blur-sm p-4 rounded-xl border border-border/50 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105">
                     <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-8 h-8 bg-orange-500/10 rounded-lg flex items-center justify-center">
-                            <Database className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                        <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                            <Database className="w-4 h-4 text-foreground" />
                         </div>
                         <h3 className="text-xs font-medium text-muted-foreground">{t('FHIR Servers')}</h3>
                     </div>
@@ -692,8 +691,8 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
 
                 <div className="bg-card/70 backdrop-blur-sm p-4 rounded-xl border border-border/50 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105">
                     <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-8 h-8 bg-violet-500/10 rounded-lg flex items-center justify-center">
-                            <Shield className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                        <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                            <Shield className="w-4 h-4 text-foreground" />
                         </div>
                         <h3 className="text-xs font-medium text-muted-foreground">{t('Identity Providers')}</h3>
                     </div>
@@ -705,8 +704,8 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
 
                 <div className="bg-card/70 backdrop-blur-sm p-4 rounded-xl border border-border/50 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105">
                     <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                            <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                            <BarChart3 className="w-4 h-4 text-foreground" />
                         </div>
                         <h3 className="text-xs font-medium text-muted-foreground">{t('OAuth Flows')}</h3>
                     </div>
@@ -718,8 +717,8 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
 
                 <div className="bg-card/70 backdrop-blur-sm p-4 rounded-xl border border-border/50 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105">
                     <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-8 h-8 bg-green-500/10 rounded-lg flex items-center justify-center">
-                            <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                        <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 text-foreground" />
                         </div>
                         <h3 className="text-xs font-medium text-muted-foreground">{t('Success Rate')}</h3>
                     </div>
@@ -736,8 +735,8 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
 
                 <div className="bg-card/70 backdrop-blur-sm p-4 rounded-xl border border-border/50 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105">
                     <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-8 h-8 bg-indigo-500/10 rounded-lg flex items-center justify-center">
-                            <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-foreground" />
                         </div>
                         <h3 className="text-xs font-medium text-muted-foreground">{t('Avg Response')}</h3>
                     </div>
@@ -754,8 +753,8 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
 
                 <div className="bg-card/70 backdrop-blur-sm p-4 rounded-xl border border-border/50 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105">
                     <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center">
-                            <Shield className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center">
+                            <Shield className="w-4 h-4 text-foreground" />
                         </div>
                         <h3 className="text-xs font-medium text-muted-foreground">{t('Active Tokens')}</h3>
                     </div>
@@ -782,28 +781,28 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                             onClick={handleKeycloakConfig}
                             className={`rounded-xl px-4 py-2 transition-all duration-200 ${
                                 keycloakConfig.hasAdminClient
-                                    ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-500/30'
-                                    : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-700 dark:text-amber-300'
+                                    ? 'bg-foreground hover:bg-foreground/90 text-background border-transparent'
+                                    : 'bg-muted/50 hover:bg-muted border-border text-foreground'
                             }`}
                         >
                             <Shield className="w-4 h-4 mr-2" />
                             {keycloakConfig.hasAdminClient ? t('Admin Client Config') : t('Setup Dynamic Registration')}
                         </Button>
                     </div>
-                    <DescriptionList>
+                    <div className="divide-y divide-border/50">
                         <div className="space-y-4">
                             <div className="flex justify-between items-center p-4 bg-muted/30 rounded-xl">
                                 <span className="text-sm font-medium text-muted-foreground">{t('API Response Time')}</span>
-                                <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center">
-                                    <div className="w-3 h-3 bg-emerald-500 dark:bg-emerald-400 rounded-full mr-3 animate-pulse shadow-lg"></div>
+                                <span className="text-foreground font-semibold flex items-center">
+                                    <div className="w-3 h-3 bg-foreground rounded-full mr-3 animate-pulse shadow-lg"></div>
                                     {systemHealth.apiResponseTime > 0 ? `${systemHealth.apiResponseTime}ms` : '...'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center p-4 bg-muted/30 rounded-xl">
                                 <span className="text-sm font-medium text-muted-foreground">{t('Keycloak Database')}</span>
                                 <div className="flex items-center">
-                                    <CheckCircle className="w-5 h-5 text-emerald-500 dark:text-emerald-400 mr-2" />
-                                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                                    <CheckCircle className="w-5 h-5 text-foreground mr-2" />
+                                    <span className="text-foreground font-semibold">
                                         {systemHealth.databaseStatus === 'healthy' ? t('Healthy') : systemHealth.databaseStatus}
                                     </span>
                                 </div>
@@ -812,13 +811,13 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                                 <span className="text-sm font-medium text-muted-foreground">{t('Dynamic Client Registration')}</span>
                                 <div className="flex items-center">
                                     {keycloakConfig.hasAdminClient ? (
-                                        <CheckCircle className="w-5 h-5 text-emerald-500 dark:text-emerald-400 mr-2" />
+                                        <CheckCircle className="w-5 h-5 text-foreground mr-2" />
                                     ) : (
-                                        <AlertCircle className="w-5 h-5 text-yellow-500 dark:text-yellow-400 mr-2" />
+                                        <AlertCircle className="w-5 h-5 text-muted-foreground mr-2" />
                                     )}
                                     <span className={`font-semibold ${keycloakConfig.hasAdminClient
-                                        ? 'text-emerald-600 dark:text-emerald-400'
-                                        : 'text-yellow-600 dark:text-yellow-400'
+                                        ? 'text-foreground'
+                                        : 'text-muted-foreground'
                                         }`}>
                                         {keycloakConfig.loading 
                                             ? t('Checking...') 
@@ -874,7 +873,7 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                                 </span>
                             </div>
                         </div>
-                    </DescriptionList>
+                    </div>
                 </div>
 
                 <div className="bg-card/70 backdrop-blur-sm p-4 sm:p-6 lg:p-8 rounded-2xl border border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -949,10 +948,10 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                                     <div className="text-right">
                                         <span className={`text-sm font-semibold ${
                                             server.supported && !server.error
-                                                ? 'text-emerald-600 dark:text-emerald-400'
+                                                ? 'text-foreground'
                                                 : server.error
-                                                    ? 'text-red-600 dark:text-red-400'
-                                                    : 'text-yellow-600 dark:text-yellow-400'
+                                                    ? 'text-destructive'
+                                                    : 'text-muted-foreground'
                                         }`}>
                                             {server.supported && !server.error
                                                 ? t('Healthy')
@@ -995,8 +994,8 @@ export function SmartProxyOverview({ onNavigate }: SmartProxyOverviewProps) {
                         </div>
                     </div>
                     <div className="flex items-center space-x-3 p-4 bg-muted/30 rounded-xl">
-                        <div className="w-10 h-10 bg-emerald-500/10 dark:bg-emerald-400/20 rounded-lg flex items-center justify-center">
-                            <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                        <div className="w-10 h-10 bg-foreground/10 rounded-lg flex items-center justify-center">
+                            <CheckCircle className="w-5 h-5 text-foreground" />
                         </div>
                         <div>
                             <div className="text-sm font-semibold text-muted-foreground">{t('Environment')}</div>

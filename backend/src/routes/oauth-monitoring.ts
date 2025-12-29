@@ -388,7 +388,9 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
         flowsByType: {},
         errorsByType: {},
         hourlyStats: [],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        predictiveInsights: undefined,
+        weekdayInsights: undefined
       };
     }
 
@@ -403,7 +405,9 @@ export const oauthMonitoringRoutes = new Elysia({ prefix: '/monitoring/oauth', t
       flowsByType: analytics.flowsByType || {},
       errorsByType: analytics.errorsByType || {},
       hourlyStats: analytics.hourlyStats || [],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      predictiveInsights: analytics.predictiveInsights ?? undefined,
+      weekdayInsights: analytics.weekdayInsights ?? undefined
     };
   }, {
     headers: t.Object({

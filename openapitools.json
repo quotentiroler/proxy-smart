@@ -2,6 +2,6 @@
   "$schema": "./node_modules/@openapitools/openapi-generator-cli/config.schema.json",
   "spaces": 2,
   "generator-cli": {
-    "version": "latest"
+    "version": "7.16.0"
   }
 }

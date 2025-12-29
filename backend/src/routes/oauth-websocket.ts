@@ -2,36 +2,14 @@ import { Elysia } from 'elysia';
 import { oauthMetricsLogger, type OAuthFlowEvent } from '../lib/oauth-metrics-logger';
 import { validateToken } from '../lib/auth';
 import { logger } from '../lib/logger';
-import { WebSocketInfoResponse } from '../schemas/websocket';
-
-interface WebSocketClient {
-  id: string;
-  ws: {
-    send: (message: string) => void;
-    readyState: number;
-  };
-  authenticated: boolean;
-  subscriptions: Set<string>;
-  filters: {
-    eventTypes?: string[];
-    timeRange?: { start: Date; end: Date };
-    logLevel?: 'info' | 'warn' | 'error';
-  };
-}
+import { 
+  WebSocketInfoResponse,
+  type WebSocketClient,
+  type WebSocketMessageType,
+  type ControlMessageType,
+} from '../schemas/websocket';
 
 const clients = new Map<string, WebSocketClient>();
-
-interface WebSocketMessage {
-  type: 'auth' | 'subscribe' | 'unsubscribe' | 'filter' | 'control' | 'ping';
-  data?: Record<string, unknown>;
-  token?: string;
-  clientId?: string; // Add clientId field
-}
-
-interface ControlMessage {
-  action: 'set_log_level' | 'clear_logs' | 'export_logs' | 'set_retention';
-  parameters?: Record<string, unknown>;
-}
 
 export const oauthWebSocket = new Elysia({ prefix: '/oauth/monitoring' })
   .ws('/websocket', {
@@ -63,7 +41,7 @@ export const oauthWebSocket = new Elysia({ prefix: '/oauth/monitoring' })
     // Message handler
     message(ws, message) {
       // Parse the message first to get clientId if available
-      let parsedMessage: WebSocketMessage;
+      let parsedMessage: WebSocketMessageType;
       try {
         parsedMessage = typeof message === 'string' 
           ? JSON.parse(message) 
@@ -152,7 +130,7 @@ function findClientByWs(ws: unknown): WebSocketClient | undefined {
   return undefined;
 }
 
-async function handleWebSocketMessage(client: WebSocketClient, message: WebSocketMessage) {
+async function handleWebSocketMessage(client: WebSocketClient, message: WebSocketMessageType) {
   try {
     switch (message.type) {
       case 'auth':
@@ -203,7 +181,7 @@ async function handleWebSocketMessage(client: WebSocketClient, message: WebSocke
   }
 }
 
-async function handleAuth(client: WebSocketClient, message: WebSocketMessage) {
+async function handleAuth(client: WebSocketClient, message: WebSocketMessageType) {
   if (!message.token) {
     client.ws.send(JSON.stringify({
       type: 'auth_error',
@@ -240,7 +218,7 @@ async function handleAuth(client: WebSocketClient, message: WebSocketMessage) {
   }
 }
 
-function handleSubscribe(client: WebSocketClient, message: WebSocketMessage) {
+function handleSubscribe(client: WebSocketClient, message: WebSocketMessageType) {
   if (!client.authenticated) {
     client.ws.send(JSON.stringify({
       type: 'error',
@@ -249,7 +227,7 @@ function handleSubscribe(client: WebSocketClient, message: WebSocketMessage) {
     return;
   }
 
-  const subscriptionType = message.data?.subscriptionType as string;
+  const subscriptionType = (message.data as Record<string, unknown>)?.subscriptionType as string;
   if (!subscriptionType) {
     client.ws.send(JSON.stringify({
       type: 'error',
@@ -287,8 +265,8 @@ function handleSubscribe(client: WebSocketClient, message: WebSocketMessage) {
   });
 }
 
-function handleUnsubscribe(client: WebSocketClient, message: WebSocketMessage) {
-  const subscriptionType = message.data?.subscriptionType as string;
+function handleUnsubscribe(client: WebSocketClient, message: WebSocketMessageType) {
+  const subscriptionType = (message.data as Record<string, unknown>)?.subscriptionType as string;
   if (subscriptionType) {
     client.subscriptions.delete(subscriptionType);
     
@@ -302,7 +280,7 @@ function handleUnsubscribe(client: WebSocketClient, message: WebSocketMessage) {
   }
 }
 
-function handleFilter(client: WebSocketClient, message: WebSocketMessage) {
+function handleFilter(client: WebSocketClient, message: WebSocketMessageType) {
   if (!client.authenticated) {
     client.ws.send(JSON.stringify({
       type: 'error',
@@ -311,7 +289,7 @@ function handleFilter(client: WebSocketClient, message: WebSocketMessage) {
     return;
   }
 
-  const filters = message.data?.filters;
+  const filters = (message.data as Record<string, unknown>)?.filters;
   if (filters) {
     client.filters = { ...client.filters, ...filters };
     
@@ -330,7 +308,7 @@ function handleFilter(client: WebSocketClient, message: WebSocketMessage) {
   }
 }
 
-async function handleControl(client: WebSocketClient, message: WebSocketMessage) {
+async function handleControl(client: WebSocketClient, message: WebSocketMessageType) {
   if (!client.authenticated) {
     client.ws.send(JSON.stringify({
       type: 'error',
@@ -339,7 +317,7 @@ async function handleControl(client: WebSocketClient, message: WebSocketMessage)
     return;
   }
 
-  const control = message.data as unknown as ControlMessage;
+  const control = message.data as unknown as ControlMessageType;
   if (!control || !control.action) {
     client.ws.send(JSON.stringify({
       type: 'error',
@@ -465,7 +443,7 @@ function applyEventFilters(events: OAuthFlowEvent[], filters: WebSocketClient['f
   return filtered;
 }
 
-async function executeControlAction(control: ControlMessage): Promise<Record<string, unknown>> {
+async function executeControlAction(control: ControlMessageType): Promise<Record<string, unknown>> {
   switch (control.action) {
     case 'clear_logs': {
       // Clear events from memory (we don't have a clearData method)
@@ -487,7 +465,7 @@ async function executeControlAction(control: ControlMessage): Promise<Record<str
     
     case 'set_log_level': {
       // This would integrate with your logger configuration
-      const level = control.parameters?.level;
+      const level = (control.parameters as Record<string, unknown>)?.level;
       if (level) {
         logger.ws.info('Log level changed via WebSocket control', { newLevel: level });
         return { level, changed: true };
@@ -497,7 +475,7 @@ async function executeControlAction(control: ControlMessage): Promise<Record<str
     
     case 'set_retention': {
       // This would configure data retention policies
-      const retentionDays = control.parameters?.retentionDays;
+      const retentionDays = (control.parameters as Record<string, unknown>)?.retentionDays;
       if (retentionDays) {
         return { retentionDays, updated: true };
       }

@@ -1,7 +1,8 @@
 import { Elysia } from 'elysia'
-import { keycloakPlugin } from '../../lib/keycloak-plugin'
-import { ErrorResponse, SuccessResponse, ClientRegistrationSettings } from '../../schemas'
-import { logger } from '../../lib/logger'
+import { keycloakPlugin } from '@/lib/keycloak-plugin'
+import { ErrorResponse, SuccessResponse } from '@/schemas'
+import { ClientRegistrationSettings, type ClientRegistrationSettingsType } from '@/schemas/auth/client-registration'
+import { logger } from '@/lib/logger'
 import type KcAdminClient from '@keycloak/keycloak-admin-client'
 
 /**
@@ -9,24 +10,7 @@ import type KcAdminClient from '@keycloak/keycloak-admin-client'
  * Controls security and policy settings for the public registration endpoint
  */
 
-interface ClientRegistrationSettings {
-  enabled: boolean
-  requireHttps: boolean
-  allowedScopes: string[]
-  maxClientLifetime: number // in days, 0 = no limit
-  requireTermsOfService: boolean
-  requirePrivacyPolicy: boolean
-  allowPublicClients: boolean
-  allowConfidentialClients: boolean
-  allowBackendServices: boolean
-  adminApprovalRequired: boolean
-  rateLimitPerMinute: number
-  maxRedirectUris: number
-  allowedRedirectUriPatterns: string[] // regex patterns
-  notificationEmail?: string // email to notify of new registrations
-}
-
-const DEFAULT_SETTINGS: ClientRegistrationSettings = {
+const DEFAULT_SETTINGS: ClientRegistrationSettingsType = {
   enabled: true,
   requireHttps: true,
   allowedScopes: [
@@ -61,7 +45,7 @@ const DEFAULT_SETTINGS: ClientRegistrationSettings = {
 /**
  * Get settings from Keycloak realm attributes or return defaults
  */
-async function getClientRegistrationSettings(admin: KcAdminClient): Promise<ClientRegistrationSettings> {
+async function getClientRegistrationSettings(admin: KcAdminClient): Promise<ClientRegistrationSettingsType> {
   try {
     const realm = await admin.realms.findOne({ realm: process.env.KEYCLOAK_REALM! })
     const attributes = realm?.attributes || {}
@@ -94,7 +78,7 @@ async function getClientRegistrationSettings(admin: KcAdminClient): Promise<Clie
 /**
  * Save settings to Keycloak realm attributes
  */
-async function saveClientRegistrationSettings(admin: KcAdminClient, settings: ClientRegistrationSettings): Promise<void> {
+async function saveClientRegistrationSettings(admin: KcAdminClient, settings: ClientRegistrationSettingsType): Promise<void> {
   const realm = await admin.realms.findOne({ realm: process.env.KEYCLOAK_REALM! })
   
   const attributes = {

@@ -1,5 +1,5 @@
 import React from 'react'
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -29,14 +29,14 @@ function mockMatchMedia(initialDark: boolean) {
     },
     dispatch: (matches: boolean) => {
       // update matches and notify listeners
-      ;(mql as any).matches = matches
+      ;(mql as MediaQueryList & { matches: boolean }).matches = matches
       const event = { matches } as MediaQueryListEvent
       listeners.forEach((cb) => cb(event))
       if (typeof mql.onchange === 'function') mql.onchange(event)
     },
-  } as any
+  } as MediaQueryList & { dispatch: (matches: boolean) => void }
 
-  const stub = vi.fn().mockImplementation(() => mql)
+  const stub = vi.fn().mockImplementation(() => mql) as typeof window.matchMedia
   vi.stubGlobal('matchMedia', stub)
   return mql
 }

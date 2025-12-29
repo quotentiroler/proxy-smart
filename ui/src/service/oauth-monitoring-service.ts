@@ -137,7 +137,9 @@ class OAuthMonitoringService {
         flowsByType: response.flowsByType as Record<string, number>,
         errorsByType: response.errorsByType as Record<string, number>,
         hourlyStats: response.hourlyStats || [],
-        timestamp: response.timestamp || new Date().toISOString()
+        timestamp: response.timestamp || new Date().toISOString(),
+        predictiveInsights: (response as OAuthAnalytics).predictiveInsights,
+        weekdayInsights: (response as OAuthAnalytics).weekdayInsights
       };
     } catch (error) {
       console.error('Failed to fetch OAuth analytics:', error);

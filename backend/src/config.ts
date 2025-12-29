@@ -89,20 +89,16 @@ export const config = {
   },
 
   ai: {
-    get baseUrl() {
-      return process.env.MCP_SERVER_URL || 'http://localhost:8081';
+    // Always use internal AI (unified ai.ts with direct Elysia tool execution)
+    // Can connect to external MCP servers via EXTERNAL_MCP_SERVERS env variable
+    get enabled() {
+      return !!this.openaiApiKey;
     },
-    get chatEndpoint() {
-      return `${this.baseUrl.replace(/\/$/, '')}/ai/chat`;
-    },
-    get healthEndpoint() {
-      return `${this.baseUrl.replace(/\/$/, '')}/health`;
+    get openaiApiKey() {
+      return process.env.OPENAI_API_KEY || null;
     },
     get timeoutMs() {
-      return Number.parseInt(process.env.MCP_SERVER_TIMEOUT_MS || '30000', 10); // 30 seconds for reasoning models
-    },
-    get enabled() {
-      return !!this.baseUrl;
+      return Number.parseInt(process.env.AI_TIMEOUT_MS || '30000', 10); // 30 seconds for reasoning models
     }
   },
 
