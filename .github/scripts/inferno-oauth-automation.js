@@ -438,6 +438,9 @@ async function printResults(results) {
   let skipped = 0;
   let errors = 0;
   
+  // Collect detailed failure info for later
+  const failedTests = [];
+  
   for (const result of results) {
     const status = result.result || 'unknown';
     const title = result.test?.title || result.test_id || 'Unknown test';
@@ -450,17 +453,33 @@ async function printResults(results) {
       case 'fail':
         failed++;
         console.log(`✗ FAIL: ${title}`);
-        if (result.messages) {
-          result.messages.forEach(m => console.log(`    ${m.message}`));
+        // Capture detailed failure info
+        failedTests.push({
+          title,
+          test_id: result.test_id,
+          result_message: result.result_message,
+          messages: result.messages,
+          outputs: result.outputs,
+          requests: result.requests
+        });
+        // Print immediate summary
+        if (result.result_message) {
+          console.log(`    Reason: ${result.result_message.substring(0, 200)}`);
         }
         break;
       case 'skip':
         skipped++;
         console.log(`○ SKIP: ${title}`);
+        if (result.result_message) {
+          console.log(`    Reason: ${result.result_message.substring(0, 100)}`);
+        }
         break;
       case 'error':
         errors++;
         console.log(`⚠ ERROR: ${title}`);
+        if (result.result_message) {
+          console.log(`    Error: ${result.result_message}`);
+        }
         break;
       default:
         console.log(`? ${status.toUpperCase()}: ${title}`);
@@ -470,6 +489,59 @@ async function printResults(results) {
   console.log('\n========================================');
   console.log(`Total: ${results.length} | Passed: ${passed} | Failed: ${failed} | Skipped: ${skipped} | Errors: ${errors}`);
   console.log('========================================\n');
+  
+  // Print detailed failure analysis
+  if (failedTests.length > 0) {
+    console.log('\n========================================');
+    console.log('       DETAILED FAILURE ANALYSIS        ');
+    console.log('========================================\n');
+    
+    for (const failure of failedTests) {
+      console.log(`\n--- ${failure.title} ---`);
+      console.log(`Test ID: ${failure.test_id}`);
+      
+      if (failure.result_message) {
+        console.log(`\nResult Message:\n${failure.result_message}`);
+      }
+      
+      if (failure.messages && failure.messages.length > 0) {
+        console.log(`\nMessages:`);
+        failure.messages.forEach((m, i) => {
+          console.log(`  [${i + 1}] ${m.type || 'info'}: ${m.message}`);
+        });
+      }
+      
+      if (failure.outputs && Object.keys(failure.outputs).length > 0) {
+        console.log(`\nOutputs:`);
+        for (const [key, value] of Object.entries(failure.outputs)) {
+          const displayValue = typeof value === 'string' && value.length > 200 
+            ? value.substring(0, 200) + '...' 
+            : value;
+          console.log(`  ${key}: ${displayValue}`);
+        }
+      }
+      
+      // Show relevant HTTP requests/responses for debugging
+      if (failure.requests && failure.requests.length > 0) {
+        const relevantRequests = failure.requests.slice(-3); // Last 3 requests
+        console.log(`\nRecent HTTP Requests (last ${relevantRequests.length}):`);
+        for (const req of relevantRequests) {
+          console.log(`  ${req.verb || req.method || 'GET'} ${req.url}`);
+          if (req.status) {
+            console.log(`    Response Status: ${req.status}`);
+          }
+          if (req.response_body) {
+            const bodyPreview = typeof req.response_body === 'string' 
+              ? req.response_body.substring(0, 300) 
+              : JSON.stringify(req.response_body).substring(0, 300);
+            console.log(`    Response Body: ${bodyPreview}...`);
+          }
+        }
+      }
+      
+      console.log('\n' + '-'.repeat(50));
+    }
+  }
   
   return { passed, failed, skipped, errors, total: results.length };
 }

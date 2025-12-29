@@ -391,7 +391,25 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
           }
 
           if (tokenPayload.smart_fhir_user) {
-            data.fhirUser = tokenPayload.smart_fhir_user
+            // Convert relative fhirUser reference to absolute URL per SMART spec
+            // The fhirUser claim should be a full URL to the FHIR resource
+            const fhirUserValue = tokenPayload.smart_fhir_user
+            if (fhirUserValue.startsWith('http://') || fhirUserValue.startsWith('https://')) {
+              // Already an absolute URL
+              data.fhirUser = fhirUserValue
+            } else {
+              // Convert relative reference (e.g., "Practitioner/123") to absolute URL
+              // Use the first FHIR server as the base
+              const serverInfos = await getAllServers()
+              if (serverInfos.length > 0) {
+                const server = serverInfos[0]
+                const fhirBaseUrl = `${config.baseUrl}/${config.name}/${server.identifier}/${server.metadata.fhirVersion}`
+                data.fhirUser = `${fhirBaseUrl}/${fhirUserValue}`
+              } else {
+                // Fallback to relative if no servers configured
+                data.fhirUser = fhirUserValue
+              }
+            }
           }
 
           if (tokenPayload.smart_fhir_context) {
