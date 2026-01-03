@@ -464,51 +464,41 @@ This document provides a detailed breakdown of the HL7 SMART App Launch specific
 
 ## ✅ Implementation Roadmap by Release Stage
 
-### Alpha Release Testing Strategy
-**Focus: Unit Tests for Core Components**
+### Alpha Release (Current: v0.0.2-alpha)
+**Focus: Core OAuth and SMART Foundation**
 
-#### Version 0.0.3-alpha Targets (SMART 1.0 Foundation)
-- [ ] Discovery endpoint basic implementation
-- [ ] OAuth 2.0 framework setup
-- [ ] Basic EHR launch flow
-- [ ] Unit tests for OAuth components
+#### Completed
+- [x] Discovery endpoint (`.well-known/smart-configuration`)
+- [x] OAuth 2.0 framework with Keycloak integration
+- [x] EHR and standalone launch flows
+- [x] Patient selection interface
+- [x] PKCE implementation
+- [x] v1 and v2 scope syntax support
+- [x] Token introspection
+- [x] Backend services authorization
+- [x] JWT-based authentication
+- [x] Unit tests for core components
 
-#### Version 0.0.4-alpha Targets (Enhanced Foundation)
-- [ ] Standalone launch implementation
-- [ ] Patient selection interface
-- [ ] Basic scope validation
-- [ ] Unit tests for scope parsing
+### Beta Release Targets (v0.0.5-beta)
+**Focus: Integration Testing & Edge Cases**
 
-### Beta Release Testing Strategy
-**Focus: Integration & End-to-End Testing**
+- [ ] Playwright tests for UI flows
+- [ ] End-to-end integration tests
+- [ ] Error handling improvements
+- [ ] Edge case coverage
 
-#### Version 0.0.5-beta Targets (SMART 2.0 Core)
-- [ ] PKCE implementation (**Required**)
-- [ ] New scope syntax support
-- [ ] Token introspection
-- [ ] Integration tests for complete flows
-- [ ] Playwright tests for UI components
+### Production Release Targets
 
-#### Version 0.0.6-beta Targets (Backend Services)
-- [ ] Backend services authorization
-- [ ] JWT-based authentication
-- [ ] System-level scopes
-- [ ] Integration tests for backend flows
+#### v0.1.0 - SMART 2.2.0 Compliance
+- [ ] User-access branding support
+- [ ] App state persistence (experimental)
+- [ ] Inferno test suite compliance
+- [ ] Security audit
 
-### Production Release Testing Strategy
-**Focus: Security & Penetration Testing**
-
-#### Version 0.0.7-production Targets (Security Hardening)
-- [ ] Asymmetric authentication
-- [ ] Security audit compliance
+#### v1.0.0 - Production Ready
 - [ ] Performance optimization
 - [ ] Penetration testing
-- [ ] OWASP compliance verification
-
-#### Version 0.0.8-production Targets (Advanced Features)
-- [ ] Enhanced branding support
-- [ ] App state persistence
-- [ ] Full SMART 2.2 compliance
+- [ ] Full documentation
 - [ ] Certification readiness
 
 ---
