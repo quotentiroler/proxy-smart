@@ -221,8 +221,9 @@ jobs:
           echo "  Client ID: $CLIENT_ID"
           echo "  Keycloak Realm: $KC_REALM"
 
-      # Cache Docker images to speed up workflow
+      # Cache Docker images to speed up workflow (only for local targets)
       - name: Cache Docker images
+        if: steps.config.outputs.target != 'deployed'
         uses: actions/cache@v4
         id: docker-cache
         with:
@@ -230,7 +231,7 @@ jobs:
           key: docker-images-keycloak-26.0.5
 
       - name: Load cached Docker images
-        if: steps.docker-cache.outputs.cache-hit == 'true'
+        if: steps.config.outputs.target != 'deployed' && steps.docker-cache.outputs.cache-hit == 'true'
         run: |
           if [ -f /tmp/docker-images/keycloak.tar ]; then
             echo "Loading cached Keycloak image..."
@@ -239,7 +240,7 @@ jobs:
           fi
 
       - name: Pull and cache Keycloak image
-        if: steps.docker-cache.outputs.cache-hit != 'true'
+        if: steps.config.outputs.target != 'deployed' && steps.docker-cache.outputs.cache-hit != 'true'
         run: |
           echo "Pulling Keycloak image (will be cached for next run)..."
           docker pull quay.io/keycloak/keycloak:26.0.5
@@ -260,8 +261,9 @@ jobs:
           cd backend
           bun run build
 
-      # Start Keycloak with realm import
+      # Start Keycloak with realm import (only for local targets)
       - name: Start Keycloak
+        if: steps.config.outputs.target != 'deployed'
         run: |
           # Copy realm export to a temp location for mounting
           mkdir -p /tmp/keycloak-import
@@ -315,8 +317,9 @@ jobs:
             exit 1
           fi
 
-      # Wait for HAPI FHIR to be ready (takes ~35 seconds to start)
+      # Wait for HAPI FHIR to be ready (takes ~35 seconds to start) - only for local targets
       - name: Wait for HAPI FHIR
+        if: steps.config.outputs.target != 'deployed'
         run: |
           echo "Waiting for HAPI FHIR server to be ready..."
           for i in {1..60}; do
@@ -331,8 +334,9 @@ jobs:
           echo "ERROR: HAPI FHIR failed to start in time"
           exit 1
 
-      # Seed HAPI FHIR with test resources required for fhirUser claim validation
+      # Seed HAPI FHIR with test resources required for fhirUser claim validation (only for local targets)
       - name: Seed FHIR Test Resources
+        if: steps.config.outputs.target != 'deployed'
         run: |
           echo "Seeding HAPI FHIR with test resources..."
           
@@ -380,8 +384,9 @@ jobs:
           
           echo "✓ FHIR test resources seeded successfully"
 
-      # Start the application
+      # Start the application (only for local targets - deployed targets use remote backend)
       - name: Start Application
+        if: steps.config.outputs.target != 'deployed'
         run: |
           cd backend
           bun run start &
@@ -404,6 +409,45 @@ jobs:
           KEYCLOAK_REALM: proxy-smart
           # Point to HAPI FHIR server running in GitHub Actions service container
           FHIR_SERVER_BASE: http://localhost:8081/fhir
+
+      # For deployed targets, verify the remote services are reachable
+      - name: Verify Deployed Services
+        if: steps.config.outputs.target == 'deployed'
+        run: |
+          echo "=== Verifying deployed services ==="
+          
+          BACKEND_URL="${{ steps.config.outputs.backend_url }}"
+          KC_URL="${{ steps.config.outputs.kc_url }}"
+          KC_REALM="${{ steps.config.outputs.kc_realm }}"
+          
+          echo "Backend: $BACKEND_URL"
+          echo "Keycloak: $KC_URL"
+          echo "Realm: $KC_REALM"
+          
+          # Check backend health
+          echo "Checking backend health..."
+          if curl -sf "$BACKEND_URL/health" > /dev/null 2>&1; then
+            echo "✓ Backend is healthy"
+          else
+            echo "ERROR: Backend not reachable at $BACKEND_URL/health"
+            echo "Make sure the service is scaled up on Northflank"
+            exit 1
+          fi
+          
+          # Check Keycloak realm
+          echo "Checking Keycloak realm..."
+          if curl -sf "$KC_URL/realms/$KC_REALM" > /dev/null 2>&1; then
+            echo "✓ Keycloak realm $KC_REALM is accessible"
+          else
+            echo "ERROR: Keycloak realm not reachable at $KC_URL/realms/$KC_REALM"
+            echo "Make sure Keycloak is scaled up and realm exists"
+            exit 1
+          fi
+          
+          # Export URLs for later steps
+          echo "DEPLOYED_BACKEND_URL=$BACKEND_URL" >> $GITHUB_ENV
+          echo "DEPLOYED_KC_URL=$KC_URL" >> $GITHUB_ENV
+          echo "DEPLOYED_KC_REALM=$KC_REALM" >> $GITHUB_ENV
 
       # Setup Node.js for Playwright
       - name: Setup Node.js
@@ -471,8 +515,9 @@ jobs:
             sleep 5
           done
 
-      # Register test client in Keycloak
+      # Register test client in Keycloak (only for local targets - deployed already configured)
       - name: Verify Keycloak Setup
+        if: steps.config.outputs.target != 'deployed'
         run: |
           # Get admin token
           TOKEN=$(curl -s -X POST "http://localhost:8080/realms/master/protocol/openid-connect/token" \
@@ -587,9 +632,18 @@ jobs:
           echo "=== SMART 2.2.0 Compliance Testing with Inferno ==="
           echo ""
           
+          # Determine backend URL based on target
+          if [ "${{ steps.config.outputs.target }}" = "deployed" ]; then
+            BACKEND_BASE="${{ steps.config.outputs.backend_url }}"
+            echo "Testing against DEPLOYED backend: $BACKEND_BASE"
+          else
+            BACKEND_BASE="http://localhost:8445"
+            echo "Testing against LOCAL backend: $BACKEND_BASE"
+          fi
+          
           # Get FHIR server URL from our proxy
           echo "### Step 0: Discovering FHIR Servers ###"
-          SERVERS=$(curl -s "http://localhost:8445/fhir-servers" 2>&1)
+          SERVERS=$(curl -s "$BACKEND_BASE/fhir-servers" 2>&1)
           echo "Available FHIR servers:"
           echo "$SERVERS" | jq '.' 2>/dev/null || echo "$SERVERS"
           

@@ -4,8 +4,9 @@
   "target": "deployed",
   "deployed_url": "https://p02--proxy-smart-alpha--776jg9nwd8rw.code.run",
   "fhir_server": {
-    "name": "Proxy Smart FHIR Server (Northflank Alpha)",
-    "url": "https://p02--proxy-smart-alpha--776jg9nwd8rw.code.run/proxy-smart-backend"
+    "name": "hapi",
+    "fhir_version": "R4",
+    "comment": "Full FHIR proxy URL = backend.url + /proxy-smart-backend/{name}/{fhir_version}"
   },
   "inferno": {
     "url": "http://localhost:4567",
@@ -24,7 +25,7 @@
     }
   },
   "keycloak": {
-    "url": "https://p02--proxy-smart-alpha--776jg9nwd8rw.code.run/auth",
+    "url": "https://p01--keycloak-alpha--776jg9nwd8rw.code.run",
     "realm": "proxy-smart"
   },
   "backend": {
