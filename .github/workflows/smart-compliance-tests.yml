@@ -16,9 +16,10 @@ on:
       test_stage:
         description: 'Test stage config to use'
         required: false
-        default: 'alpha'
+        default: 'dev'
         type: choice
         options:
+          - dev
           - alpha
           - beta
           - production
@@ -47,19 +48,41 @@ on:
         description: 'Overall test status'
         value: ${{ jobs.smart-compliance-test.outputs.status }}
   
-  # Run on releases
+  # Feature branches - test with local CI stack
   push:
+    branches:
+      - 'dev/*'
+      - 'develop/*'
+      - 'develop'  # Alpha deployed
+      - 'test'     # Beta deployed
+      - 'main'     # Production deployed
     tags:
       - 'v*'
+  
   # Scheduled weekly run
   schedule:
     - cron: '0 6 * * 1'  # Every Monday at 6 AM UTC
+
+# Only one Inferno test per branch at a time
+concurrency:
+  group: inferno-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write  # Required to commit test reports
 
 env:
-  TEST_STAGE: ${{ inputs.test_stage || 'alpha' }}
+  # Determine test stage based on branch
+  # dev/* and develop/* -> dev (local)
+  # develop -> alpha (Northflank)
+  # test -> beta (VPS)
+  # main -> production (AWS)
+  TEST_STAGE: ${{ 
+    (startsWith(github.ref, 'refs/heads/dev/') || startsWith(github.ref, 'refs/heads/develop/')) && 'dev' ||
+    github.ref == 'refs/heads/develop' && 'alpha' ||
+    github.ref == 'refs/heads/test' && 'beta' ||
+    github.ref == 'refs/heads/main' && 'production' ||
+    inputs.test_stage || 'dev' }}
 
 jobs:
   smart-compliance-test:
@@ -148,6 +171,10 @@ jobs:
             exit 1
           fi
           
+          # Determine if testing local or deployed
+          TARGET=$(jq -r '.target // "local"' "$CONFIG_FILE")
+          echo "target=$TARGET" >> $GITHUB_OUTPUT
+          
           # Extract values from config
           INFERNO_URL=$(jq -r '.inferno.url' "$CONFIG_FILE")
           TEST_SUITE=$(jq -r '.inferno.test_suite // "smart_stu2_2"' "$CONFIG_FILE")
@@ -155,9 +182,23 @@ jobs:
           KC_USERNAME=$(jq -r '.test_user.username' "$CONFIG_FILE")
           KC_PASSWORD=$(jq -r '.test_user.password' "$CONFIG_FILE")
           KC_REALM=$(jq -r '.keycloak.realm' "$CONFIG_FILE")
-          KC_PORT=$(jq -r '.keycloak.port' "$CONFIG_FILE")
-          BACKEND_PORT=$(jq -r '.backend.port' "$CONFIG_FILE")
-          FHIR_PORT=$(jq -r '.fhir_server.port' "$CONFIG_FILE")
+          
+          # Handle both local (port) and deployed (url) configs
+          if [ "$TARGET" = "deployed" ]; then
+            BACKEND_URL=$(jq -r '.backend.url' "$CONFIG_FILE")
+            KC_URL=$(jq -r '.keycloak.url' "$CONFIG_FILE")
+            FHIR_URL=$(jq -r '.fhir_server.url' "$CONFIG_FILE")
+            echo "backend_url=$BACKEND_URL" >> $GITHUB_OUTPUT
+            echo "kc_url=$KC_URL" >> $GITHUB_OUTPUT
+            echo "fhir_url=$FHIR_URL" >> $GITHUB_OUTPUT
+          else
+            KC_PORT=$(jq -r '.keycloak.port' "$CONFIG_FILE")
+            BACKEND_PORT=$(jq -r '.backend.port' "$CONFIG_FILE")
+            FHIR_PORT=$(jq -r '.fhir_server.port' "$CONFIG_FILE")
+            echo "kc_port=$KC_PORT" >> $GITHUB_OUTPUT
+            echo "backend_port=$BACKEND_PORT" >> $GITHUB_OUTPUT
+            echo "fhir_port=$FHIR_PORT" >> $GITHUB_OUTPUT
+          fi
           
           # Override test_suite if provided via input
           if [ -n "${{ inputs.test_suite }}" ]; then
