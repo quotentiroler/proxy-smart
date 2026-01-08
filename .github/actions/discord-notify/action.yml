@@ -52,7 +52,7 @@ inputs:
     required: false
     default: ''
   deployment-target:
-    description: 'Deployment target (local, fly.io, vps)'
+    description: 'Deployment target (local, northflank, vps)'
     required: false
     default: ''
   fhir-server-url:
