@@ -31,6 +31,7 @@ jobs:
       - name: Authenticate as GitHub App
         id: app-auth
         uses: actions/create-github-app-token@v2
+        continue-on-error: true
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}

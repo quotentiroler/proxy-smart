@@ -1,4 +1,14 @@
-name: Deploy Alpha
+# DEPRECATED: This workflow is no longer used.
+# Deployment is now handled automatically by Northflank CD.
+# Kept as implementation reference for Fly.io deployment if needed in future.
+#
+# Current deployment flow:
+# - Push to 'develop' triggers release-alpha.yml
+# - Northflank automatically detects commit and deploys:
+#   - proxy-smart-alpha (backend)
+#   - keycloak-alpha (Keycloak)
+
+name: Deploy Alpha (DEPRECATED - Fly.io)
 
 on:
   workflow_call:

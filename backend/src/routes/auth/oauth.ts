@@ -24,7 +24,7 @@ interface TokenPayload {
   sub?: string
   smart_patient?: string
   smart_encounter?: string
-  smart_fhir_user?: string
+  fhirUser?: string
   smart_fhir_context?: string | object
   smart_intent?: string
   smart_style_url?: string
@@ -390,10 +390,10 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
             data.encounter = tokenPayload.smart_encounter
           }
 
-          if (tokenPayload.smart_fhir_user) {
+          if (tokenPayload.fhirUser) {
             // Convert relative fhirUser reference to absolute URL per SMART spec
             // The fhirUser claim should be a full URL to the FHIR resource
-            const fhirUserValue = tokenPayload.smart_fhir_user
+            const fhirUserValue = tokenPayload.fhirUser
             if (fhirUserValue.startsWith('http://') || fhirUserValue.startsWith('https://')) {
               // Already an absolute URL
               data.fhirUser = fhirUserValue
@@ -532,7 +532,7 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
 
       const profile = {
         id: payload.sub || '',
-        fhirUser: payload.smart_fhir_user || '',
+        fhirUser: payload.fhirUser || '',
         name: [{
           text: displayName
         }],
