@@ -24,3 +24,6 @@ export * from './websocket'
 
 // MCP schemas (authorization discovery, MCP HTTP transport)
 export * from './mcp'
+
+// Consent schemas (consent enforcement)
+export * from './consent'

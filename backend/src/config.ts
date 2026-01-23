@@ -102,6 +102,72 @@ export const config = {
     }
   },
 
+  consent: {
+    // Consent enforcement configuration
+    get enabled() {
+      return process.env.CONSENT_ENABLED === 'true'
+    },
+    get mode(): 'enforce' | 'audit-only' | 'disabled' {
+      const mode = process.env.CONSENT_MODE || 'disabled'
+      if (mode === 'enforce' || mode === 'audit-only' || mode === 'disabled') {
+        return mode
+      }
+      return 'disabled'
+    },
+    get cacheTtl() {
+      return parseInt(process.env.CONSENT_CACHE_TTL || '60000', 10) // 1 minute default
+    },
+    get exemptClients(): string[] {
+      return process.env.CONSENT_EXEMPT_CLIENTS?.split(',').map(s => s.trim()).filter(Boolean) || []
+    },
+    get requiredForResourceTypes(): string[] {
+      return process.env.CONSENT_REQUIRED_RESOURCE_TYPES?.split(',').map(s => s.trim()).filter(Boolean) || []
+    },
+    get exemptResourceTypes(): string[] {
+      // By default, exempt metadata and capability statement
+      const defaults = ['CapabilityStatement', 'metadata']
+      const env = process.env.CONSENT_EXEMPT_RESOURCE_TYPES?.split(',').map(s => s.trim()).filter(Boolean) || []
+      return [...new Set([...defaults, ...env])]
+    }
+  },
+
+  ial: {
+    // Identity Assurance Level (IAL) configuration for Person→Patient linking
+    get enabled() {
+      return process.env.IAL_ENABLED === 'true'
+    },
+    get minimumLevel(): 'level1' | 'level2' | 'level3' | 'level4' {
+      const level = process.env.IAL_MINIMUM_LEVEL || 'level1'
+      if (['level1', 'level2', 'level3', 'level4'].includes(level)) {
+        return level as 'level1' | 'level2' | 'level3' | 'level4'
+      }
+      return 'level1'
+    },
+    get sensitiveResourceTypes(): string[] {
+      // Resources requiring elevated IAL (e.g., MedicationRequest, DiagnosticReport)
+      return process.env.IAL_SENSITIVE_RESOURCE_TYPES?.split(',').map(s => s.trim()).filter(Boolean) || []
+    },
+    get sensitiveMinimumLevel(): 'level1' | 'level2' | 'level3' | 'level4' {
+      const level = process.env.IAL_SENSITIVE_MINIMUM_LEVEL || 'level3'
+      if (['level1', 'level2', 'level3', 'level4'].includes(level)) {
+        return level as 'level1' | 'level2' | 'level3' | 'level4'
+      }
+      return 'level3'
+    },
+    get verifyPatientLink() {
+      // Verify that token's smart_patient matches Person.link[]. Default true.
+      return process.env.IAL_VERIFY_PATIENT_LINK !== 'false'
+    },
+    get allowOnPersonLookupFailure() {
+      // Whether to allow access if Person lookup fails. Default false (deny).
+      return process.env.IAL_ALLOW_ON_PERSON_LOOKUP_FAILURE === 'true'
+    },
+    get cacheTtl() {
+      // Cache TTL for Person resources (5 minutes default)
+      return parseInt(process.env.IAL_CACHE_TTL || '300000', 10)
+    }
+  },
+
   cors: {
     // Support multiple origins - can be a single URL or comma-separated list
     // Defaults to common development origins

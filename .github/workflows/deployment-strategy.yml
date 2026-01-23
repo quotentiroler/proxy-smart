@@ -56,9 +56,11 @@ on:
         required: false
 
 jobs:
+  # DEPRECATED: Alpha deployment is now handled automatically by Northflank CD
+  # This job is kept as reference but should not be called
   deploy-alpha:
-    name: Deploy Alpha (Fly.io)
-    if: inputs.deployment_stage == 'alpha'
+    name: Deploy Alpha (DEPRECATED - Northflank handles this automatically)
+    if: inputs.deployment_stage == 'alpha' && false  # Disabled - Northflank CD handles alpha deployment
     uses: ./.github/workflows/deploy-alpha.yml
     with:
       app_version: ${{ inputs.app_version }}
@@ -128,7 +130,7 @@ jobs:
               echo "deployment_target=${{ needs.deploy-alpha.outputs.deployment_target }}" >> $GITHUB_OUTPUT
             else
               echo "deployment_status=$ALPHA_RESULT" >> $GITHUB_OUTPUT
-              echo "deployment_target=fly.io" >> $GITHUB_OUTPUT
+              echo "deployment_target=northflank" >> $GITHUB_OUTPUT
             fi
             
           elif [ "${{ inputs.deployment_stage }}" = "beta" ]; then

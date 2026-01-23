@@ -1,16 +1,20 @@
 {
   "test_stage": "alpha",
-  "description": "Alpha testing with basic FHIR compliance checks",
+  "description": "Alpha testing against Northflank deployed instance",
+  "target": "deployed",
+  "deployed_url": "https://p02--proxy-smart-alpha--776jg9nwd8rw.code.run",
   "fhir_server": {
-    "name": "Proxy Smart FHIR Server (Alpha)",
-    "port": 8081
+    "name": "hapi",
+    "fhir_version": "R4",
+    "comment": "Full FHIR proxy URL = backend.url + /proxy-smart-backend/{name}/{fhir_version}"
   },
   "inferno": {
     "url": "http://localhost:4567",
     "test_suite": "smart_stu2_2",
     "sequences": [
       "UsCoreR4CapabilityStatement",
-      "USCore311Patient"
+      "USCore311Patient",
+      "SMARTDiscovery"
     ],
     "test_focus": "basic_compliance",
     "database": {
@@ -21,15 +25,11 @@
     }
   },
   "keycloak": {
-    "realm": "proxy-smart",
-    "port": 8080,
-    "admin": {
-      "username": "admin",
-      "password": "admin"
-    }
+    "url": "https://p01--keycloak-alpha--776jg9nwd8rw.code.run",
+    "realm": "proxy-smart"
   },
   "backend": {
-    "port": 8445
+    "url": "https://p02--proxy-smart-alpha--776jg9nwd8rw.code.run"
   },
   "client": {
     "client_id": "inferno-test-client",
@@ -42,6 +42,6 @@
   "test_settings": {
     "timeout": 30,
     "retries": 3,
-    "validate_ssl": false
+    "validate_ssl": true
   }
 }

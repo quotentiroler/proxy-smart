@@ -1,6 +1,6 @@
 {
   "name": "proxy-smart",
-  "version": "0.0.1-RELEASE.202512271303.55df35ce",
+  "version": "0.0.2-alpha.202512290159.ce05f5f0",
   "repository": {
     "type": "git",
     "url": "https://github.com/quotentiroler/proxy-smart.git"
@@ -69,9 +69,16 @@
     "test:production": "cd testing/production && bun run test",
     "test:all": "bun run test:alpha && bun run test:beta && bun run test:production",
     "test:mcp": "cd mcp-server && uv run python test/run_tests.py",
+    "typecheck": "concurrently \"bun run typecheck:backend\" \"bun run typecheck:ui\"",
+    "typecheck:backend": "cd backend && bun run typecheck",
+    "typecheck:ui": "cd ui && bun run typecheck",
     "lint": "concurrently \"bun run lint:backend\" \"bun run lint:ui\"",
     "lint:backend": "cd backend && bun run lint",
     "lint:ui": "cd ui && bun run lint",
+    "lint:fix": "concurrently \"bun run lint:fix:backend\" \"bun run lint:fix:ui\"",
+    "lint:fix:backend": "cd backend && bun run lint:fix",
+    "lint:fix:ui": "cd ui && bun run lint:fix",
+    "check": "bun run typecheck && bun run lint",
     "clean": "bun run clean:backend && bun run clean:ui",
     "clean:backend": "cd backend && rm -rf node_modules dist",
     "clean:ui": "cd ui && rm -rf node_modules dist",

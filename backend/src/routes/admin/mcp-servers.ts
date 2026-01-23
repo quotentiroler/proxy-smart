@@ -234,12 +234,10 @@ export const mcpServersRoutes = new Elysia({ prefix: '/mcp-servers', tags: ['mcp
       ]
       
       let templatesContent: string | null = null
-      let usedPath: string | null = null
       
       for (const templatesPath of possiblePaths) {
         try {
           templatesContent = await fs.readFile(templatesPath, 'utf-8')
-          usedPath = templatesPath
           logger.server.debug('Found MCP templates at', { path: templatesPath })
           break
         } catch {

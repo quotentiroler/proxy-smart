@@ -16,28 +16,84 @@ on:
       test_stage:
         description: 'Test stage config to use'
         required: false
-        default: 'alpha'
+        default: 'dev'
         type: choice
         options:
+          - dev
           - alpha
           - beta
           - production
-  # Run on releases
+  
+  # Called by other workflows (alpha, beta, production releases)
+  workflow_call:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: false
+        type: string
+        default: 'smart_stu2_2'
+      test_stage:
+        description: 'Test stage config to use'
+        required: false
+        type: string
+        default: 'alpha'
+    outputs:
+      passed:
+        description: 'Number of passed tests'
+        value: ${{ jobs.smart-compliance-test.outputs.passed }}
+      failed:
+        description: 'Number of failed tests'
+        value: ${{ jobs.smart-compliance-test.outputs.failed }}
+      status:
+        description: 'Overall test status'
+        value: ${{ jobs.smart-compliance-test.outputs.status }}
+  
+  # Feature branches - test with local CI stack
   push:
+    branches:
+      - 'dev/*'
+      - 'develop/*'
+      - 'develop'  # Alpha deployed
+      - 'test'     # Beta deployed
+      - 'main'     # Production deployed
     tags:
       - 'v*'
+  
   # Scheduled weekly run
   schedule:
     - cron: '0 6 * * 1'  # Every Monday at 6 AM UTC
 
+# Only one Inferno test per branch at a time
+concurrency:
+  group: inferno-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write  # Required to commit test reports
+
 env:
-  TEST_STAGE: ${{ inputs.test_stage || 'alpha' }}
+  # Determine test stage based on branch
+  # dev/* and develop/* -> dev (local)
+  # develop -> alpha (Northflank)
+  # test -> beta (VPS)
+  # main -> production (AWS)
+  TEST_STAGE: ${{ 
+    (startsWith(github.ref, 'refs/heads/dev/') || startsWith(github.ref, 'refs/heads/develop/')) && 'dev' ||
+    github.ref == 'refs/heads/develop' && 'alpha' ||
+    github.ref == 'refs/heads/test' && 'beta' ||
+    github.ref == 'refs/heads/main' && 'production' ||
+    inputs.test_stage || 'dev' }}
 
 jobs:
   smart-compliance-test:
     name: SMART ${{ inputs.test_suite || 'STU2.2' }} Compliance (${{ inputs.test_stage || 'alpha' }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    
+    outputs:
+      passed: ${{ steps.inferno-tests.outputs.passed }}
+      failed: ${{ steps.inferno-tests.outputs.failed }}
+      status: ${{ steps.inferno-tests.outcome }}
     
     services:
       postgres:
@@ -91,8 +147,20 @@ jobs:
           hapi.fhir.fhir_version: R4
 
     steps:
+      # Generate GitHub App token to bypass branch protection for committing reports
+      # Note: This may fail if the GitHub App is not installed on the repository's organization
+      - name: Generate token
+        id: app-token
+        continue-on-error: true
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token || github.token }}
 
       - name: Load test configuration
         id: config
@@ -105,6 +173,10 @@ jobs:
             exit 1
           fi
           
+          # Determine if testing local or deployed
+          TARGET=$(jq -r '.target // "local"' "$CONFIG_FILE")
+          echo "target=$TARGET" >> $GITHUB_OUTPUT
+          
           # Extract values from config
           INFERNO_URL=$(jq -r '.inferno.url' "$CONFIG_FILE")
           TEST_SUITE=$(jq -r '.inferno.test_suite // "smart_stu2_2"' "$CONFIG_FILE")
@@ -112,9 +184,23 @@ jobs:
           KC_USERNAME=$(jq -r '.test_user.username' "$CONFIG_FILE")
           KC_PASSWORD=$(jq -r '.test_user.password' "$CONFIG_FILE")
           KC_REALM=$(jq -r '.keycloak.realm' "$CONFIG_FILE")
-          KC_PORT=$(jq -r '.keycloak.port' "$CONFIG_FILE")
-          BACKEND_PORT=$(jq -r '.backend.port' "$CONFIG_FILE")
-          FHIR_PORT=$(jq -r '.fhir_server.port' "$CONFIG_FILE")
+          
+          # Handle both local (port) and deployed (url) configs
+          if [ "$TARGET" = "deployed" ]; then
+            BACKEND_URL=$(jq -r '.backend.url' "$CONFIG_FILE")
+            KC_URL=$(jq -r '.keycloak.url' "$CONFIG_FILE")
+            FHIR_URL=$(jq -r '.fhir_server.url' "$CONFIG_FILE")
+            echo "backend_url=$BACKEND_URL" >> $GITHUB_OUTPUT
+            echo "kc_url=$KC_URL" >> $GITHUB_OUTPUT
+            echo "fhir_url=$FHIR_URL" >> $GITHUB_OUTPUT
+          else
+            KC_PORT=$(jq -r '.keycloak.port' "$CONFIG_FILE")
+            BACKEND_PORT=$(jq -r '.backend.port' "$CONFIG_FILE")
+            FHIR_PORT=$(jq -r '.fhir_server.port' "$CONFIG_FILE")
+            echo "kc_port=$KC_PORT" >> $GITHUB_OUTPUT
+            echo "backend_port=$BACKEND_PORT" >> $GITHUB_OUTPUT
+            echo "fhir_port=$FHIR_PORT" >> $GITHUB_OUTPUT
+          fi
           
           # Override test_suite if provided via input
           if [ -n "${{ inputs.test_suite }}" ]; then
@@ -137,8 +223,9 @@ jobs:
           echo "  Client ID: $CLIENT_ID"
           echo "  Keycloak Realm: $KC_REALM"
 
-      # Cache Docker images to speed up workflow
+      # Cache Docker images to speed up workflow (only for local targets)
       - name: Cache Docker images
+        if: steps.config.outputs.target != 'deployed'
         uses: actions/cache@v4
         id: docker-cache
         with:
@@ -146,7 +233,7 @@ jobs:
           key: docker-images-keycloak-26.0.5
 
       - name: Load cached Docker images
-        if: steps.docker-cache.outputs.cache-hit == 'true'
+        if: steps.config.outputs.target != 'deployed' && steps.docker-cache.outputs.cache-hit == 'true'
         run: |
           if [ -f /tmp/docker-images/keycloak.tar ]; then
             echo "Loading cached Keycloak image..."
@@ -155,7 +242,7 @@ jobs:
           fi
 
       - name: Pull and cache Keycloak image
-        if: steps.docker-cache.outputs.cache-hit != 'true'
+        if: steps.config.outputs.target != 'deployed' && steps.docker-cache.outputs.cache-hit != 'true'
         run: |
           echo "Pulling Keycloak image (will be cached for next run)..."
           docker pull quay.io/keycloak/keycloak:26.0.5
@@ -176,8 +263,9 @@ jobs:
           cd backend
           bun run build
 
-      # Start Keycloak with realm import
+      # Start Keycloak with realm import (only for local targets)
       - name: Start Keycloak
+        if: steps.config.outputs.target != 'deployed'
         run: |
           # Copy realm export to a temp location for mounting
           mkdir -p /tmp/keycloak-import
@@ -231,8 +319,9 @@ jobs:
             exit 1
           fi
 
-      # Wait for HAPI FHIR to be ready (takes ~35 seconds to start)
+      # Wait for HAPI FHIR to be ready (takes ~35 seconds to start) - only for local targets
       - name: Wait for HAPI FHIR
+        if: steps.config.outputs.target != 'deployed'
         run: |
           echo "Waiting for HAPI FHIR server to be ready..."
           for i in {1..60}; do
@@ -247,8 +336,59 @@ jobs:
           echo "ERROR: HAPI FHIR failed to start in time"
           exit 1
 
-      # Start the application
+      # Seed HAPI FHIR with test resources required for fhirUser claim validation (only for local targets)
+      - name: Seed FHIR Test Resources
+        if: steps.config.outputs.target != 'deployed'
+        run: |
+          echo "Seeding HAPI FHIR with test resources..."
+          
+          # Create Practitioner resource for fhirUser claim
+          # This matches the fhirUser claim in Keycloak realm-export.json
+          curl -sf -X PUT "http://localhost:8081/fhir/Practitioner/example-practitioner" \
+            -H "Content-Type: application/fhir+json" \
+            -d '{
+              "resourceType": "Practitioner",
+              "id": "example-practitioner",
+              "identifier": [{
+                "system": "http://example.org/practitioners",
+                "value": "doctor"
+              }],
+              "active": true,
+              "name": [{
+                "family": "Doctor",
+                "given": ["Test"],
+                "prefix": ["Dr."]
+              }],
+              "telecom": [{
+                "system": "email",
+                "value": "doctor@example.com"
+              }]
+            }' && echo "✓ Created Practitioner/example-practitioner"
+          
+          # Create a test Patient for launch/patient scope
+          curl -sf -X PUT "http://localhost:8081/fhir/Patient/test-patient" \
+            -H "Content-Type: application/fhir+json" \
+            -d '{
+              "resourceType": "Patient",
+              "id": "test-patient",
+              "identifier": [{
+                "system": "http://example.org/patients",
+                "value": "12345"
+              }],
+              "active": true,
+              "name": [{
+                "family": "Test",
+                "given": ["Patient"]
+              }],
+              "gender": "unknown",
+              "birthDate": "1990-01-01"
+            }' && echo "✓ Created Patient/test-patient"
+          
+          echo "✓ FHIR test resources seeded successfully"
+
+      # Start the application (only for local targets - deployed targets use remote backend)
       - name: Start Application
+        if: steps.config.outputs.target != 'deployed'
         run: |
           cd backend
           bun run start &
@@ -271,6 +411,45 @@ jobs:
           KEYCLOAK_REALM: proxy-smart
           # Point to HAPI FHIR server running in GitHub Actions service container
           FHIR_SERVER_BASE: http://localhost:8081/fhir
+
+      # For deployed targets, verify the remote services are reachable
+      - name: Verify Deployed Services
+        if: steps.config.outputs.target == 'deployed'
+        run: |
+          echo "=== Verifying deployed services ==="
+          
+          BACKEND_URL="${{ steps.config.outputs.backend_url }}"
+          KC_URL="${{ steps.config.outputs.kc_url }}"
+          KC_REALM="${{ steps.config.outputs.kc_realm }}"
+          
+          echo "Backend: $BACKEND_URL"
+          echo "Keycloak: $KC_URL"
+          echo "Realm: $KC_REALM"
+          
+          # Check backend health
+          echo "Checking backend health..."
+          if curl -sf "$BACKEND_URL/health" > /dev/null 2>&1; then
+            echo "✓ Backend is healthy"
+          else
+            echo "ERROR: Backend not reachable at $BACKEND_URL/health"
+            echo "Make sure the service is scaled up on Northflank"
+            exit 1
+          fi
+          
+          # Check Keycloak realm
+          echo "Checking Keycloak realm..."
+          if curl -sf "$KC_URL/realms/$KC_REALM" > /dev/null 2>&1; then
+            echo "✓ Keycloak realm $KC_REALM is accessible"
+          else
+            echo "ERROR: Keycloak realm not reachable at $KC_URL/realms/$KC_REALM"
+            echo "Make sure Keycloak is scaled up and realm exists"
+            exit 1
+          fi
+          
+          # Export URLs for later steps
+          echo "DEPLOYED_BACKEND_URL=$BACKEND_URL" >> $GITHUB_ENV
+          echo "DEPLOYED_KC_URL=$KC_URL" >> $GITHUB_ENV
+          echo "DEPLOYED_KC_REALM=$KC_REALM" >> $GITHUB_ENV
 
       # Setup Node.js for Playwright
       - name: Setup Node.js
@@ -338,8 +517,9 @@ jobs:
             sleep 5
           done
 
-      # Register test client in Keycloak
+      # Register test client in Keycloak (only for local targets - deployed already configured)
       - name: Verify Keycloak Setup
+        if: steps.config.outputs.target != 'deployed'
         run: |
           # Get admin token
           TOKEN=$(curl -s -X POST "http://localhost:8080/realms/master/protocol/openid-connect/token" \
@@ -454,9 +634,18 @@ jobs:
           echo "=== SMART 2.2.0 Compliance Testing with Inferno ==="
           echo ""
           
+          # Determine backend URL based on target
+          if [ "${{ steps.config.outputs.target }}" = "deployed" ]; then
+            BACKEND_BASE="${{ steps.config.outputs.backend_url }}"
+            echo "Testing against DEPLOYED backend: $BACKEND_BASE"
+          else
+            BACKEND_BASE="http://localhost:8445"
+            echo "Testing against LOCAL backend: $BACKEND_BASE"
+          fi
+          
           # Get FHIR server URL from our proxy
           echo "### Step 0: Discovering FHIR Servers ###"
-          SERVERS=$(curl -s "http://localhost:8445/fhir-servers" 2>&1)
+          SERVERS=$(curl -s "$BACKEND_BASE/fhir-servers" 2>&1)
           echo "Available FHIR servers:"
           echo "$SERVERS" | jq '.' 2>/dev/null || echo "$SERVERS"
           
@@ -599,9 +788,71 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: inferno-test-results
+          name: inferno-test-results-${{ env.TEST_STAGE }}
           path: test-results/
           retention-days: 30
+
+      # Commit test report to repository
+      - name: Commit Test Report
+        if: always()
+        run: |
+          # Create report directory
+          REPORT_DIR="testing/${TEST_STAGE}/report"
+          mkdir -p "$REPORT_DIR"
+          
+          # Copy test results to report directory
+          cp -r test-results/* "$REPORT_DIR/" 2>/dev/null || true
+          
+          # Create summary report
+          cat > "$REPORT_DIR/summary.json" << EOF
+          {
+            "test_suite": "${TEST_SUITE}",
+            "test_stage": "${TEST_STAGE}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}",
+            "run_id": "${{ github.run_id }}",
+            "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "passed": ${{ steps.inferno-tests.outputs.passed || 0 }},
+            "failed": ${{ steps.inferno-tests.outputs.failed || 0 }},
+            "status": "${{ steps.inferno-tests.outcome || 'unknown' }}"
+          }
+          EOF
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Save report files before branch switch
+          cp -r "$REPORT_DIR" /tmp/report-backup
+          
+          # Checkout develop branch and pull latest (to avoid race conditions with version updates)
+          git fetch origin develop
+          git checkout develop
+          git pull origin develop --rebase || true
+          
+          # Restore and add report directory after branch switch
+          cp -r /tmp/report-backup/* "$REPORT_DIR/"
+          git add "$REPORT_DIR"
+          git diff --staged --quiet || git commit -m "chore(testing): update ${TEST_STAGE} SMART compliance report [skip ci]
+          
+          Test Suite: ${TEST_SUITE}
+          Passed: ${{ steps.inferno-tests.outputs.passed || 0 }}
+          Failed: ${{ steps.inferno-tests.outputs.failed || 0 }}
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          # Push changes to develop with retry on conflict
+          for i in 1 2 3; do
+            if git push origin develop; then
+              echo "✓ Report pushed successfully"
+              break
+            else
+              echo "Push failed, retrying after pull..."
+              git pull origin develop --rebase
+            fi
+          done
+        env:
+          TEST_STAGE: ${{ env.TEST_STAGE }}
+          TEST_SUITE: ${{ env.TEST_SUITE }}
 
       # Cleanup
       - name: Cleanup
