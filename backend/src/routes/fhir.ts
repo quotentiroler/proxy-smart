@@ -3,10 +3,11 @@ import fetch, { Headers } from 'cross-fetch'
 import { validateToken } from '../lib/auth'
 import { config } from '../config'
 import { fhirServerStore, getServerByName, getServerInfoByName } from '../lib/fhir-server-store'
-import { CommonErrorResponses, ErrorResponse, CacheRefreshResponse, SmartConfigurationResponse, FhirProxyResponse, type SmartConfigurationResponseType } from '../schemas'
+import { CommonErrorResponses, ErrorResponse, CacheRefreshResponse, SmartConfigurationResponse, FhirProxyResponse, ConsentDeniedResponse, type SmartConfigurationResponseType } from '../schemas'
 import { smartConfigService } from '../lib/smart-config'
 import { logger } from '../lib/logger'
 import { fetchWithMtls, getMtlsConfig } from './fhir-servers'
+import { checkConsent, getConsentConfig } from '../lib/consent'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function proxyFHIR({ params, request, set }: any) {
@@ -24,15 +25,45 @@ async function proxyFHIR({ params, request, set }: any) {
     }
 
     const serverUrl = serverInfo.url
+    const authHeader = request.headers.get('authorization') || ''
+    const auth = authHeader.replace(/^Bearer\s+/, '')
+    let tokenPayload = null
 
     // skip auth on metadata
     if (request.method !== 'GET' || !request.url.endsWith('/metadata')) {
-      const auth = request.headers.get('authorization')?.replace(/^Bearer\s+/, '')
       if (!auth) {
         set.status = 401
         return { error: 'Authentication required' }
       }
-      await validateToken(auth)
+      tokenPayload = await validateToken(auth)
+    }
+
+    // 2) Consent enforcement check
+    if (tokenPayload) {
+      const parts = new URL(request.url).pathname.split('/').filter(Boolean)
+      const resourcePath = parts.slice(3).join('/')
+      
+      const consentResult = await checkConsent(
+        tokenPayload,
+        params.server_name,
+        serverUrl,
+        resourcePath,
+        request.method,
+        authHeader
+      )
+
+      // If consent denied and mode is 'enforce', block the request
+      if (consentResult.decision === 'deny' && getConsentConfig().mode === 'enforce') {
+        set.status = 403
+        return {
+          error: 'consent_denied',
+          message: consentResult.reason,
+          consentId: consentResult.consentId,
+          patientId: consentResult.context.patientId,
+          clientId: consentResult.context.clientId,
+          resourceType: consentResult.context.resourceType
+        }
+      }
     }
 
     // build target path
