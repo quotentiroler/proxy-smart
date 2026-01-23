@@ -36,7 +36,7 @@ const ConsentCacheInvalidateResponse = t.Object({
  * 
  * Endpoints for managing consent enforcement configuration and cache.
  */
-export const consentAdminRoutes = new Elysia({ prefix: '/consent', tags: ['admin', 'consent'] })
+export const consentAdminRoutes = new Elysia({ prefix: '/consent', tags: ['admin'] })
   /**
    * GET /admin/consent/config
    * Get current consent enforcement configuration
@@ -70,7 +70,7 @@ export const consentAdminRoutes = new Elysia({ prefix: '/consent', tags: ['admin
     detail: {
       summary: 'Get Consent Configuration',
       description: 'Retrieve the current consent enforcement configuration',
-      tags: ['admin', 'consent'],
+      tags: ['admin'],
       security: [{ BearerAuth: [] }]
     }
   })
@@ -104,7 +104,7 @@ export const consentAdminRoutes = new Elysia({ prefix: '/consent', tags: ['admin
     detail: {
       summary: 'Get Consent Cache Statistics',
       description: 'Retrieve statistics about the consent cache including entry count and TTLs',
-      tags: ['admin', 'consent'],
+      tags: ['admin'],
       security: [{ BearerAuth: [] }]
     }
   })
@@ -170,7 +170,7 @@ export const consentAdminRoutes = new Elysia({ prefix: '/consent', tags: ['admin
     detail: {
       summary: 'Invalidate Consent Cache',
       description: 'Invalidate consent cache entries. Use when Consent resources are updated externally.',
-      tags: ['admin', 'consent'],
+      tags: ['admin'],
       security: [{ BearerAuth: [] }]
     }
   })
@@ -210,7 +210,7 @@ export const consentAdminRoutes = new Elysia({ prefix: '/consent', tags: ['admin
     detail: {
       summary: 'Cleanup Expired Consent Cache Entries',
       description: 'Remove expired entries from the consent cache',
-      tags: ['admin', 'consent'],
+      tags: ['admin'],
       security: [{ BearerAuth: [] }]
     }
   })
@@ -283,7 +283,7 @@ export const consentAdminRoutes = new Elysia({ prefix: '/consent', tags: ['admin
     detail: {
       summary: 'Consent Update Webhook',
       description: 'Webhook endpoint to receive notifications when Consent resources are updated. Automatically invalidates the cache for the affected patient.',
-      tags: ['admin', 'consent'],
+      tags: ['admin'],
       security: [{ BearerAuth: [] }]
     }
   })
