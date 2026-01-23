@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import { Elysia } from 'elysia'
 import { treaty } from '@elysiajs/eden'
 

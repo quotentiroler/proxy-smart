@@ -7,7 +7,7 @@ import { Elysia, t } from 'elysia'
 
 const buildValidatedApp = () => {
   const app = new Elysia()
-    .onError(({ code, error, set }) => {
+    .onError(({ code, set }) => {
       if (code === 'VALIDATION') {
         set.status = 422
         return { error: 'validation_error' }

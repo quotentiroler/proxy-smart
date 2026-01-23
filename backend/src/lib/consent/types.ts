@@ -17,7 +17,6 @@ import type {
   Consent as ConsentR3,
   Person as PersonR3,
   Bundle as BundleR3,
-  BundleEntry as BundleEntryR3,
   Reference as ReferenceR3,
   Coding as CodingR3,
   CodeableConcept as CodeableConceptR3,
@@ -31,7 +30,6 @@ import type {
   Person as PersonR4,
   PersonLink as PersonLinkR4,
   Bundle as BundleR4,
-  BundleEntry as BundleEntryR4,
   Reference as ReferenceR4,
   Coding as CodingR4,
   CodeableConcept as CodeableConceptR4,
@@ -46,7 +44,6 @@ import type {
   Person as PersonR5,
   PersonLink as PersonLinkR5,
   Bundle as BundleR5,
-  BundleEntry as BundleEntryR5,
   Reference as ReferenceR5,
   Coding as CodingR5,
   CodeableConcept as CodeableConceptR5,
@@ -101,6 +98,54 @@ export type ConsentProvision = FhirConsentProvision
  * Supported FHIR versions
  */
 export type FhirVersion = 'R3' | 'STU3' | 'R4' | 'R5'
+
+// =============================================================================
+// TYPE GUARDS FOR FHIR VERSION DETECTION
+// =============================================================================
+
+/**
+ * Check if consent is R4 or R5 (has 'provision' property)
+ * R3 uses 'except' instead of 'provision'
+ */
+export function isR4OrR5Consent(consent: FhirConsent): consent is ConsentR4 | ConsentR5 {
+  return 'provision' in consent || consent.resourceType === 'Consent'
+}
+
+/**
+ * Get consent provision from any FHIR version
+ * Returns R4/R5 provision or undefined for R3
+ */
+export function getConsentProvision(consent: FhirConsent): FhirConsentProvision | undefined {
+  // R4 and R5 have 'provision' property directly
+  if ('provision' in consent) {
+    return consent.provision as FhirConsentProvision
+  }
+  return undefined
+}
+
+/**
+ * Get provision class/resourceType restrictions
+ * Works across R4 and R5 provision types
+ */
+export function getProvisionClasses(provision: FhirConsentProvision): Array<{ code?: string }> {
+  // Both R4 and R5 have 'class' property as Coding[]
+  // Use type assertion since TypeScript union doesn't see the common property
+  return (provision as ConsentProvisionR4).class || []
+}
+
+/**
+ * Get provision type (permit/deny)
+ * Works across R4 and R5 provision types
+ */
+export function getProvisionType(provision: FhirConsentProvision): 'permit' | 'deny' {
+  // R4 has 'type' as code: 'permit' | 'deny'
+  // R5 uses slightly different structure but both have type
+  const provisionType = (provision as ConsentProvisionR4).type
+  if (provisionType === 'deny') {
+    return 'deny'
+  }
+  return 'permit' // Default to permit
+}
 
 /**
  * Generic FHIR Bundle with typed entries (any version)
@@ -353,6 +398,12 @@ export interface IalCheckResult {
  * Extended consent check context with IAL info
  */
 export interface ConsentCheckContextWithIal extends ConsentCheckContext {
+  /** Whether IAL checking is enabled */
+  ialEnabled: boolean
+  /** Minimum IAL required for general access */
+  ialMinimumLevel: IdentityAssuranceLevel
+  /** Whether this is a sensitive resource type */
+  isSensitiveResource: boolean
   /** Resolved identity assurance level */
   assuranceLevel: IdentityAssuranceLevel | null
   /** Numeric IAL for comparison */

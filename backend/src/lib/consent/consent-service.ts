@@ -24,8 +24,9 @@ import type {
   ConsentCheckContextWithIal,
   ConsentCheckResultWithIal
 } from './types'
+import { getConsentProvision, getProvisionClasses, getProvisionType } from './types'
 import { consentCache } from './consent-cache'
-import { checkIal, getIalConfig, verifyPatientLinkOnly } from './person-resolver'
+import { checkIal, getIalConfig } from './person-resolver'
 import { logger } from '../logger'
 import { config } from '../../config'
 
@@ -146,7 +147,7 @@ function isPeriodActive(period: FhirPeriod | undefined): boolean {
  * Check if consent applies to the requesting client
  */
 function consentAppliesToClient(consent: FhirConsent, clientId: string): boolean {
-  const provision = consent.provision
+  const provision = getConsentProvision(consent)
   if (!provision?.actor?.length) {
     // No actor restrictions = applies to all
     return true
@@ -175,13 +176,14 @@ function provisionCoversResourceType(provision: ConsentProvision, resourceType: 
   }
 
   // If no class restrictions, covers all resources
-  if (!provision.class?.length) {
+  const classes = getProvisionClasses(provision)
+  if (!classes.length) {
     return true
   }
 
   // Check if resource type is in the class list
   // FHIR uses system "http://hl7.org/fhir/resource-types"
-  for (const cls of provision.class) {
+  for (const cls of classes) {
     if (cls.code === resourceType) {
       return true
     }
@@ -204,7 +206,7 @@ function evaluateConsent(consent: FhirConsent, context: ConsentCheckContext): Co
     return null
   }
 
-  const provision = consent.provision
+  const provision = getConsentProvision(consent)
   if (!provision) {
     // No provision = default permit (consent exists but no restrictions)
     return 'permit'
@@ -222,7 +224,7 @@ function evaluateConsent(consent: FhirConsent, context: ConsentCheckContext): Co
 
   // Return the provision type (permit/deny)
   // Default to permit if no type specified (consent exists = permission)
-  return provision.type || 'permit'
+  return getProvisionType(provision)
 }
 
 /**
@@ -410,7 +412,7 @@ export async function checkConsent(
   }
   
   let consents = consentCache.get(cacheKey)
-  let cached = consents !== null
+  const cached = consents !== null
 
   // Fetch from FHIR server if not cached
   if (!consents) {
@@ -514,7 +516,12 @@ export function buildConsentContextWithIal(
     ialMinimumLevel: ialConfig.minimumLevel,
     isSensitiveResource: ialConfig.enabled && 
       baseContext.resourceType !== null && 
-      ialConfig.sensitiveResourceTypes.includes(baseContext.resourceType)
+      ialConfig.sensitiveResourceTypes.includes(baseContext.resourceType),
+    // These are initially null/false, will be populated after IAL check
+    assuranceLevel: null,
+    assuranceLevelNumeric: null,
+    patientLinkVerified: false,
+    personId: null
   }
 }
 

@@ -14,15 +14,12 @@
 
 import type {
   FhirPerson,
-  FhirBundle,
   SmartTokenPayload,
   IdentityAssuranceLevel,
   ResolvedPatientIdentity,
   PersonResolutionResult,
   IalConfig,
   IalCheckResult,
-  FhirVersion,
-  PersonR3,
   PersonR4,
   PersonR5
 } from './types'
@@ -128,7 +125,7 @@ function extractPersonId(fhirUser: string): string | null {
   }
   
   // Handle full URL format
-  const urlMatch = fhirUser.match(/Person\/([a-zA-Z0-9\-\.]+)/)
+  const urlMatch = fhirUser.match(/Person\/([a-zA-Z0-9\-.]+)/)
   if (urlMatch) {
     return urlMatch[1]
   }
@@ -150,7 +147,7 @@ function extractPatientIdFromReference(reference: string): string | null {
     return null
   }
   
-  const match = reference.match(/Patient\/([a-zA-Z0-9\-\.]+)/)
+  const match = reference.match(/Patient\/([a-zA-Z0-9\-.]+)/)
   return match ? match[1] : null
 }
 

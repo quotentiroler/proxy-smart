@@ -11,8 +11,10 @@
     "mcp": "bun run src/mcp-server.ts",
     "build": "tsc --noEmit && bun build src/index.ts --outdir dist --target node",
     "export-openapi": "mkdir -p dist && bun run src/export-openapi.ts && bun run scripts/sanitize-openapi.ts",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "check": "bun run typecheck && bun run lint"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.1",

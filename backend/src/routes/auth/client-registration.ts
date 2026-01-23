@@ -274,7 +274,7 @@ export const clientRegistrationRoutes = new Elysia({ tags: ['authentication'] })
           // Standard OIDC scopes that should be default
           const defaultOidcScopes = ['openid', 'profile', 'email']
           // SMART scopes that should be optional (user can request them)
-          const smartOptionalScopes = ['offline_access', 'launch', 'launch/patient', 'launch/encounter', 'fhirUser']
+          // const smartOptionalScopes = ['offline_access', 'launch', 'launch/patient', 'launch/encounter', 'fhirUser']
           
           for (const scopeName of requestedScopes) {
             const matchingScope = allClientScopes.find(s => s.name === scopeName)

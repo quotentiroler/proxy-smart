@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { validateToken } from '@/lib/auth'
-import { getConsentConfig, getConsentCacheStats, invalidateConsentCache, consentCache } from '@/lib/consent'
+import { getConsentConfig, getConsentCacheStats, consentCache } from '@/lib/consent'
 import { CommonErrorResponses, ConsentConfig, ConsentCacheStats } from '@/schemas'
 import { logger } from '@/lib/logger'
 
@@ -222,7 +222,7 @@ export const consentAdminRoutes = new Elysia({ prefix: '/consent', tags: ['admin
   .post('/webhook', async ({ set, headers, body }) => {
     // Webhook can use API key or Bearer token
     const auth = headers.authorization?.replace('Bearer ', '')
-    const apiKey = headers['x-api-key']
+    // Note: API key support (x-api-key) reserved for future implementation
     
     // For now, require Bearer token (could add API key support later)
     if (!auth) {

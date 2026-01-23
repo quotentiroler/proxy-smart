@@ -4,7 +4,7 @@
  * Tests for Person→Patient IAL linking and identity verification.
  */
 
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test'
+import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'
 import {
   resolvePerson,
   checkIal,
@@ -56,6 +56,14 @@ const createMockToken = (overrides: Partial<SmartTokenPayload> = {}): SmartToken
 
 // Mock fetch for FHIR server calls
 const originalFetch = global.fetch
+
+/**
+ * Helper to mock global.fetch with proper typing for bun
+ * Bun's fetch type requires a 'preconnect' method, so we use type assertion
+ */
+function mockFetch(handler: () => Promise<Response>): void {
+  global.fetch = mock(handler) as unknown as typeof global.fetch
+}
 
 describe('Person Resolver', () => {
   beforeEach(() => {
@@ -137,7 +145,7 @@ describe('Person Resolver', () => {
     })
 
     it('should fetch Person from FHIR server and extract links', async () => {
-      global.fetch = mock(async () => new Response(JSON.stringify(mockPerson), {
+      mockFetch(async () => new Response(JSON.stringify(mockPerson), {
         status: 200,
         headers: { 'Content-Type': 'application/fhir+json' }
       }))
@@ -164,7 +172,7 @@ describe('Person Resolver', () => {
 
     it('should cache Person after fetch', async () => {
       let fetchCount = 0
-      global.fetch = mock(async () => {
+      mockFetch(async () => {
         fetchCount++
         return new Response(JSON.stringify(mockPerson), {
           status: 200,
@@ -187,7 +195,7 @@ describe('Person Resolver', () => {
     })
 
     it('should handle 404 Person not found', async () => {
-      global.fetch = mock(async () => new Response(null, { status: 404 }))
+      mockFetch(async () => new Response(null, { status: 404 }))
 
       const token = createMockToken()
       
@@ -203,7 +211,7 @@ describe('Person Resolver', () => {
     })
 
     it('should handle fetch errors gracefully', async () => {
-      global.fetch = mock(async () => { throw new Error('Network error') })
+      mockFetch(async () => { throw new Error('Network error') })
 
       const token = createMockToken()
       
@@ -219,7 +227,7 @@ describe('Person Resolver', () => {
     })
 
     it('should handle Person with no links', async () => {
-      global.fetch = mock(async () => new Response(JSON.stringify(mockPersonNoLinks), {
+      mockFetch(async () => new Response(JSON.stringify(mockPersonNoLinks), {
         status: 200,
         headers: { 'Content-Type': 'application/fhir+json' }
       }))
@@ -239,7 +247,7 @@ describe('Person Resolver', () => {
     })
 
     it('should extract Person ID from full URL', async () => {
-      global.fetch = mock(async () => new Response(JSON.stringify(mockPerson), {
+      mockFetch(async () => new Response(JSON.stringify(mockPerson), {
         status: 200,
         headers: { 'Content-Type': 'application/fhir+json' }
       }))
@@ -260,7 +268,7 @@ describe('Person Resolver', () => {
 
   describe('checkIal', () => {
     beforeEach(() => {
-      global.fetch = mock(async () => new Response(JSON.stringify(mockPerson), {
+      mockFetch(async () => new Response(JSON.stringify(mockPerson), {
         status: 200,
         headers: { 'Content-Type': 'application/fhir+json' }
       }))
@@ -363,7 +371,7 @@ describe('Person Resolver', () => {
       process.env.IAL_ENABLED = 'true'
       process.env.IAL_ALLOW_ON_PERSON_LOOKUP_FAILURE = 'true'
       
-      global.fetch = mock(async () => new Response(null, { status: 404 }))
+      mockFetch(async () => new Response(null, { status: 404 }))
       
       const token = createMockToken()
       
@@ -410,7 +418,7 @@ describe('Person Resolver', () => {
     })
 
     it('should verify patient link when present', async () => {
-      global.fetch = mock(async () => new Response(JSON.stringify(mockPerson), {
+      mockFetch(async () => new Response(JSON.stringify(mockPerson), {
         status: 200,
         headers: { 'Content-Type': 'application/fhir+json' }
       }))
@@ -430,7 +438,7 @@ describe('Person Resolver', () => {
     })
 
     it('should fail verification when patient not linked', async () => {
-      global.fetch = mock(async () => new Response(JSON.stringify(mockPerson), {
+      mockFetch(async () => new Response(JSON.stringify(mockPerson), {
         status: 200,
         headers: { 'Content-Type': 'application/fhir+json' }
       }))
@@ -455,7 +463,7 @@ describe('Person Resolver', () => {
       expect(initialStats.entries).toBe(0)
       expect(initialStats.oldestEntry).toBeNull()
 
-      global.fetch = mock(async () => new Response(JSON.stringify(mockPerson), {
+      mockFetch(async () => new Response(JSON.stringify(mockPerson), {
         status: 200,
         headers: { 'Content-Type': 'application/fhir+json' }
       }))
@@ -469,7 +477,7 @@ describe('Person Resolver', () => {
     })
 
     it('should clear cache', async () => {
-      global.fetch = mock(async () => new Response(JSON.stringify(mockPerson), {
+      mockFetch(async () => new Response(JSON.stringify(mockPerson), {
         status: 200,
         headers: { 'Content-Type': 'application/fhir+json' }
       }))

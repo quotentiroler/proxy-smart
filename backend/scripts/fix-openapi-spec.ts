@@ -35,6 +35,7 @@ function fixParameters(parameters: Parameter[] | undefined): Parameter[] | undef
   return parameters.map(param => {
     if (param.schema && param.type) {
       // If both schema and type exist, keep schema and remove type
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { type: _type, ...rest } = param;
       fixCount++;
       return rest;

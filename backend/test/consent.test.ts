@@ -4,7 +4,7 @@
  * Unit tests for the consent enforcement module.
  */
 
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test'
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { ConsentCache } from '../src/lib/consent/consent-cache'
 import { buildConsentContext } from '../src/lib/consent/consent-service'
 import type { FhirConsent, SmartTokenPayload } from '../src/lib/consent/types'
