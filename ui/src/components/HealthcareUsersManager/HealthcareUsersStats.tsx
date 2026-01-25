@@ -71,12 +71,15 @@ function PieChart({ data, className = "" }: { data: RoleData[]; className?: stri
   const centerX = size / 2;
   const centerY = size / 2;
   
-  let currentAngle = 0;
+  // Pre-calculate angles to avoid reassignment during render
+  const anglesData = validData.reduce<{ startAngle: number; endAngle: number }[]>((acc, item, idx) => {
+    const prevEnd = idx === 0 ? 0 : acc[idx - 1].endAngle;
+    acc.push({ startAngle: prevEnd, endAngle: prevEnd + (item.percentage / 100) * 360 });
+    return acc;
+  }, []);
   
-  const segments = validData.map((item) => {
-    const startAngle = currentAngle;
-    const endAngle = currentAngle + (item.percentage / 100) * 360;
-    currentAngle = endAngle;
+  const segments = validData.map((item, idx) => {
+    const { startAngle, endAngle } = anglesData[idx];
     
     const startAngleRad = (startAngle * Math.PI) / 180;
     const endAngleRad = (endAngle * Math.PI) / 180;

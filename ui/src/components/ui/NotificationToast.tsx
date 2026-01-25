@@ -15,14 +15,14 @@ export function NotificationToast({ notification, onClose }: NotificationToastPr
   return (
     <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg border ${
       notification.type === 'success' 
-        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800/50 text-green-800 dark:text-green-200' 
-        : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-200'
+        ? 'bg-card border-border text-foreground' 
+        : 'bg-destructive/10 dark:bg-destructive/20 border-destructive/30 text-foreground'
     } animate-in slide-in-from-top-2 duration-300`}>
       <div className="flex items-center space-x-2">
         {notification.type === 'success' ? (
-          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+          <CheckCircle className="h-5 w-5 text-foreground" />
         ) : (
-          <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+          <XCircle className="h-5 w-5 text-destructive" />
         )}
         <span className="font-medium">{notification.message}</span>
         <Button

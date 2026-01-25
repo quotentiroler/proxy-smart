@@ -29,6 +29,10 @@ interface AppState {
   // Notification preferences
   notificationsEnabled: boolean;
   setNotificationsEnabled: (enabled: boolean) => void;
+  
+  // AI Assistant state
+  isAIAssistantEnabled: boolean;
+  setIsAIAssistantEnabled: (enabled: boolean) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -66,6 +70,10 @@ export const useAppStore = create<AppState>()(
       // Notification preferences
       notificationsEnabled: true,
       setNotificationsEnabled: (enabled) => set({ notificationsEnabled: enabled }),
+      
+      // AI Assistant state
+      isAIAssistantEnabled: true, // Default to true, will be updated by fetching SMART apps
+      setIsAIAssistantEnabled: (enabled) => set({ isAIAssistantEnabled: enabled }),
     }),
     {
       name: 'app-store',
@@ -76,6 +84,7 @@ export const useAppStore = create<AppState>()(
         activeTab: state.activeTab,
         smartAppsManagerTab: state.smartAppsManagerTab,
         notificationsEnabled: state.notificationsEnabled,
+        isAIAssistantEnabled: state.isAIAssistantEnabled,
       }),
     }
   )

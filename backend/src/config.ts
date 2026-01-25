@@ -89,20 +89,82 @@ export const config = {
   },
 
   ai: {
-    get baseUrl() {
-      return process.env.MCP_SERVER_URL || 'http://localhost:8081';
+    // Always use internal AI (unified ai.ts with direct Elysia tool execution)
+    // Can connect to external MCP servers via EXTERNAL_MCP_SERVERS env variable
+    get enabled() {
+      return !!this.openaiApiKey;
     },
-    get chatEndpoint() {
-      return `${this.baseUrl.replace(/\/$/, '')}/ai/chat`;
-    },
-    get healthEndpoint() {
-      return `${this.baseUrl.replace(/\/$/, '')}/health`;
+    get openaiApiKey() {
+      return process.env.OPENAI_API_KEY || null;
     },
     get timeoutMs() {
-      return Number.parseInt(process.env.MCP_SERVER_TIMEOUT_MS || '30000', 10); // 30 seconds for reasoning models
-    },
+      return Number.parseInt(process.env.AI_TIMEOUT_MS || '30000', 10); // 30 seconds for reasoning models
+    }
+  },
+
+  consent: {
+    // Consent enforcement configuration
     get enabled() {
-      return !!this.baseUrl;
+      return process.env.CONSENT_ENABLED === 'true'
+    },
+    get mode(): 'enforce' | 'audit-only' | 'disabled' {
+      const mode = process.env.CONSENT_MODE || 'disabled'
+      if (mode === 'enforce' || mode === 'audit-only' || mode === 'disabled') {
+        return mode
+      }
+      return 'disabled'
+    },
+    get cacheTtl() {
+      return parseInt(process.env.CONSENT_CACHE_TTL || '60000', 10) // 1 minute default
+    },
+    get exemptClients(): string[] {
+      return process.env.CONSENT_EXEMPT_CLIENTS?.split(',').map(s => s.trim()).filter(Boolean) || []
+    },
+    get requiredForResourceTypes(): string[] {
+      return process.env.CONSENT_REQUIRED_RESOURCE_TYPES?.split(',').map(s => s.trim()).filter(Boolean) || []
+    },
+    get exemptResourceTypes(): string[] {
+      // By default, exempt metadata and capability statement
+      const defaults = ['CapabilityStatement', 'metadata']
+      const env = process.env.CONSENT_EXEMPT_RESOURCE_TYPES?.split(',').map(s => s.trim()).filter(Boolean) || []
+      return [...new Set([...defaults, ...env])]
+    }
+  },
+
+  ial: {
+    // Identity Assurance Level (IAL) configuration for Person→Patient linking
+    get enabled() {
+      return process.env.IAL_ENABLED === 'true'
+    },
+    get minimumLevel(): 'level1' | 'level2' | 'level3' | 'level4' {
+      const level = process.env.IAL_MINIMUM_LEVEL || 'level1'
+      if (['level1', 'level2', 'level3', 'level4'].includes(level)) {
+        return level as 'level1' | 'level2' | 'level3' | 'level4'
+      }
+      return 'level1'
+    },
+    get sensitiveResourceTypes(): string[] {
+      // Resources requiring elevated IAL (e.g., MedicationRequest, DiagnosticReport)
+      return process.env.IAL_SENSITIVE_RESOURCE_TYPES?.split(',').map(s => s.trim()).filter(Boolean) || []
+    },
+    get sensitiveMinimumLevel(): 'level1' | 'level2' | 'level3' | 'level4' {
+      const level = process.env.IAL_SENSITIVE_MINIMUM_LEVEL || 'level3'
+      if (['level1', 'level2', 'level3', 'level4'].includes(level)) {
+        return level as 'level1' | 'level2' | 'level3' | 'level4'
+      }
+      return 'level3'
+    },
+    get verifyPatientLink() {
+      // Verify that token's smart_patient matches Person.link[]. Default true.
+      return process.env.IAL_VERIFY_PATIENT_LINK !== 'false'
+    },
+    get allowOnPersonLookupFailure() {
+      // Whether to allow access if Person lookup fails. Default false (deny).
+      return process.env.IAL_ALLOW_ON_PERSON_LOOKUP_FAILURE === 'true'
+    },
+    get cacheTtl() {
+      // Cache TTL for Person resources (5 minutes default)
+      return parseInt(process.env.IAL_CACHE_TTL || '300000', 10)
     }
   },
 

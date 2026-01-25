@@ -5,9 +5,10 @@
 # Use isolated installs for better monorepo dependency isolation
 linker = "isolated"
 
-# Require packages to be published for at least 7 days before installation
-# This helps protect against supply chain attacks
-minimumReleaseAge = 604800 # 7 days in seconds
+# Allow newer packages for faster access to updates
+# Set to 0 to disable the 7-day waiting period
+# Note: This reduces supply chain attack protection
+minimumReleaseAge = 0 # Allow all packages regardless of age
 
 # Security scanner (Socket.dev)
 # [install.security]

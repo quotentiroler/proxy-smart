@@ -1,7 +1,54 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
+
+/*
+ * Max Health Inc. Design System
+ * 
+ * Foundational design patterns from maxhealth.tech:
+ * - High contrast monochromatic palette
+ * - Emerald accent color (#00d294 / oklch(0.75 0.17 162))
+ * - Geist font family (variable weight)
+ * - Subtle borders (5-10% opacity white/black)
+ * - Clean, minimal aesthetic
+ */
+
+/* Geist Sans - Variable Font */
+@font-face {
+  font-family: 'Geist Sans';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Geist Mono - Variable Font */
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Geist font family */
+@theme {
+  --font-sans: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+/* Apply Geist font globally */
+html, body {
+  font-family: "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code, pre, kbd, samp {
+  font-family: "Geist Mono", ui-monospace, monospace;
+}
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -39,201 +86,259 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  /* Max Health brand color */
+  --color-maxhealth: var(--maxhealth);
+  --color-maxhealth-foreground: var(--maxhealth-foreground);
 }
 
+/* 
+ * Light Mode - Max Health Style
+ * Clean white background with near-black text
+ * Matches inverted maxhealth.tech aesthetic
+ */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 0.5rem;
+  /* Core colors - crisp white/black for high contrast */
+  --background: oklch(0.995 0 0);
+  --foreground: oklch(0.09 0 0);
+  /* Card - slight off-white for layering */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.09 0 0);
+  /* Popover - pure white with shadow for depth */
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.09 0 0);
+  /* Primary - near black, matching maxhealth.tech text */
+  --primary: oklch(0.15 0 0);
+  --primary-foreground: oklch(0.99 0 0);
+  /* Secondary - light gray for subtle backgrounds */
+  --secondary: oklch(0.965 0 0);
+  --secondary-foreground: oklch(0.15 0 0);
+  /* Muted - for disabled/subtle elements */
+  --muted: oklch(0.955 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  /* Accent - subtle gray, not competing with brand */
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.15 0 0);
+  /* Destructive - warm red */
+  --destructive: oklch(0.55 0.22 25);
+  /* Borders - very subtle like maxhealth.tech border-white/5 inverted */
+  --border: oklch(0 0 0 / 8%);
+  --input: oklch(0 0 0 / 10%);
+  --ring: oklch(0.45 0 0);
+  /* Max Health brand emerald - #00d294 */
+  --maxhealth: oklch(0.75 0.17 162);
+  --maxhealth-foreground: oklch(0.09 0 0);
+  /* Charts - healthcare-appropriate palette */
+  --chart-1: oklch(0.75 0.17 162);  /* Emerald - primary brand */
+  --chart-2: oklch(0.65 0.15 250);  /* Blue - trust/medical */
+  --chart-3: oklch(0.70 0.18 145);  /* Teal - health */
+  --chart-4: oklch(0.75 0.12 85);   /* Amber - warning/attention */
+  --chart-5: oklch(0.60 0.20 300);  /* Purple - secondary */
+  /* Sidebar - slightly darker for visual hierarchy */
+  --sidebar: oklch(0.98 0 0);
+  --sidebar-foreground: oklch(0.09 0 0);
+  --sidebar-primary: oklch(0.15 0 0);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.96 0 0);
+  --sidebar-accent-foreground: oklch(0.15 0 0);
+  --sidebar-border: oklch(0 0 0 / 6%);
+  --sidebar-ring: oklch(0.45 0 0);
 }
 
+/* 
+ * Dark Mode - Max Health Style  
+ * Based directly on maxhealth.tech
+ * Pure black background, white text, emerald accents
+ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Core colors - pure black like maxhealth.tech bg-black */
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.99 0 0);
+  /* Card - slightly elevated dark surface */
+  --card: oklch(0.12 0 0);
+  --card-foreground: oklch(0.99 0 0);
+  /* Popover - matching card for consistency */
+  --popover: oklch(0.12 0 0);
+  --popover-foreground: oklch(0.99 0 0);
+  /* Primary - white on dark, high contrast */
+  --primary: oklch(0.99 0 0);
+  --primary-foreground: oklch(0.09 0 0);
+  /* Secondary - dark gray for subtle backgrounds */
+  --secondary: oklch(0.15 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  /* Muted - for disabled/subtle elements */
+  --muted: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.60 0 0);
+  /* Accent - matching secondary */
+  --accent: oklch(0.15 0 0);
+  --accent-foreground: oklch(0.95 0 0);
+  /* Destructive - bright red for visibility on dark */
+  --destructive: oklch(0.65 0.22 22);
+  /* Borders - white/5% like maxhealth.tech border-white/5 */
+  --border: oklch(1 0 0 / 5%);
+  --input: oklch(1 0 0 / 8%);
+  --ring: oklch(0.55 0 0);
+  /* Max Health brand emerald - slightly brighter for dark mode */
+  --maxhealth: oklch(0.78 0.17 162);
+  --maxhealth-foreground: oklch(0.09 0 0);
+  /* Charts - vibrant for dark backgrounds */
+  --chart-1: oklch(0.78 0.17 162);  /* Emerald - primary brand */
+  --chart-2: oklch(0.70 0.18 250);  /* Blue */
+  --chart-3: oklch(0.75 0.18 145);  /* Teal */
+  --chart-4: oklch(0.80 0.15 85);   /* Amber */
+  --chart-5: oklch(0.70 0.22 300);  /* Purple */
+  /* Sidebar - slightly elevated from pure black */
+  --sidebar: oklch(0.08 0 0);
+  --sidebar-foreground: oklch(0.99 0 0);
+  --sidebar-primary: oklch(0.78 0.17 162); /* Brand emerald */
+  --sidebar-primary-foreground: oklch(0.09 0 0);
+  --sidebar-accent: oklch(0.15 0 0);
+  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --sidebar-border: oklch(1 0 0 / 5%);
+  --sidebar-ring: oklch(0.55 0 0);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-family: "Geist", "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+  }
   body {
     @apply bg-background text-foreground;
+    font-family: "Geist", "Geist Sans", ui-sans-serif, system-ui, sans-serif;
+    /* Max Health typography - clean antialiasing */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  code, pre, kbd {
+    font-family: "Geist Mono", ui-monospace, monospace;
   }
   
-  /* Custom scrollbar styles for light and dark mode */
+  /* Selection colors matching maxhealth.tech selection:bg-white selection:text-black */
+  ::selection {
+    background: oklch(0.15 0 0);
+    color: oklch(0.99 0 0);
+  }
+  .dark ::selection {
+    background: oklch(0.99 0 0);
+    color: oklch(0.09 0 0);
+  }
+  
+  /* Custom scrollbar styles - minimal like maxhealth.tech */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   
   ::-webkit-scrollbar-track {
-    background: oklch(var(--muted));
-    border-radius: 8px;
+    background: transparent;
   }
   
   ::-webkit-scrollbar-thumb {
-    background: oklch(var(--muted-foreground) / 0.2);
+    background: oklch(0 0 0 / 15%);
     border-radius: 8px;
-    border: 2px solid oklch(var(--muted));
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    background: oklch(var(--muted-foreground) / 0.4);
+    background: oklch(0 0 0 / 25%);
   }
   
   ::-webkit-scrollbar-corner {
-    background: oklch(var(--muted));
+    background: transparent;
   }
   
-  /* Darker scrollbar specifically for dark mode */
+  /* Dark mode scrollbar - subtle white on black */
   .dark ::-webkit-scrollbar-track {
-    background: oklch(0.1 0 0);
+    background: transparent;
   }
   
   .dark ::-webkit-scrollbar-thumb {
-    background: oklch(0.3 0 0);
-    border: 2px solid oklch(0.1 0 0);
+    background: oklch(1 0 0 / 15%);
   }
   
   .dark ::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.4 0 0);
+    background: oklch(1 0 0 / 25%);
   }
   
   .dark ::-webkit-scrollbar-corner {
-    background: oklch(0.1 0 0);
+    background: transparent;
   }
   
-  /* Main page scrollbar - target html and body specifically */
+  /* Main page scrollbar - slightly wider */
   html::-webkit-scrollbar,
   body::-webkit-scrollbar {
-    width: 12px;
+    width: 10px;
   }
   
   html::-webkit-scrollbar-track,
   body::-webkit-scrollbar-track {
-    background: oklch(var(--background));
+    background: var(--background);
   }
   
   html::-webkit-scrollbar-thumb,
   body::-webkit-scrollbar-thumb {
-    background: oklch(var(--muted-foreground) / 0.2);
+    background: oklch(0 0 0 / 12%);
     border-radius: 6px;
-    border: 2px solid oklch(var(--background));
+    border: 2px solid var(--background);
   }
   
   html::-webkit-scrollbar-thumb:hover,
   body::-webkit-scrollbar-thumb:hover {
-    background: oklch(var(--muted-foreground) / 0.4);
+    background: oklch(0 0 0 / 20%);
   }
   
   /* Dark mode main page scrollbar */
   .dark html::-webkit-scrollbar-track,
   .dark body::-webkit-scrollbar-track {
-    background: oklch(0.145 0 0);
+    background: oklch(0 0 0);
   }
   
   .dark html::-webkit-scrollbar-thumb,
   .dark body::-webkit-scrollbar-thumb {
-    background: oklch(0.3 0 0);
-    border: 2px solid oklch(0.145 0 0);
+    background: oklch(1 0 0 / 12%);
+    border: 2px solid oklch(0 0 0);
   }
   
   .dark html::-webkit-scrollbar-thumb:hover,
   .dark body::-webkit-scrollbar-thumb:hover {
-    background: oklch(0.4 0 0);
+    background: oklch(1 0 0 / 20%);
   }
   
-  /* Firefox scrollbar */
+  /* Firefox scrollbar - minimal */
   * {
     scrollbar-width: thin;
-    scrollbar-color: oklch(var(--muted-foreground) / 0.2) oklch(var(--muted));
+    scrollbar-color: oklch(0 0 0 / 15%) transparent;
   }
   
   .dark * {
-    scrollbar-color: oklch(0.3 0 0) oklch(0.1 0 0);
+    scrollbar-color: oklch(1 0 0 / 15%) transparent;
   }
   
   /* Firefox main page scrollbar */
   html,
   body {
     scrollbar-width: thin;
-    scrollbar-color: oklch(var(--muted-foreground) / 0.2) oklch(var(--background));
+    scrollbar-color: oklch(0 0 0 / 15%) var(--background);
   }
   
   .dark html,
   .dark body {
-    scrollbar-color: oklch(0.3 0 0) oklch(0.145 0 0);
+    scrollbar-color: oklch(1 0 0 / 15%) oklch(0 0 0);
   }
   
   /* Mantine Paper component overrides for dark mode */
   .dark .mantine-Paper-root {
-    background-color: oklch(var(--card)) !important;
-    border-color: oklch(var(--border)) !important;
-    color: oklch(var(--card-foreground)) !important;
+    background-color: var(--card) !important;
+    border-color: var(--border) !important;
+    color: var(--card-foreground) !important;
   }
   
   /* Specific Panel styling overrides */
   .dark .m_1b7284a3 {
-    background-color: oklch(var(--card)) !important;
-    border-color: oklch(var(--border)) !important;
+    background-color: var(--card) !important;
+    border-color: var(--border) !important;
   }
   
   /* Ensure all nested elements in Panel inherit correct colors */
@@ -243,9 +348,9 @@
   
   /* Global select dropdown styling for theme awareness */
   select {
-    background-color: oklch(var(--color-background));
-    color: oklch(var(--color-foreground));
-    border: 1px solid oklch(var(--color-border));
+    background-color: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 0.75rem 1rem;
     font-size: 0.875rem;

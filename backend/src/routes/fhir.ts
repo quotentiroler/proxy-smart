@@ -3,11 +3,11 @@ import fetch, { Headers } from 'cross-fetch'
 import { validateToken } from '../lib/auth'
 import { config } from '../config'
 import { fhirServerStore, getServerByName, getServerInfoByName } from '../lib/fhir-server-store'
-import { CommonErrorResponses, ErrorResponse, CacheRefreshResponse, SmartConfigurationResponse, FhirProxyResponse } from '../schemas'
+import { CommonErrorResponses, ErrorResponse, CacheRefreshResponse, SmartConfigurationResponse, FhirProxyResponse, type SmartConfigurationResponseType } from '../schemas'
 import { smartConfigService } from '../lib/smart-config'
 import { logger } from '../lib/logger'
 import { fetchWithMtls, getMtlsConfig } from './fhir-servers'
-import type { SmartConfiguration } from '../types'
+import { checkConsent, getConsentConfig } from '../lib/consent'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function proxyFHIR({ params, request, set }: any) {
@@ -25,15 +25,45 @@ async function proxyFHIR({ params, request, set }: any) {
     }
 
     const serverUrl = serverInfo.url
+    const authHeader = request.headers.get('authorization') || ''
+    const auth = authHeader.replace(/^Bearer\s+/, '')
+    let tokenPayload = null
 
     // skip auth on metadata
     if (request.method !== 'GET' || !request.url.endsWith('/metadata')) {
-      const auth = request.headers.get('authorization')?.replace(/^Bearer\s+/, '')
       if (!auth) {
         set.status = 401
         return { error: 'Authentication required' }
       }
-      await validateToken(auth)
+      tokenPayload = await validateToken(auth)
+    }
+
+    // 2) Consent enforcement check
+    if (tokenPayload) {
+      const parts = new URL(request.url).pathname.split('/').filter(Boolean)
+      const resourcePath = parts.slice(3).join('/')
+      
+      const consentResult = await checkConsent(
+        tokenPayload,
+        params.server_name,
+        serverUrl,
+        resourcePath,
+        request.method,
+        authHeader
+      )
+
+      // If consent denied and mode is 'enforce', block the request
+      if (consentResult.decision === 'deny' && getConsentConfig().mode === 'enforce') {
+        set.status = 403
+        return {
+          error: 'consent_denied',
+          message: consentResult.reason,
+          consentId: consentResult.consentId,
+          patientId: consentResult.context.patientId,
+          clientId: consentResult.context.clientId,
+          resourceType: consentResult.context.resourceType
+        }
+      }
     }
 
     // build target path
@@ -54,8 +84,8 @@ async function proxyFHIR({ params, request, set }: any) {
     }
 
     // Check if mTLS is configured for this server
-    const mtlsConfig = getMtlsConfig(serverInfo.identifier)
-    const useMtls = mtlsConfig?.enabled && target.startsWith('https://')
+    const mtlsConfig = await getMtlsConfig(serverInfo.identifier)
+    const useMtls = mtlsConfig?.enabled === true && target.startsWith('https://')
 
     // Use appropriate fetch method based on mTLS configuration
     const resp = useMtls
@@ -122,7 +152,11 @@ const proxySchema = {
 
 export const fhirRoutes = new Elysia({ prefix: `/${config.name}/:server_name/:fhir_version`, tags: ['fhir'] })
   // SMART on FHIR Configuration endpoint - server-specific configuration
-  .get('/.well-known/smart-configuration', async (): Promise<SmartConfiguration> => {
+  .get('/.well-known/smart-configuration', async ({ set }): Promise<SmartConfigurationResponseType> => {
+    // SMART 2.2.0 requires CORS support for .well-known/smart-configuration
+    set.headers['Access-Control-Allow-Origin'] = '*'
+    set.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    set.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     return await smartConfigService.getSmartConfiguration()
   }, {
     params: t.Object({

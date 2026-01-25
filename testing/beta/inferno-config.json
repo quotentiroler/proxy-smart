@@ -1,12 +1,15 @@
 {
   "test_stage": "beta",
-  "description": "Beta testing with comprehensive FHIR compliance and API testing",
+  "description": "Beta testing against VPS deployed instance",
+  "target": "deployed",
+  "deployed_url": "https://beta.proxy-smart.example.com",
   "fhir_server": {
-    "url": "http://proxy-smart-backend:3001",
-    "name": "Proxy Smart FHIR Server (Beta)"
+    "name": "Proxy Smart FHIR Server (VPS Beta)",
+    "url": "https://beta.proxy-smart.example.com/proxy-smart-backend"
   },
   "inferno": {
-    "module": "onc_program",
+    "url": "http://localhost:4567",
+    "test_suite": "smart_stu2_2",
     "sequences": [
       "UsCoreR4CapabilityStatement",
       "USCore311Patient",
@@ -24,23 +27,32 @@
       "USCore311Procedure",
       "SMARTDiscovery"
     ],
-    "test_focus": "us_core_profiles"
+    "test_focus": "smart_compliance",
+    "database": {
+      "url": "postgresql://inferno:inferno@localhost:5433/inferno"
+    },
+    "redis": {
+      "url": "redis://localhost:6379"
+    }
+  },
+  "keycloak": {
+    "url": "https://beta.proxy-smart.example.com/auth",
+    "realm": "proxy-smart"
+  },
+  "backend": {
+    "url": "https://beta.proxy-smart.example.com"
   },
   "client": {
-    "client_id": "beta_test_client",
-    "client_secret": "beta_test_secret",
-    "scopes": "patient/*.read user/*.read",
-    "redirect_uri": "http://inferno:4567/inferno/callback"
+    "client_id": "inferno-test-client",
+    "scopes": "launch/patient openid fhirUser offline_access patient/*.read user/*.read"
   },
-  "endpoints": {
-    "authorization": "http://keycloak:8080/realms/proxy-smart/protocol/openid-connect/auth",
-    "token": "http://keycloak:8080/realms/proxy-smart/protocol/openid-connect/token",
-    "introspection": "http://keycloak:8080/realms/proxy-smart/protocol/openid-connect/token/introspect"
+  "test_user": {
+    "username": "doctor",
+    "password": "doctor123"
   },
   "test_settings": {
     "timeout": 60,
     "retries": 5,
-    "validate_ssl": false,
-    "smart_app_launch": true
+    "validate_ssl": true
   }
 }

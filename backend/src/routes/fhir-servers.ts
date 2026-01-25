@@ -3,6 +3,7 @@ import { config } from '../config'
 import { getAllServers, getServerInfoByName, ensureServersInitialized, addServer, updateServer } from '../lib/fhir-server-store'
 import { logger } from '../lib/logger'
 import { validateToken } from '../lib/auth'
+import { mtlsStore } from '../lib/mtls-store'
 import * as forge from 'node-forge'
 import * as crypto from 'crypto'
 import * as https from 'https'
@@ -10,7 +11,6 @@ import nodeFetch from 'node-fetch'
 import {
   ErrorResponse,
   FhirServerResponse,
-  FhirServerListResponse,
   FhirServerInfoResponse,
   AddFhirServerRequest,
   UpdateFhirServerRequest,
@@ -22,28 +22,10 @@ import {
   CommonErrorResponses,
   FhirServerInfoResponseType,
   FhirServerListResponseType,
-  ErrorResponseType
-} from '../schemas'
-
-/**
- * In-memory mTLS configuration storage
- * In production, this should be stored in a database
- */
-interface MtlsConfig {
-  enabled: boolean
-  clientCert?: string // base64 encoded certificate
-  clientKey?: string  // base64 encoded private key
-  caCert?: string     // base64 encoded CA certificate
-  certDetails?: {
-    subject: string
-    issuer: string
-    validFrom: string
-    validTo: string
-    fingerprint: string
-  }
-}
-
-const mtlsConfigs = new Map<string, MtlsConfig>()
+  ErrorResponseType,
+  type MtlsConfig,
+  FhirServerListResponse
+} from '@/schemas'
 
 /**
  * Parse certificate details from PEM content using node-forge
@@ -130,9 +112,10 @@ function validateCertificate(certPem: string, caCertPem?: string): { isValid: bo
 
 /**
  * Create HTTPS agent with mTLS configuration
+ * Note: This is now async due to database storage
  */
-export function createMtlsAgent(serverId: string): https.Agent | undefined {
-  const mtlsConfig = mtlsConfigs.get(serverId)
+export async function createMtlsAgent(serverId: string): Promise<https.Agent | undefined> {
+  const mtlsConfig = await mtlsStore.getConfig(serverId)
 
   if (!mtlsConfig?.enabled || !mtlsConfig.clientCert || !mtlsConfig.clientKey) {
     return undefined
@@ -166,8 +149,18 @@ export function createMtlsAgent(serverId: string): https.Agent | undefined {
 /**
  * Get mTLS configuration for a server (exported for use in FHIR proxy)
  */
-export function getMtlsConfig(serverId: string): MtlsConfig | undefined {
-  return mtlsConfigs.get(serverId)
+export async function getMtlsConfig(serverId: string): Promise<MtlsConfig | undefined> {
+  const config = await mtlsStore.getConfig(serverId)
+  if (!config) return undefined
+  
+  // Convert to schema type
+  return {
+    enabled: config.enabled,
+    clientCert: config.clientCert,
+    clientKey: config.clientKey,
+    caCert: config.caCert,
+    certDetails: config.certDetails
+  }
 }
 
 /**
@@ -181,7 +174,7 @@ export async function fetchWithMtls(
 
   // Use mTLS agent if server ID provided and HTTPS URL
   if (serverId && url.startsWith('https://')) {
-    const agent = createMtlsAgent(serverId)
+    const agent = await createMtlsAgent(serverId)
     if (agent) {
       logger.fhir.info('Using mTLS for FHIR request', { serverId, url: url.split('?')[0] })
 
@@ -519,16 +512,28 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
 
       await validateToken(auth)
 
-      const config = mtlsConfigs.get(params.server_id) || { enabled: false }
+      const mtlsConfig = await mtlsStore.getConfig(params.server_id)
+      
+      if (!mtlsConfig || !mtlsConfig.enabled) {
+        return {
+          enabled: false,
+          hasCertificates: {
+            clientCert: false,
+            clientKey: false,
+            caCert: false
+          },
+          certDetails: undefined
+        }
+      }
 
       return {
-        enabled: config.enabled,
+        enabled: mtlsConfig.enabled,
         hasCertificates: {
-          clientCert: !!config.clientCert,
-          clientKey: !!config.clientKey,
-          caCert: !!config.caCert
+          clientCert: !!mtlsConfig.clientCert,
+          clientKey: !!mtlsConfig.clientKey,
+          caCert: !!mtlsConfig.caCert
         },
-        certDetails: config.certDetails
+        certDetails: mtlsConfig.certDetails
       }
     } catch (error) {
       logger.fhir.error('Failed to get mTLS configuration', { error, serverId: params.server_id })
@@ -561,15 +566,7 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
 
       await validateToken(auth)
 
-      const existingConfig = mtlsConfigs.get(params.server_id) || { enabled: false }
-
-      // Update configuration
-      const updatedConfig: MtlsConfig = {
-        ...existingConfig,
-        enabled: body.enabled
-      }
-
-      mtlsConfigs.set(params.server_id, updatedConfig)
+      const updatedConfig = await mtlsStore.setEnabled(params.server_id, body.enabled)
 
       return {
         success: true,
@@ -626,8 +623,6 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
 
       await validateToken(auth)
 
-      const existingConfig = mtlsConfigs.get(params.server_id) || { enabled: false }
-
       // Validate certificate type
       if (!['client', 'key', 'ca'].includes(body.type)) {
         set.status = 400
@@ -642,24 +637,21 @@ export const serverDiscoveryRoutes = new Elysia({ prefix: '/fhir-servers', tags:
         return { error: 'Invalid base64 content' }
       }
 
-      // Update configuration based on certificate type
-      const updatedConfig: MtlsConfig = { ...existingConfig }
-
-      switch (body.type) {
-        case 'client':
-          updatedConfig.clientCert = body.content
-          // Parse certificate details for client certificates
-          updatedConfig.certDetails = parseCertificate(body.content)
-          break
-        case 'key':
-          updatedConfig.clientKey = body.content
-          break
-        case 'ca':
-          updatedConfig.caCert = body.content
-          break
+      // Parse certificate details for client certificates
+      let certDetails: MtlsConfig['certDetails'] | undefined
+      if (body.type === 'client') {
+        // Decode base64 to get PEM for parsing
+        const pemContent = Buffer.from(body.content, 'base64').toString('utf8')
+        certDetails = parseCertificate(pemContent)
       }
 
-      mtlsConfigs.set(params.server_id, updatedConfig)
+      // Upload certificate using mtlsStore
+      const updatedConfig = await mtlsStore.uploadCertificate(
+        params.server_id,
+        body.type as 'client' | 'key' | 'ca',
+        body.content,
+        certDetails
+      )
 
       return {
         success: true,

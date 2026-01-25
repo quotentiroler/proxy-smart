@@ -1,10 +1,10 @@
 import { Elysia } from 'elysia'
 import fetch from 'cross-fetch'
-import { config } from '../../config'
-import { validateToken } from '../../lib/auth'
-import { getAllServers, ensureServersInitialized } from '../../lib/fhir-server-store'
-import { logger } from '../../lib/logger'
-import { oauthMetricsLogger } from '../../lib/oauth-metrics-logger'
+import { config } from '@/config'
+import { validateToken } from '@/lib/auth'
+import { getAllServers, ensureServersInitialized } from '@/lib/fhir-server-store'
+import { logger } from '@/lib/logger'
+import { oauthMetricsLogger } from '@/lib/oauth-metrics-logger'
 import {
   TokenRequest,
   IntrospectRequest,
@@ -16,14 +16,15 @@ import {
   TokenResponse,
   UserInfoHeader,
   UserInfoResponse,
-  UserInfoErrorResponse
-} from '../../schemas'
+  UserInfoErrorResponse,
+  
+} from '@/schemas'
 
 interface TokenPayload {
   sub?: string
   smart_patient?: string
   smart_encounter?: string
-  smart_fhir_user?: string
+  fhirUser?: string
   smart_fhir_context?: string | object
   smart_intent?: string
   smart_style_url?: string
@@ -105,6 +106,8 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
     )
 
     // Add all query parameters to the Keycloak URL
+    // SMART scopes (launch/patient, patient/*.read, etc.) are now configured in Keycloak
+    // as client scopes, so we can pass them through directly
     Object.entries(query).forEach(([k, v]) => {
       if (v !== undefined && v !== null) {
         url.searchParams.set(k, v as string)
@@ -274,8 +277,13 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       if (bodyObj.client_secret || bodyObj.clientSecret) formData.append('client_secret', bodyObj.client_secret || bodyObj.clientSecret!)
       if (bodyObj.code_verifier || bodyObj.codeVerifier) formData.append('code_verifier', bodyObj.code_verifier || bodyObj.codeVerifier!)
       if (bodyObj.refresh_token || bodyObj.refreshToken) formData.append('refresh_token', bodyObj.refresh_token || bodyObj.refreshToken!)
+      
+      // Pass scope through directly - SMART scopes are now configured in Keycloak
       if (bodyObj.scope) formData.append('scope', bodyObj.scope)
-      if (bodyObj.audience) formData.append('audience', bodyObj.audience)
+      
+  if (bodyObj.audience) formData.append('audience', bodyObj.audience)
+  // RFC 8707 Resource Indicators support
+  if (bodyObj.resource) formData.append('resource', bodyObj.resource)
 
       // Handle password grant fields
       if (bodyObj.username) formData.append('username', bodyObj.username)
@@ -284,6 +292,11 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       // Handle Backend Services (client_credentials with JWT authentication)
       if (bodyObj.client_assertion_type) formData.append('client_assertion_type', bodyObj.client_assertion_type)
       if (bodyObj.client_assertion) formData.append('client_assertion', bodyObj.client_assertion)
+
+      // Handle Token Exchange (RFC 8693)
+      if (bodyObj.subject_token) formData.append('subject_token', bodyObj.subject_token)
+      if (bodyObj.subject_token_type) formData.append('subject_token_type', bodyObj.subject_token_type)
+      if (bodyObj.requested_token_type) formData.append('requested_token_type', bodyObj.requested_token_type)
 
       const rawBody = formData.toString()
       logger.auth.debug('Sending form data to Keycloak', {
@@ -307,7 +320,8 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       // Log OAuth event
       const clientId = bodyObj.client_id || bodyObj.clientId || 'unknown';
       const grantType = bodyObj.grant_type || bodyObj.grantType || 'unknown';
-      const scopes = bodyObj.scope ? bodyObj.scope.split(' ') : [];
+      const requestedScope = bodyObj.scope;
+      const scopes = requestedScope ? requestedScope.split(' ') : [];
 
       try {
         await oauthMetricsLogger.logEvent({
@@ -341,6 +355,16 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       // Set the proper HTTP status code from Keycloak response
       set.status = resp.status
 
+      // RFC 6749 Section 5.1: Token response MUST include cache headers
+      // SMART 2.2.0 compliance: These headers are required for token responses
+      set.headers['Cache-Control'] = 'no-store'
+      set.headers['Pragma'] = 'no-cache'
+
+      // CORS headers for token endpoint (required by SMART)
+      set.headers['Access-Control-Allow-Origin'] = '*'
+      set.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+      set.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+
       // If there's an error, return it with the proper status code
       if (data.error) {
         logger.auth.warn('OAuth2 error from Keycloak', {
@@ -366,8 +390,26 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
             data.encounter = tokenPayload.smart_encounter
           }
 
-          if (tokenPayload.smart_fhir_user) {
-            data.fhirUser = tokenPayload.smart_fhir_user
+          if (tokenPayload.fhirUser) {
+            // Convert relative fhirUser reference to absolute URL per SMART spec
+            // The fhirUser claim should be a full URL to the FHIR resource
+            const fhirUserValue = tokenPayload.fhirUser
+            if (fhirUserValue.startsWith('http://') || fhirUserValue.startsWith('https://')) {
+              // Already an absolute URL
+              data.fhirUser = fhirUserValue
+            } else {
+              // Convert relative reference (e.g., "Practitioner/123") to absolute URL
+              // Use the first FHIR server as the base
+              const serverInfos = await getAllServers()
+              if (serverInfos.length > 0) {
+                const server = serverInfos[0]
+                const fhirBaseUrl = `${config.baseUrl}/${config.name}/${server.identifier}/${server.metadata.fhirVersion}`
+                data.fhirUser = `${fhirBaseUrl}/${fhirUserValue}`
+              } else {
+                // Fallback to relative if no servers configured
+                data.fhirUser = fhirUserValue
+              }
+            }
           }
 
           if (tokenPayload.smart_fhir_context) {
@@ -395,6 +437,21 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
           if (tokenPayload.smart_need_patient_banner) {
             data.need_patient_banner = tokenPayload.smart_need_patient_banner === 'true' || tokenPayload.smart_need_patient_banner === true
           }
+
+          // Restore SMART scopes in the token response
+          // With SMART scopes configured in Keycloak, Keycloak should return them
+          // But we also support smart_scope claim from protocol mapper
+          if (tokenPayload.smart_scope) {
+            // If the token has smart_scope claim, use that (set via protocol mapper)
+            data.scope = tokenPayload.smart_scope
+          } else if (requestedScope && !data.scope) {
+            // If scope was passed in token request and Keycloak didn't return scope, use requested
+            data.scope = requestedScope
+            logger.auth.debug('Using requested scope for token response', {
+              requestedScope
+            })
+          }
+          // Otherwise, use Keycloak's returned scope (which now includes SMART scopes)
 
           // Add authorization_details for multiple FHIR servers support (RFC 9396)
           // Generate based on configured FHIR servers and token claims
@@ -452,6 +509,10 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
   .get('/userinfo', async ({ headers, set }) => {
     if (!headers.authorization) {
       set.status = 401
+      // Advertise Protected Resource Metadata per RFC 9728 via WWW-Authenticate
+      const baseUrl = config.baseUrl || 'http://localhost:3001'
+      // Set RFC 9728 discovery hint
+      ;(set.headers as Record<string, string>)['WWW-Authenticate'] = `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource"`
       return { error: 'Unauthorized' }
     }
 
@@ -471,7 +532,7 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
 
       const profile = {
         id: payload.sub || '',
-        fhirUser: payload.smart_fhir_user || '',
+        fhirUser: payload.fhirUser || '',
         name: [{
           text: displayName
         }],
@@ -500,3 +561,4 @@ export const oauthRoutes = new Elysia({ tags: ['authentication'] })
       security: [{ BearerAuth: [] }]
     }
   })
+  

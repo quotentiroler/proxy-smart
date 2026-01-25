@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Edit, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { FhirServerWithState } from '../../lib/types/api';
+import type { FhirServerWithState } from '@/lib/types/api';
 
 interface EditServerDialogProps {
   open: boolean;
@@ -32,14 +32,14 @@ export function EditServerDialog({
   error,
   urlError
 }: EditServerDialogProps) {
-  const [editServerUrl, setEditServerUrl] = useState('');
+  const [editServerUrl, setEditServerUrl] = useState(server?.url || '');
   const [localUrlError, setLocalUrlError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (server) {
-      setEditServerUrl(server.url);
-    }
-  }, [server]);
+  // Sync editServerUrl when server changes
+  const serverUrl = server?.url;
+  if (serverUrl !== undefined && editServerUrl !== serverUrl && editServerUrl === '') {
+    setEditServerUrl(serverUrl);
+  }
 
   const isValidUrl = (url: string) => {
     try {

@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia'
-import { logger } from '../../lib/logger'
-import { config } from '../../config'
+import { logger } from '@/lib/logger'
+import { config } from '@/config'
 import fs from 'fs'
 import path from 'path'
 import {
@@ -8,27 +8,21 @@ import {
   TestKeycloakConnectionResponse,
   SaveKeycloakConfigRequest,
   SaveKeycloakConfigResponse,
-  KeycloakConfigResponse
-} from '../../schemas/admin/keycloak'
+  KeycloakConfigResponse,
+  type SaveKeycloakConfigRequestType
+} from '@/schemas/admin/keycloak'
 
 /**
  * Keycloak Configuration Management
  * Allows manual configuration of Keycloak connection when startup fails
  */
 
-interface KeycloakConfig {
-  baseUrl: string
-  realm: string
-  adminClientId?: string
-  adminClientSecret?: string
-}
-
 const ENV_FILE_PATH = path.join(process.cwd(), '.env')
 
 /**
  * Update environment variables in .env file and process.env
  */
-function updateConfiguration(keycloakConfig: KeycloakConfig): void {
+function updateConfiguration(keycloakConfig: SaveKeycloakConfigRequestType): void {
   let envContent = ''
   
   // Read existing .env file if it exists

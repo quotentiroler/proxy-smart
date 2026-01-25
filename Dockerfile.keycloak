@@ -1,4 +1,4 @@
-FROM quay.io/keycloak/keycloak:26.2
+FROM quay.io/keycloak/keycloak:26.4.0
 
 # Copy the realm export file (will be overridden by docker-compose volume mount if needed)
 COPY keycloak/realm-export.json /opt/keycloak/data/import/realm-export.json
@@ -6,7 +6,6 @@ COPY keycloak/realm-export.json /opt/keycloak/data/import/realm-export.json
 # Set environment variables for production operation
 ENV KEYCLOAK_ADMIN=admin
 ENV KC_DB=postgres
-ENV KC_PROXY=edge
 ENV KC_PROXY_HEADERS=xforwarded
 ENV KC_HTTP_ENABLED=true
 ENV KC_HOSTNAME_STRICT=false

@@ -10,6 +10,9 @@ export * from './auth'
 // AI Assistant schemas (chat, documentation)
 export * from './ai-assistant'
 
+// Documentation schemas (public doc routes)
+export * from './docs'
+
 // FHIR schemas (SMART configuration, FHIR responses)
 export * from './fhir'
 
@@ -18,3 +21,9 @@ export * from './monitoring'
 
 // Websocket schemas (messages, notifications)
 export * from './websocket'
+
+// MCP schemas (authorization discovery, MCP HTTP transport)
+export * from './mcp'
+
+// Consent schemas (consent enforcement)
+export * from './consent'

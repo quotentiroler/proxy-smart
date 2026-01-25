@@ -103,7 +103,7 @@ export function PersonResourceLinker({
     }
 
     const link: CustomPersonLink = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       target: {
         resourceType: newLink.target.resourceType as LinkedResourceType,
         reference: newLink.target.reference,

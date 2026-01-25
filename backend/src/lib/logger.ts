@@ -52,7 +52,8 @@ const getDefaultConfig = (): LoggerConfig => {
       'security': Math.max(LogLevel.WARN, baseLevel),
       'performance': Math.max(LogLevel.INFO, baseLevel),
       'sse': Math.max(LogLevel.INFO, baseLevel),
-      'ws': Math.max(LogLevel.INFO, baseLevel)
+      'ws': Math.max(LogLevel.INFO, baseLevel),
+      'consent': Math.max(LogLevel.INFO, baseLevel)
     }
   };
 };
@@ -212,6 +213,13 @@ class Logger {
     warn: (message: string, data?: Record<string, unknown>) => this.warn('ws', message, data),
     info: (message: string, data?: Record<string, unknown>) => this.info('ws', message, data),
     debug: (message: string, data?: Record<string, unknown>) => this.debug('ws', message, data)
+  };
+
+  consent = {
+    error: (message: string, data?: Record<string, unknown>, error?: Error) => this.error('consent', message, data, error),
+    warn: (message: string, data?: Record<string, unknown>) => this.warn('consent', message, data),
+    info: (message: string, data?: Record<string, unknown>) => this.info('consent', message, data),
+    debug: (message: string, data?: Record<string, unknown>) => this.debug('consent', message, data)
   };
 }
 

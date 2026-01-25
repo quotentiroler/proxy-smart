@@ -29,11 +29,12 @@ export type CacheRefreshResponseType = Static<typeof CacheRefreshResponse>
 
 export const SmartConfigurationResponse = t.Object({
   issuer: t.String({ description: 'OpenID Connect issuer URL' }),
+  jwks_uri: t.Optional(t.String({ description: 'JSON Web Key Set URL for token validation (required when sso-openid-connect capability is supported)' })),
   authorization_endpoint: t.String({ description: 'OAuth2 authorization endpoint' }),
   token_endpoint: t.String({ description: 'OAuth2 token endpoint' }),
   introspection_endpoint: t.String({ description: 'OAuth2 token introspection endpoint' }),
   registration_endpoint: t.Optional(t.String({ description: 'RFC 7591 Dynamic Client Registration endpoint' })),
-  code_challenge_methods_supported: t.Array(t.String(), { description: 'Supported PKCE code challenge methods' }),
+  code_challenge_methods_supported: t.Array(t.String(), { description: 'Supported PKCE code challenge methods (SHALL include S256, SHALL NOT include plain per SMART 2.2.0)' }),
   grant_types_supported: t.Array(t.String(), { description: 'Supported OAuth2 grant types' }),
   response_types_supported: t.Array(t.String(), { description: 'Supported OAuth2 response types' }),
   scopes_supported: t.Array(t.String(), { description: 'Supported OAuth2 scopes' }),
@@ -63,4 +64,3 @@ export const SmartConfigRefreshResponse = t.Object({
 }, { title: 'SmartConfigRefreshResponse' })
 
 export type SmartConfigRefreshResponseType = Static<typeof SmartConfigRefreshResponse>
-

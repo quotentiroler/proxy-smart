@@ -158,8 +158,7 @@ jobs:
                     {"role": "system", "content": $system_content},
                     {"role": "user", "content": $user_content}
                   ],
-                  "max_completion_tokens": 800,
-                  "temperature": 0.2
+                  "max_completion_tokens": 800
                 }')
               
               # Make API call with detailed error reporting

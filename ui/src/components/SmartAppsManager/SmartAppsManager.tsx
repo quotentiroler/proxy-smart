@@ -27,16 +27,20 @@ import {
   Database,
   CheckCircle,
   AlertCircle,
-  UserPlus
+  UserPlus,
+  AlertTriangle,
+  Trash2
 } from 'lucide-react';
 import { SmartAppAddForm } from './SmartAppAddForm';
 import { SmartAppsTable } from './SmartAppsTable';
 import { SmartAppsStatistics } from './SmartAppsStatistics';
 import { DynamicClientRegistrationSettings } from '../DynamicClientRegistrationSettings';
+import { NotificationToast } from '../ui/NotificationToast';
 import { useAuth } from '@/stores/authStore';
 import { useAppStore } from '@/stores/appStore';
 import { getItem } from '@/lib/storage';
-import type { SmartApp, ScopeSet, SmartAppFormData } from '@/lib/types/api';
+import { createAuthenticatedClientApis } from '@/lib/apiClient';
+import type { SmartApp, ScopeSet, SmartAppFormData, SmartAppClientTypeEnum } from '@/lib/types/api';
 
 // Mock data for SMART on FHIR applications
 const mockApps: SmartApp[] = [
@@ -52,7 +56,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-28',
     description: 'AI-powered clinical decision support tool',
     appType: 'ehr-launch',
-    authenticationType: 'asymmetric',
+    clientAuthenticatorType: 'client-jwt',
     serverAccessType: 'user-person-servers',
   },
   {
@@ -66,7 +70,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-27',
     description: 'Patient self-service portal',
     appType: 'standalone-app',
-    authenticationType: 'symmetric',
+    clientAuthenticatorType: 'client-secret',
     serverAccessType: 'all-servers',
   },
   {
@@ -81,7 +85,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-20',
     description: 'Clinical research data analytics platform',
     appType: 'backend-service',
-    authenticationType: 'asymmetric',
+    clientAuthenticatorType: 'client-jwt',
     serverAccessType: 'selected-servers',
     allowedServerIds: ['hapi-fhir-org', 'test-server-1'],
   },
@@ -96,7 +100,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-26',
     description: 'Mobile application for patient health monitoring',
     appType: 'standalone-app',
-    authenticationType: 'asymmetric',
+    clientAuthenticatorType: 'client-jwt',
     serverAccessType: 'user-person-servers',
   },
   {
@@ -110,7 +114,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-25',
     description: 'Laboratory results visualization tool',
     appType: 'ehr-launch',
-    authenticationType: 'symmetric',
+    clientAuthenticatorType: 'client-secret',
     serverAccessType: 'selected-servers',
     allowedServerIds: ['lab-server-main'],
   },
@@ -125,7 +129,7 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-28',
     description: 'Autonomous AI agent that independently analyzes patient data and creates clinical assessments.',
     appType: 'agent',
-    authenticationType: 'asymmetric',
+    clientAuthenticatorType: 'client-jwt',
     serverAccessType: 'all-servers',
   },
   {
@@ -139,13 +143,13 @@ const mockApps: SmartApp[] = [
     lastUsed: '2024-12-29',
     description: 'Autonomous robotic lawnmower with emergency medical response capabilities.',
     appType: 'agent',
-    authenticationType: 'asymmetric',
+    clientAuthenticatorType: 'client-jwt',
     serverAccessType: 'all-servers',
   },
 ];
 
 export function SmartAppsManager() {
-  const { smartAppsManagerTab, setSmartAppsManagerTab } = useAppStore();
+  const { smartAppsManagerTab, setSmartAppsManagerTab, setIsAIAssistantEnabled } = useAppStore();
   const { clientApis } = useAuth();
   const [apps, setApps] = useState<SmartApp[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,7 +157,16 @@ export function SmartAppsManager() {
   const [scopeSets, setScopeSets] = useState<ScopeSet[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showScopeDialog, setShowScopeDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingApp, setEditingApp] = useState<SmartApp | null>(null);
+  const [editFormData, setEditFormData] = useState<{ name: string; description: string }>({ name: '', description: '' });
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   // Load scope sets from ScopeManager
   useEffect(() => {
@@ -186,13 +199,13 @@ export function SmartAppsManager() {
         } else {
           // Convert backend apps to our format
           const convertedApps: SmartApp[] = fetchedApps.map((backendApp: SmartApp) => ({
-            ...backendApp, // Inherit all API model fields
+            ...backendApp, // Inherit all API model fields (includes clientAuthenticatorType)
             // UI-specific computed/helper fields
             scopeSetId: undefined,
             status: backendApp.enabled ? 'active' : 'inactive',
             lastUsed: new Date().toISOString().split('T')[0], // Default to today
-            appType: backendApp.serviceAccountsEnabled ? 'backend-service' : 'standalone-app',
-            authenticationType: backendApp.clientAuthenticatorType === 'client-jwt' ? 'asymmetric' : 'symmetric',
+            // Use appType from backend if available, otherwise infer from serviceAccountsEnabled
+            appType: backendApp.appType || (backendApp.serviceAccountsEnabled ? 'backend-service' : 'standalone-app'),
             serverAccessType: 'all-servers', // Default for now
             allowedServerIds: undefined,
           }));
@@ -221,12 +234,12 @@ export function SmartAppsManager() {
           publicClient: appData.publicClient,
           redirectUris: appData.redirectUris,
           webOrigins: appData.webOrigins,
-          defaultScopes: appData.defaultScopes,
-          optionalScopes: appData.optionalScopes,
+          defaultClientScopes: appData.defaultClientScopes,
+          optionalClientScopes: appData.optionalClientScopes,
           smartVersion: appData.smartVersion,
           fhirVersion: appData.fhirVersion,
           appType: appData.appType,
-          clientType: appData.clientType as 'public' | 'confidential' | 'backend-service' | undefined,
+          clientType: appData.clientType as SmartAppClientTypeEnum,
           publicKey: appData.publicKey,
           jwksUri: appData.jwksUri,
           systemScopes: appData.systemScopes
@@ -234,13 +247,13 @@ export function SmartAppsManager() {
       });
 
       // Refresh the apps list from the backend to get the newly created app
-      const response = await clientApis.smartApps.getAdminSmartApps();
-      if (Array.isArray(response)) {
-        setBackendApps(response);
+      const updatedApps = await clientApis.smartApps.getAdminSmartApps();
+      if (Array.isArray(updatedApps)) {
+        setBackendApps(updatedApps);
         // Merge backend apps with mock apps for display
-        const backendAppIds = new Set(response.map(a => a.id));
+        const backendAppIds = new Set(updatedApps.map(a => a.id));
         const remainingMockApps = mockApps.filter(app => !backendAppIds.has(app.id));
-        setApps([...response, ...remainingMockApps]);
+        setApps([...updatedApps, ...remainingMockApps]);
       }
 
       setShowAddForm(false);
@@ -282,22 +295,116 @@ export function SmartAppsManager() {
     setShowScopeDialog(true);
   };
 
+  const handleEditApp = (app: SmartApp) => {
+    setEditingApp(app);
+    setShowEditDialog(true);
+  };
+
+  const handleViewConfig = (app: SmartApp) => {
+    setEditingApp(app);
+    setShowConfigDialog(true);
+  };
+
+  const handleEditAuth = (app: SmartApp) => {
+    setEditingApp(app);
+    setShowAuthDialog(true);
+  };
+
   const getScopeSetName = (scopeSetId?: string) => {
     if (!scopeSetId) return 'Custom';
     const scopeSet = scopeSets.find(set => set.id === scopeSetId);
     return scopeSet ? scopeSet.name : 'Unknown';
   };
 
-  const toggleAppStatus = (id: string) => {
-    setApps(apps.map(app =>
-      app.id === id
-        ? { ...app, status: app.status === 'active' ? 'inactive' as const : 'active' as const }
-        : app
-    ));
+  const toggleAppStatus = async (clientId: string) => {
+    const app = apps.find(a => a.clientId === clientId);
+    if (!app) return;
+
+    const newStatus = app.status === 'active' ? 'inactive' : 'active';
+    const newEnabled = newStatus === 'active';
+
+    try {
+      // Optimistically update UI
+      setApps(apps.map(a =>
+        a.clientId === clientId
+          ? { ...a, status: newStatus, enabled: newEnabled }
+          : a
+      ));
+
+      // Call backend API
+      const apis = await createAuthenticatedClientApis();
+      await apis.smartApps.putAdminSmartAppsByClientId({
+        clientId: clientId,
+        updateSmartAppRequest: {
+          name: app.name,
+          description: app.description,
+          enabled: newEnabled,
+          redirectUris: app.redirectUris,
+          webOrigins: app.webOrigins || []
+        }
+      });
+
+      // Update AI Assistant enabled state if this is the AI Assistant
+      if (clientId === 'ai-assistant-agent') {
+        setIsAIAssistantEnabled(newEnabled);
+      }
+
+      setNotification({
+        type: 'success',
+        message: `Application "${app.name}" ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`
+      });
+    } catch (error) {
+      console.error('Failed to toggle app status:', error);
+      
+      // Revert optimistic update on error
+      setApps(apps.map(a =>
+        a.clientId === clientId
+          ? { ...a, status: app.status, enabled: app.enabled }
+          : a
+      ));
+
+      setNotification({
+        type: 'error',
+        message: `Failed to ${newStatus === 'active' ? 'activate' : 'deactivate'} application: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
   };
 
-  const deleteApp = (id: string) => {
-    setApps(apps.filter(app => app.id !== id));
+  const deleteApp = (clientId: string) => {
+    const app = apps.find(a => a.clientId === clientId);
+    if (app) {
+      setEditingApp(app);
+      setShowDeleteDialog(true);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!editingApp?.clientId) return;
+
+    try {
+      const apis = await createAuthenticatedClientApis();
+      await apis.smartApps.deleteAdminSmartAppsByClientId({
+        clientId: editingApp.clientId
+      });
+
+      // Remove from local state
+      setApps(apps.filter(app => app.clientId !== editingApp.clientId));
+      setBackendApps(backendApps.filter(app => app.clientId !== editingApp.clientId));
+
+      setNotification({
+        type: 'success',
+        message: `Successfully deleted application "${editingApp.name}"`
+      });
+      
+      setShowDeleteDialog(false);
+      setEditingApp(null);
+    } catch (error) {
+      console.error('Failed to delete app:', error);
+      setNotification({
+        type: 'error',
+        message: `Failed to delete application: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
   };
 
   return (
@@ -406,6 +513,9 @@ export function SmartAppsManager() {
         onToggleAppStatus={toggleAppStatus}
         onOpenScopeEditor={openScopeEditor}
         onDeleteApp={deleteApp}
+        onEditApp={handleEditApp}
+        onViewConfig={handleViewConfig}
+        onEditAuth={handleEditAuth}
       />
 
       {/* Scope Management Dialog */}
@@ -552,6 +662,300 @@ export function SmartAppsManager() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit App Details Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={(open) => {
+        setShowEditDialog(open);
+        if (!open) {
+          setEditFormData({ name: '', description: '' });
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Application Details</DialogTitle>
+            <DialogDescription>
+              Update the basic information for {editingApp?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {editingApp && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Application Name</label>
+                <input
+                  type="text"
+                  value={editFormData.name || editingApp.name || ''}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full mt-1 rounded-xl border border-input bg-background px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Description</label>
+                <textarea
+                  value={editFormData.description || editingApp.description || ''}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                  className="w-full mt-1 rounded-xl border border-input bg-background px-3 py-2"
+                />
+              </div>
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+                <Button onClick={async () => {
+                  if (!editingApp?.clientId) return;
+                  try {
+                    await clientApis.smartApps.putAdminSmartAppsByClientId({
+                      clientId: editingApp.clientId,
+                      updateSmartAppRequest: {
+                        name: editFormData.name || editingApp.name,
+                        description: editFormData.description || editingApp.description,
+                      }
+                    });
+                    // Refresh apps list
+                    const updatedApps = await clientApis.smartApps.getAdminSmartApps();
+                    if (Array.isArray(updatedApps)) {
+                      setBackendApps(updatedApps);
+                      setApps(updatedApps.map((app: SmartApp) => ({
+                        ...app,
+                        status: app.enabled ? 'active' : 'inactive',
+                        lastUsed: new Date().toISOString().split('T')[0],
+                        appType: app.appType || (app.serviceAccountsEnabled ? 'backend-service' : 'standalone-app'),
+                        serverAccessType: 'all-servers',
+                      })));
+                    }
+                    setNotification({ type: 'success', message: 'Application updated successfully' });
+                    setShowEditDialog(false);
+                    setEditFormData({ name: '', description: '' });
+                  } catch (error) {
+                    console.error('Failed to update app:', error);
+                    setNotification({ type: 'error', message: 'Failed to update application' });
+                  }
+                }}>Save Changes</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Configuration Dialog */}
+      <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Application Configuration</DialogTitle>
+            <DialogDescription>
+              Complete configuration details for {editingApp?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {editingApp && (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Basic Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="font-medium text-muted-foreground">Client ID:</div>
+                    <div className="font-mono">{editingApp.clientId}</div>
+                    <div className="font-medium text-muted-foreground">Name:</div>
+                    <div>{editingApp.name}</div>
+                    <div className="font-medium text-muted-foreground">Type:</div>
+                    <div>{editingApp.appType}</div>
+                    <div className="font-medium text-muted-foreground">Authentication:</div>
+                    <div>{editingApp.clientAuthenticatorType || 'client-secret'}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Redirect URIs</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-1">
+                    {editingApp.redirectUris?.map((uri, i) => (
+                      <code key={i} className="block text-xs bg-muted px-2 py-1 rounded">{uri}</code>
+                    )) || <span className="text-sm text-muted-foreground">No redirect URIs configured</span>}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Scopes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="text-xs font-medium mb-1">Default Scopes:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {editingApp.defaultClientScopes?.map((scope, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">{scope}</Badge>
+                        )) || <span className="text-sm text-muted-foreground">None</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium mb-1">Optional Scopes:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {editingApp.optionalClientScopes?.map((scope, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">{scope}</Badge>
+                        )) || <span className="text-sm text-muted-foreground">None</span>}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* MCP Access Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">MCP Server Access (AI Capabilities)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="text-xs font-medium mb-1">Access Type:</div>
+                      <Badge variant="outline" className="text-xs">
+                        {(editingApp as SmartApp & { mcpAccessType?: string }).mcpAccessType || 'none'}
+                      </Badge>
+                    </div>
+                    {(editingApp as SmartApp & { mcpAccessType?: string; allowedMcpServerNames?: string[] }).mcpAccessType === 'selected-mcp-servers' && (
+                      <div>
+                        <div className="text-xs font-medium mb-1">Allowed MCP Servers:</div>
+                        <div className="flex flex-wrap gap-1">
+                          {(editingApp as SmartApp & { allowedMcpServerNames?: string[] }).allowedMcpServerNames?.map((name, i) => (
+                            <Badge key={i} variant="outline" className="text-xs bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20">{name}</Badge>
+                          )) || <span className="text-sm text-muted-foreground">None</span>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end pt-4">
+                <Button onClick={() => setShowConfigDialog(false)}>Close</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Authentication Settings Dialog */}
+      <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Authentication Settings</DialogTitle>
+            <DialogDescription>
+              View authentication configuration for {editingApp?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {editingApp && (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Current Configuration</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <div className="text-sm font-medium mb-1">Authentication Type</div>
+                    <Badge>{editingApp.clientAuthenticatorType || 'client-secret'}</Badge>
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium mb-1">Public Client</div>
+                    <Badge>{editingApp.publicClient ? 'Yes' : 'No'}</Badge>
+                  </div>
+                  {editingApp.clientAuthenticatorType === 'client-jwt' && (
+                    <div>
+                      <div className="text-sm font-medium mb-1">JWKS Configuration</div>
+                      <div className="text-xs text-muted-foreground">
+                        Using asymmetric JWT authentication with registered public key
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="bg-muted/50 p-4 rounded-xl border border-border">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Note:</strong> Changing authentication type requires re-registering the application 
+                  to ensure proper key/secret generation. To change the auth method, delete this app and 
+                  create a new one with the desired configuration.
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" onClick={() => setShowAuthDialog(false)}>Close</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-red-500/10 rounded-xl flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <DialogTitle>Delete Application</DialogTitle>
+                <DialogDescription>
+                  This action cannot be undone
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          {editingApp && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-4 rounded-xl border border-border">
+                <div className="text-sm space-y-2">
+                  <div>
+                    <span className="font-medium">Application:</span> {editingApp.name}
+                  </div>
+                  <div>
+                    <span className="font-medium">Client ID:</span>
+                    <code className="ml-2 bg-background px-2 py-1 rounded text-xs">
+                      {editingApp.clientId}
+                    </code>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-red-500/10 border border-red-200 dark:border-red-800 p-4 rounded-xl">
+                <p className="text-sm text-red-900 dark:text-red-100">
+                  <strong>Warning:</strong> Deleting this application will permanently remove it from Keycloak. 
+                  Any active sessions and tokens for this application will be invalidated.
+                </p>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" onClick={() => {
+                  setShowDeleteDialog(false);
+                  setEditingApp(null);
+                }}>
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={confirmDelete}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Application
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Notification Toast */}
+      {notification && (
+        <NotificationToast
+          notification={notification}
+          onClose={() => setNotification(null)}
+        />
+      )}
               </TabsContent>
 
               <TabsContent value="registration" className="p-6 space-y-6">

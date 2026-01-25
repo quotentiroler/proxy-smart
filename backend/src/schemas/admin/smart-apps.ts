@@ -24,7 +24,39 @@ export const SmartApp = t.Object({
   defaultClientScopes: t.Optional(t.Array(t.String(), { description: 'Default scopes' })),
   optionalClientScopes: t.Optional(t.Array(t.String(), { description: 'Optional scopes' })),
   appType: t.Optional(AppTypeLiteral),
-  access: t.Optional(t.Record(t.String(), t.Boolean()))
+  clientType: t.Optional(ClientTypeLiteral),
+  secret: t.Optional(t.String({ description: 'Client secret for symmetric authentication (only for confidential clients)' })),
+  access: t.Optional(t.Record(t.String(), t.Boolean(), { description: 'Keycloak admin console permissions (configure, manage, view) - informational only' })),
+  
+  // Additional UI/metadata fields
+  launchUrl: t.Optional(t.String({ description: 'SMART App launch URL' })),
+  logoUri: t.Optional(t.String({ description: 'Logo URI for application display' })),
+  tosUri: t.Optional(t.String({ description: 'Terms of Service URI' })),
+  policyUri: t.Optional(t.String({ description: 'Privacy Policy URI' })),
+  contacts: t.Optional(t.Array(t.String(), { description: 'Contact emails or names' })),
+  
+  // Server access control
+  serverAccessType: t.Optional(t.Union([
+    t.Literal('all-servers'),
+    t.Literal('selected-servers'),
+    t.Literal('user-person-servers')
+  ], { description: 'FHIR server access control type' })),
+  allowedServerIds: t.Optional(t.Array(t.String(), { description: 'List of allowed FHIR server IDs' })),
+  
+  // Scope set reference
+  scopeSetId: t.Optional(t.String({ description: 'Reference to a predefined scope set configuration' })),
+  
+  // PKCE and offline access
+  requirePkce: t.Optional(t.Boolean({ description: 'Require PKCE for public clients' })),
+  allowOfflineAccess: t.Optional(t.Boolean({ description: 'Allow offline access (refresh tokens)' })),
+  
+  // MCP server access control
+  mcpAccessType: t.Optional(t.Union([
+    t.Literal('none'),
+    t.Literal('all-mcp-servers'),
+    t.Literal('selected-mcp-servers')
+  ], { description: 'MCP server access control type' })),
+  allowedMcpServerNames: t.Optional(t.Array(t.String(), { description: 'List of allowed MCP server names (when mcpAccessType is selected-mcp-servers)' }))
 }, { title: 'SmartApp' })
 
 export const CreateSmartAppRequest = t.Object({
@@ -34,27 +66,95 @@ export const CreateSmartAppRequest = t.Object({
   publicClient: t.Optional(t.Boolean({ description: 'Whether this is a public client', default: true })),
   redirectUris: t.Optional(t.Array(t.String(), { description: 'Allowed redirect URIs' })),
   webOrigins: t.Optional(t.Array(t.String(), { description: 'Allowed web origins' })),
-  defaultScopes: t.Optional(t.Array(t.String(), { description: 'Default SMART scopes' })),
-  optionalScopes: t.Optional(t.Array(t.String(), { description: 'Optional SMART scopes' })),
+  defaultClientScopes: t.Optional(t.Array(t.String(), { description: 'Default SMART scopes' })),
+  optionalClientScopes: t.Optional(t.Array(t.String(), { description: 'Optional SMART scopes' })),
   smartVersion: t.Optional(t.String({ description: 'SMART App Launch version' })),
   fhirVersion: t.Optional(t.String({ description: 'FHIR version' })),
   appType: t.Optional(AppTypeLiteral),
   clientType: t.Optional(ClientTypeLiteral),
+  secret: t.Optional(t.String({ description: 'Client secret for symmetric authentication (only for confidential clients)' })),
   publicKey: t.Optional(t.String({ description: 'Public key for JWT authentication (PEM format)' })),
   jwksUri: t.Optional(t.String({ description: 'JWKS URI for JWT authentication' })),
-  systemScopes: t.Optional(t.Array(t.String(), { description: 'System-level scopes for backend services' }))
+  systemScopes: t.Optional(t.Array(t.String(), { description: 'System-level scopes for backend services' })),
+  
+  // Additional UI/metadata fields
+  launchUrl: t.Optional(t.String({ description: 'SMART App launch URL' })),
+  logoUri: t.Optional(t.String({ description: 'Logo URI for application display' })),
+  tosUri: t.Optional(t.String({ description: 'Terms of Service URI' })),
+  policyUri: t.Optional(t.String({ description: 'Privacy Policy URI' })),
+  contacts: t.Optional(t.Array(t.String(), { description: 'Contact emails or names' })),
+  
+  // Server access control
+  serverAccessType: t.Optional(t.Union([
+    t.Literal('all-servers'),
+    t.Literal('selected-servers'),
+    t.Literal('user-person-servers')
+  ], { description: 'FHIR server access control type' })),
+  allowedServerIds: t.Optional(t.Array(t.String(), { description: 'List of allowed FHIR server IDs (when serverAccessType is selected-servers)' })),
+  
+  // Scope set reference
+  scopeSetId: t.Optional(t.String({ description: 'Reference to a predefined scope set configuration' })),
+  
+  // PKCE and offline access
+  requirePkce: t.Optional(t.Boolean({ description: 'Require Proof Key for Code Exchange (PKCE) for public clients' })),
+  allowOfflineAccess: t.Optional(t.Boolean({ description: 'Allow offline access (refresh tokens)' })),
+  
+  // MCP server access control
+  mcpAccessType: t.Optional(t.Union([
+    t.Literal('none'),
+    t.Literal('all-mcp-servers'),
+    t.Literal('selected-mcp-servers')
+  ], { description: 'MCP server access control type (none = no MCP access, all-mcp-servers = access all, selected-mcp-servers = specific servers only)' })),
+  allowedMcpServerNames: t.Optional(t.Array(t.String(), { description: 'List of allowed MCP server names (when mcpAccessType is selected-mcp-servers)' }))
 }, { title: 'CreateSmartAppRequest' })
 
 export const UpdateSmartAppRequest = t.Object({
   name: t.Optional(t.String({ description: 'Application name' })),
   description: t.Optional(t.String({ description: 'Application description' })),
   enabled: t.Optional(t.Boolean({ description: 'Whether the app is enabled' })),
+  publicClient: t.Optional(t.Boolean({ description: 'Whether this is a public client' })),
   redirectUris: t.Optional(t.Array(t.String(), { description: 'Allowed redirect URIs' })),
   webOrigins: t.Optional(t.Array(t.String(), { description: 'Allowed web origins' })),
-  defaultScopes: t.Optional(t.Array(t.String(), { description: 'Default SMART scopes' })),
-  optionalScopes: t.Optional(t.Array(t.String(), { description: 'Optional SMART scopes' })),
+  defaultClientScopes: t.Optional(t.Array(t.String(), { description: 'Default SMART scopes' })),
+  optionalClientScopes: t.Optional(t.Array(t.String(), { description: 'Optional SMART scopes' })),
   smartVersion: t.Optional(t.String({ description: 'SMART App Launch version' })),
-  fhirVersion: t.Optional(t.String({ description: 'FHIR version' }))
+  fhirVersion: t.Optional(t.String({ description: 'FHIR version' })),
+  appType: t.Optional(AppTypeLiteral),
+  clientType: t.Optional(ClientTypeLiteral),
+  secret: t.Optional(t.String({ description: 'Client secret for symmetric authentication (only for confidential clients)' })),
+  publicKey: t.Optional(t.String({ description: 'Public key for JWT authentication (PEM format)' })),
+  jwksUri: t.Optional(t.String({ description: 'JWKS URI for JWT authentication' })),
+  systemScopes: t.Optional(t.Array(t.String(), { description: 'System-level scopes for backend services' })),
+  
+  // Additional UI/metadata fields
+  launchUrl: t.Optional(t.String({ description: 'SMART App launch URL' })),
+  logoUri: t.Optional(t.String({ description: 'Logo URI for application display' })),
+  tosUri: t.Optional(t.String({ description: 'Terms of Service URI' })),
+  policyUri: t.Optional(t.String({ description: 'Privacy Policy URI' })),
+  contacts: t.Optional(t.Array(t.String(), { description: 'Contact emails or names' })),
+  
+  // Server access control
+  serverAccessType: t.Optional(t.Union([
+    t.Literal('all-servers'),
+    t.Literal('selected-servers'),
+    t.Literal('user-person-servers')
+  ], { description: 'FHIR server access control type' })),
+  allowedServerIds: t.Optional(t.Array(t.String(), { description: 'List of allowed FHIR server IDs' })),
+  
+  // Scope set reference
+  scopeSetId: t.Optional(t.String({ description: 'Reference to a predefined scope set configuration' })),
+  
+  // PKCE and offline access
+  requirePkce: t.Optional(t.Boolean({ description: 'Require PKCE for public clients' })),
+  allowOfflineAccess: t.Optional(t.Boolean({ description: 'Allow offline access (refresh tokens)' })),
+  
+  // MCP server access control
+  mcpAccessType: t.Optional(t.Union([
+    t.Literal('none'),
+    t.Literal('all-mcp-servers'),
+    t.Literal('selected-mcp-servers')
+  ], { description: 'MCP server access control type' })),
+  allowedMcpServerNames: t.Optional(t.Array(t.String(), { description: 'List of allowed MCP server names' }))
 }, { title: 'UpdateSmartAppRequest' })
 
 export const ClientIdParam = t.Object({
