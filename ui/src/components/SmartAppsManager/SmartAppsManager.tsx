@@ -803,6 +803,33 @@ export function SmartAppsManager() {
                 </CardContent>
               </Card>
 
+              {/* MCP Access Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">MCP Server Access (AI Capabilities)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="text-xs font-medium mb-1">Access Type:</div>
+                      <Badge variant="outline" className="text-xs">
+                        {(editingApp as SmartApp & { mcpAccessType?: string }).mcpAccessType || 'none'}
+                      </Badge>
+                    </div>
+                    {(editingApp as SmartApp & { mcpAccessType?: string; allowedMcpServerNames?: string[] }).mcpAccessType === 'selected-mcp-servers' && (
+                      <div>
+                        <div className="text-xs font-medium mb-1">Allowed MCP Servers:</div>
+                        <div className="flex flex-wrap gap-1">
+                          {(editingApp as SmartApp & { allowedMcpServerNames?: string[] }).allowedMcpServerNames?.map((name, i) => (
+                            <Badge key={i} variant="outline" className="text-xs bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20">{name}</Badge>
+                          )) || <span className="text-sm text-muted-foreground">None</span>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               <div className="flex justify-end pt-4">
                 <Button onClick={() => setShowConfigDialog(false)}>Close</Button>
               </div>

@@ -48,7 +48,15 @@ export const SmartApp = t.Object({
   
   // PKCE and offline access
   requirePkce: t.Optional(t.Boolean({ description: 'Require PKCE for public clients' })),
-  allowOfflineAccess: t.Optional(t.Boolean({ description: 'Allow offline access (refresh tokens)' }))
+  allowOfflineAccess: t.Optional(t.Boolean({ description: 'Allow offline access (refresh tokens)' })),
+  
+  // MCP server access control
+  mcpAccessType: t.Optional(t.Union([
+    t.Literal('none'),
+    t.Literal('all-mcp-servers'),
+    t.Literal('selected-mcp-servers')
+  ], { description: 'MCP server access control type' })),
+  allowedMcpServerNames: t.Optional(t.Array(t.String(), { description: 'List of allowed MCP server names (when mcpAccessType is selected-mcp-servers)' }))
 }, { title: 'SmartApp' })
 
 export const CreateSmartAppRequest = t.Object({
@@ -89,7 +97,15 @@ export const CreateSmartAppRequest = t.Object({
   
   // PKCE and offline access
   requirePkce: t.Optional(t.Boolean({ description: 'Require Proof Key for Code Exchange (PKCE) for public clients' })),
-  allowOfflineAccess: t.Optional(t.Boolean({ description: 'Allow offline access (refresh tokens)' }))
+  allowOfflineAccess: t.Optional(t.Boolean({ description: 'Allow offline access (refresh tokens)' })),
+  
+  // MCP server access control
+  mcpAccessType: t.Optional(t.Union([
+    t.Literal('none'),
+    t.Literal('all-mcp-servers'),
+    t.Literal('selected-mcp-servers')
+  ], { description: 'MCP server access control type (none = no MCP access, all-mcp-servers = access all, selected-mcp-servers = specific servers only)' })),
+  allowedMcpServerNames: t.Optional(t.Array(t.String(), { description: 'List of allowed MCP server names (when mcpAccessType is selected-mcp-servers)' }))
 }, { title: 'CreateSmartAppRequest' })
 
 export const UpdateSmartAppRequest = t.Object({
@@ -130,7 +146,15 @@ export const UpdateSmartAppRequest = t.Object({
   
   // PKCE and offline access
   requirePkce: t.Optional(t.Boolean({ description: 'Require PKCE for public clients' })),
-  allowOfflineAccess: t.Optional(t.Boolean({ description: 'Allow offline access (refresh tokens)' }))
+  allowOfflineAccess: t.Optional(t.Boolean({ description: 'Allow offline access (refresh tokens)' })),
+  
+  // MCP server access control
+  mcpAccessType: t.Optional(t.Union([
+    t.Literal('none'),
+    t.Literal('all-mcp-servers'),
+    t.Literal('selected-mcp-servers')
+  ], { description: 'MCP server access control type' })),
+  allowedMcpServerNames: t.Optional(t.Array(t.String(), { description: 'List of allowed MCP server names' }))
 }, { title: 'UpdateSmartAppRequest' })
 
 export const ClientIdParam = t.Object({
