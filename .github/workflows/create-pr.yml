@@ -10,6 +10,10 @@ on:
       - "ai/test/*"
       - "ai/checklist/*"
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   pr-to-develop:
     name: Create/Update PR from dev/* → develop
