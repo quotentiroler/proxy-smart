@@ -107,11 +107,20 @@
     "version:check": "node scripts/version.js check",
     "version:base": "node scripts/version.js base",
     "ai:commit-comment": "cd scripts && node ai-commit-comment.mjs",
-    "precommit": "bun run version:sync"
+    "precommit": "bun run version:sync",
+    "infra:synth": "cd infra && npx cdk synth",
+    "infra:diff": "cd infra && npx cdk diff",
+    "infra:deploy": "cd infra && npx cdk deploy --all",
+    "infra:deploy:alpha": "cd infra && npx cdk deploy --all -c environment=alpha",
+    "infra:deploy:beta": "cd infra && npx cdk deploy --all -c environment=beta",
+    "infra:deploy:production": "cd infra && npx cdk deploy --all -c environment=production",
+    "infra:destroy": "cd infra && npx cdk destroy --all",
+    "infra:bootstrap": "cd infra && npx cdk bootstrap"
   },
   "type": "module",
   "workspaces": [
     "backend",
-    "ui"
+    "ui",
+    "infra"
   ]
 }
